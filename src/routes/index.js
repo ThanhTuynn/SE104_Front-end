@@ -18,6 +18,8 @@ import AdjustProductPage from '../pages/AdjustProductPage/AdjustProductPage'; //
 import SignIn from '../pages/SignIn/SignIn';
 import SignUp from '../pages/SignUp/SignUp';  
 import SignUpDetails from '../pages/SignUp/SignUp_next'; // Import SignUpDetails
+import Dashboard from '../pages/DashboardPage/Dashboard'
+import Personal from '../pages/PersonalInfoPage/Personal'
 
 const routes = [
     {
@@ -129,6 +131,16 @@ const routes = [
     {
         path: 'signup-details',
         page: SignUpDetails,
+    },
+    {
+        path: 'dashboard',
+        page: Dashboard,
+        isShowHeader: true
+    },
+    {
+        path: 'personal',
+        page: Personal,
+        isShowHeader: true
     },
     {
         path: '*',
