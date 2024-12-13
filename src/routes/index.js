@@ -7,6 +7,8 @@ import DetailEmployee from '../pages/DetailEmployee/DetailEmployee'
 import ImportProduct from '../pages/ImportProductPage/ImportProduct'
 import CreateImportProduct from '../pages/CreateImportProduct/CreateImportProduct'
 import DetailImportProduct from '../pages/DetailImportProduct/DetailImportProduct'
+import Dashboard from '../pages/DashboardPage/Dashboard'
+import Personal from '../pages/PersonalInfoPage/Personal'
 
 const routes = [
     {
@@ -47,6 +49,16 @@ const routes = [
     {
         path: 'create-import-product',
         page: CreateImportProduct,
+        isShowHeader: true
+    },
+    {
+        path: 'dashboard',
+        page: Dashboard,
+        isShowHeader: true
+    },
+    {
+        path: 'personal',
+        page: Personal,
         isShowHeader: true
     },
     {
