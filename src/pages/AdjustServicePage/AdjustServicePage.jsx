@@ -194,7 +194,7 @@ const handleDeleteService = (id) => {
     setIsConfirmModalVisible(false);
   };
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-adjust-service">
       {/* Sidebar */}
       <div className="bod">
         {/* Nội dung chính */}

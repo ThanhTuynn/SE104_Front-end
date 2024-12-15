@@ -42,7 +42,7 @@ const App = () => {
     ]);
   };
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-container-adjust">
       {/* Sidebar */}
       <div className="body_them">
         <Layout>

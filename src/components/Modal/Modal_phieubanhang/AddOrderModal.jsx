@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { Select, Input,Button } from "antd";
-import { UserOutlined } from '@ant-design/icons';
+import { Select, Input, Button, Space } from "antd";
+import { UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhang";
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";

@@ -25,7 +25,7 @@ const SignUp = () => {
   };
 
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-signupp">
       <Header className="header">
         <div className="header-content">
           <img src="/logo.png" alt="Logo" className="logo-image" />

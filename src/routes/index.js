@@ -23,6 +23,18 @@ import Personal from '../pages/PersonalInfoPage/Personal'
 
 const routes = [
     {
+        path: '/',
+        page: SignIn,  // Đặt SignIn làm trang mặc định
+        isShowHeader: false,
+        protected: false,
+    },
+    {
+        path: '/dashboard',
+        page: Dashboard,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
         path: 'list-customer',
         page: ListCustomerPage,
         isShowHeader: true,
@@ -77,12 +89,6 @@ const routes = [
         protected: false,
     },
     {
-        path: '/',
-        page: HomePage,
-        isShowHeader: true,
-        protected: true,
-    },
-    {
         path: 'adjust-service/:id',
         page: AdjustServicePage,
         isShowHeader: true,
@@ -90,6 +96,12 @@ const routes = [
     },
     {
         path: 'list-order-product',
+        page: OrderProductPage,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: 'order-product-detail/:id', // Ensure this path matches the navigation path
         page: OrderProductPage,
         isShowHeader: true,
         protected: true,
@@ -133,14 +145,15 @@ const routes = [
         page: SignUpDetails,
     },
     {
-        path: 'dashboard',
-        page: Dashboard,
-        isShowHeader: true
-    },
-    {
         path: 'personal',
         page: Personal,
         isShowHeader: true
+    },
+    {
+        path: '/logout',
+        page: SignIn,
+        isShowHeader: false,
+        protected: false,
     },
     {
         path: '*',

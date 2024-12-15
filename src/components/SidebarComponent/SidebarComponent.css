@@ -4,6 +4,7 @@
     padding: 0;
     box-sizing: border-box;
     font-family: "Poppins", sans-serif;
+}
 
 body {
     min-height: 100vh;
@@ -14,9 +15,10 @@ body {
     width: 270px;
     position: fixed;
     margin: 16px;
+    border-radius: 12px;
     background: #091057;
     height: calc(100vh - 32px);
-    border-radius: 20px;
+    z-index: 1000; /* Add higher z-index to appear above table */
 }
 
 .sidebar-header {
@@ -24,20 +26,21 @@ body {
     padding: 25px 20px;
     align-items: center;
     justify-content: space-between;
+}
 
-    .header-logo img {
-    width: 260px; 
-    height: 120px;
+.sidebar-header .header-logo img {
+    width: 200px; 
+    height: 80px;
     display: block;
     margin-left: -10px;
     margin-bottom: -20px;   
 }
 
-.toggler {
+.sidebar-header .toggler {
     height: 35px;
     width: 35px;
     border: none;
-    color:#091057;
+    color: #091057;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -47,13 +50,12 @@ body {
     transition: 0.4s ease;
 }
 
-.toggler:hover {
+.sidebar-header .toggler:hover {
     background: #dde4fb;
 }
 
-.toggler span{
+.sidebar-header .toggler span{
     font-size: 1.75rem;
-}
 }
 
 .sidebar-nav .nav-list {
@@ -74,20 +76,17 @@ body {
     text-decoration: none;
     transition: 0.4s ease;
     margin-top: -5px;
-    margin-bottom: 5px;
-    font-size: 16px;
+    margin-bottom: 10px;
+    font-size: 14px;
 }
-.nav-link.active {
+
+.sidebar-nav .nav-link:hover {
     color: #091057;
-    background: #ffffff;
-    font-weight: bold;
-  }
-  
+    background: #FFFFFF;
+}
 
 .sidebar-nav .secondary-nav {
     position: absolute;
     bottom: 10px;
     width: 100%;
-}
-
 }

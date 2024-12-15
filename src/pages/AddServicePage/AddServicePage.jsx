@@ -212,7 +212,7 @@ const App = () => {
     setIsConfirmModalVisible(false);
   };
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-add-service">
       {/* Sidebar */}
       <div className="bod">
         {/* Nội dung chính */}

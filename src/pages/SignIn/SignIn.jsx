@@ -13,10 +13,9 @@ const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-
   const onSearch = (value) => console.log(value);
 
-  const onFinish = async (values) => {
+  const handleSubmit = async (values) => {
     try {
       setLoading(true);
       // Here you would make an API call to authenticate
@@ -25,7 +24,7 @@ const SignIn = () => {
       
       login(values); // Store auth state
       message.success('Đăng nhập thành công!');
-      navigate('/list-service'); // Redirect after login
+      navigate('/dashboard'); // Redirect to Dashboard after login
     } catch (error) {
       message.error('Đăng nhập thất bại!');
     } finally {
@@ -34,7 +33,7 @@ const SignIn = () => {
   };
 
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-signin">
       <Header  className="headerr">
         <div className="header-content">
           <img src="/logo.png" alt="Logo" className="logo-image" />
@@ -63,7 +62,7 @@ const SignIn = () => {
           <Form
             name="signin_form"
             layout="vertical"
-            onFinish={onFinish}
+            onFinish={handleSubmit}
           >
             <Form.Item
               name="username"
@@ -73,6 +72,10 @@ const SignIn = () => {
               <Input 
                 prefix={<UserOutlined />} 
                 placeholder="Nhập tên đăng nhập"
+                style={{ 
+                  border: '2px solid #d9d9d9',
+                  borderRadius: '8px',
+                }}
               />
             </Form.Item>
 
@@ -84,6 +87,10 @@ const SignIn = () => {
               <Input.Password 
                 prefix={<LockOutlined />} 
                 placeholder="Nhập mật khẩu"
+                style={{ 
+                  border: '2px solid #d9d9d9',
+                  borderRadius: '8px',
+                }}
               />
             </Form.Item>
 
