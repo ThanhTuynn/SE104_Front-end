@@ -2,21 +2,20 @@ import React from "react";
 import { Modal } from "antd";
 import "./Modal_xacnhanxoa.css"; // Import CSS
 
-const DeleteConfirmationModal = ({ isVisible, onConfirm, onCancel, order}) => {
+const DeleteConfirmationModal = ({ isVisible, onConfirm, onCancel, message }) => {
   return (
     <Modal
-    className="ttcc"
+      className="ttcc"
       title="Xác nhận xóa"
-      visible={isVisible}
-      onOk={onConfirm} // Hàm xử lý xác nhận
-      onCancel={onCancel} // Hàm xử lý hủy
+      open={isVisible}  // Thay đổi thành open
+      onOk={onConfirm}
+      onCancel={onCancel}
       okText="Xóa"
       cancelText="Hủy"
-      okButtonProps={{ danger: true }} // Nút "Xóa" màu đỏ
+      maskClosable={false}
+      okButtonProps={{ danger: true }}
     >
-      <p className="delete-modal-message">
-        Bạn có chắc chắn muốn xóa đơn hàng <strong>{order?.productName}</strong> có mã đơn hàng là <strong>{order?.productCode}</strong> không?
-      </p>
+      <p className="delete-modal-message">{message}</p>
     </Modal>
   );
 };

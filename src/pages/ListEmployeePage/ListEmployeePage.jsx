@@ -67,6 +67,12 @@ const EmployeeList = () => {
   });
 
   const [form] = Form.useForm();
+  const [activeTab, setActiveTab] = useState("Tất cả chức vụ");
+
+  const handleTabClick = (tabName) => {
+    setActiveTab(tabName);
+    handleChange("filters", tabName);
+  };
 
   // Hàm handleChange dùng để cập nhật trạng thái
   const handleChange = (key, value) => {
@@ -134,9 +140,20 @@ const EmployeeList = () => {
       title: "Chức vụ",
       dataIndex: "role",
       key: "role",
-      render: (role) => (
-        <Tag color={role === "Quản lý" ? "blue" : "red"}>{role}</Tag>
-      ),
+      render: (role) => {
+        let color = "";
+        switch (role) {
+          case "Quản lý":
+            color = "blue";
+            break;
+          case "Nhân viên":
+            color = "red";
+            break;
+          default:
+            color = "default";
+        }
+        return <Tag color={color}>{role}</Tag>;
+      },
     },
   ];
 
@@ -156,7 +173,6 @@ const EmployeeList = () => {
             />
 
             <Button
-              type="primary"
               icon={<ExportOutlined />}
               className="export-button"
             >
@@ -165,7 +181,6 @@ const EmployeeList = () => {
 
             {/* Thêm nhân viên button next to Export file */}
             <Button
-              type="primary"
               icon={<PlusOutlined />}
               onClick={() => handleChange("isModalVisible", true)}
               className="add-employee-button"
@@ -177,14 +192,12 @@ const EmployeeList = () => {
 
         {/* Filters */}
         <div className="filter-section">
-          <div className="filter-buttons">
+          <div className="filter-button">
             {["Tất cả chức vụ", "Quản lý", "Nhân viên"].map((role) => (
               <Button
                 key={role}
-                type={params.filters === role ? "primary" : "default"}
-                onClick={() => handleChange("filters", role)}
-                className={params.filters === role ? "active" : ""}
-                style={{ margin: 5 }}
+                onClick={() => handleTabClick(role)}
+                className={`filter-btn ${activeTab === role ? "active" : ""}`}
               >
                 {role}
               </Button>

@@ -54,6 +54,14 @@ const CustomerList = () => {
 
   const [customers, setCustomers] = useState(initData());
 
+  // Add these new states
+  const [activeTab, setActiveTab] = useState("Tất cả trạng thái");
+
+  const handleTabClick = (tabName) => {
+    setActiveTab(tabName);
+    handleChange("status", tabName);
+  };
+
   // Hàm xử lý thay đổi chung
   const handleChange = (key, value) => {
     setParams((prevParams) => ({
@@ -148,22 +156,18 @@ const CustomerList = () => {
 
         {/* Filters */}
         <div className="filter-section">
-          <div className="filter-buttons">
-            {["Tất cả trạng thái", "Hoạt động", "Mới", "Đã khóa"].map(
-              (status) => (
-                <Button
-                  key={status}
-                  type={params.status === status ? "primary" : "default"}
-                  onClick={() => handleChange("status", status)}
-                  className={params.status === status ? "active" : ""}
-                  style={{ margin: 5 }}
-                >
-                  {status}
-                </Button>
-              )
-            )}
+          <div className="filter-button">
+            {["Tất cả trạng thái", "Hoạt động", "Mới", "Đã khóa"].map((type) => (
+              <Button
+                key={type}
+                onClick={() => handleTabClick(type)}
+                className={`filter-btn ${activeTab === type ? "active" : ""}`}
+              >
+                {type}
+              </Button>
+            ))}
           </div>
-          <div className="filter-buttons">
+          <div className="filter-button">
             <Button
               type="primary"
               danger

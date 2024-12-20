@@ -1,402 +1,378 @@
-import React, { useState, useEffect } from "react";
-import Sidebar from "../../components/Sidebar/Sidebar";
-import Header from "../../components/Header/Header";
-import FilterBar from "../../components/FilterBar/FilterBar";
+import React, { useState, useMemo } from "react";
+import { Table, Button, Input, DatePicker, Space, Tag, Modal } from "antd";
+import { ExportOutlined, DeleteOutlined, PlusOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import AddOrderModal from "../../components/Modal/Modal_phieubanhang/AddOrderModal";
-import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa"
-import {
-  EditOutlined,
-  EyeOutlined,
-  DeleteOutlined,
-  expandedRowKeys,
-  setExpandedRowKeys,
-  DownOutlined,
-} from "@ant-design/icons";
-import { Table, Tag, Space, Input, Button, DatePicker, Dropdown, Menu, scroll } from "antd";
-import dayjs from "dayjs";
-
 import "./OrderProductPage.css";
+import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 
-const { Search } = Input;
+const initData = () => [
+  {
+    id: "1",
+    products: {
+      name: "Nhẫn Kim cương Vàng",
+      otherProducts: [
+        "Nhẫn Kim cương Bạc",
+        "Nhẫn Kim cương Bạch Kim",
+      ],
+    },
+    date: "29 Dec 2022",
+    customer: "John Bushmill",
+    total: "13,000,000",
+    payment: "Mastercard",
+    action: "Đang xử lý",
+  },
+  {
+    id: "2",
+    products: {
+      name: "Nhẫn Kim cương Vàng",
+      otherProducts: [
+        "Nhẫn Kim cương Bạc",
+        "Nhẫn Kim cương Bạch Kim",
+      ],
+    },
+    date: "24 Dec 2022",
+    customer: "Linda Blair",
+    total: "10,000,000",
+    payment: "Visa",
+    action: "Đã hủy",
+  },
+  {
+    id: "3",
+    products: {
+      name: "Nhẫn Kim cương Vàng",
+      otherProducts: [],
+    },
+    date: "12 Dec 2022",
+    customer: "M Karim",
+    total: "5,000,000",
+    payment: "Mastercard",
+    action: "Đã giao",
+  },
+  {
+    id: "4",
+    products: {
+      name: "Nhẫn Kim cương Vàng",
+      otherProducts: [],
+    },
+    date: "12 Dec 2022",
+    customer: "M Karim",
+    total: "5,000,000",
+    payment: "Mastercard",
+    action: "Đã giao",
+  },
+  {
+    id: "5",
+    products: {
+      name: "Nhẫn Kim cương Vàng",
+      otherProducts: [],
+    },
+    date: "12 Dec 2022",
+    customer: "M Karim",
+    total: "5,000,000",
+    payment: "Mastercard",
+    action: "Đã hủy",
+  },
+];
 
-const App1 = () => {
-  
-  const productList = [
-    { id: 1, name: "Sản phẩm A", image: "/product1.png", price: "100,000 VNĐ" },
-    { id: 2, name: "Sản phẩm B", image: "/product2.png", price: "200,000 VNĐ" },
-    { id: 3, name: "Sản phẩm C", image: "/product3.png", price: "300,000 VNĐ" },
-    { id: 4, name: "Sản phẩm D", image: "/product4.png", price: "400,000 VNĐ" },
-  ];  
-  const [modalMode, setModalMode] = useState("add"); // "add" hoặc "edit"
-  const [activeTab, setActiveTab] = useState("Tất cả");
-  const [expandedRowKeys, setExpandedRowKeys] = useState([]); // Quản lý hàng mở rộng
+const OrderProductPage = () => {
+  const [searchText, setSearchText] = useState('');
+  const navigate = useNavigate();
+  const [state, setState] = useState({
+    filters: {
+      orderType: "Tất cả đơn hàng",
+      date: null,
+      dateString: "",
+      searchQuery: "",
+    },
+    selectedOrders: [],
+    data: initData(),
+    isModalVisible: false,
+    isAddModalVisible: false,
+  });
+  const [isAddOrderModalVisible, setIsAddOrderModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState([]);
+  const [activeTab, setActiveTab] = useState("Tất cả đơn hàng");
+
+  const handleChange = (key, value) => {
+    setState((prev) => {
+      const updatedState = { ...prev };
+      if (key in prev.filters) {
+        updatedState.filters[key] = value;
+      } else {
+        updatedState[key] = value;
+      }
+      return updatedState;
+    });
+  };
+
+  const handleTabClick = (tabName) => {
+    console.log("Tab clicked:", tabName); // Debug log
+    setActiveTab(tabName);
+    setState(prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        orderType: tabName
+      }
+    }));
+  };
+
+  const getAllValues = (obj) => {
+    let allValues = [];
+    const recursive = (obj) => {
+      if (obj && typeof obj === 'object') {
+        for (let key in obj) {
+          recursive(obj[key]);
+        }
+      } else {
+        allValues.push(String(obj).toLowerCase());
+      }
+    };
+    recursive(obj);
+    return allValues;
+  };
+
+  const filteredData = useMemo(() => {
+    const { orderType, dateString } = state.filters;
+    let dataToFilter = state.data;
+
+    if (orderType !== "Tất cả đơn hàng" && orderType !== "Tất cả") {
+      dataToFilter = dataToFilter.filter((item) => item.action === orderType);
+    }
+
+    if (dateString) {
+      dataToFilter = dataToFilter.filter((item) => item.date.includes(dateString));
+    }
+
+    if (searchText) {
+      const lowerSearchText = searchText.toLowerCase();
+        dataToFilter = dataToFilter.filter((item) => {
+        const allValues = getAllValues(item);
+        return allValues.some((value) => value.includes(lowerSearchText));
+      });
+    }
+
+    return dataToFilter;
+  }, [state.data, state.filters, searchText]);
+
+  const handleConfirmDelete = () => {
+    const remainingOrders = state.data.filter(
+      (order) => !state.selectedOrders.includes(order.id)
+    );
+    setState((prev) => ({
+      ...prev,
+      data: remainingOrders,
+      selectedOrders: [],
+      isModalVisible: false,
+    }));
+    alert("Đã xóa các đơn hàng đã chọn thành công");
+  };
+
+  const handleRowClick = (record) => {
+    console.log("Navigating to order product detail with ID:", record.id);
+    navigate(`/order-product-detail/${record.id}`);
+  };
+
   const handleExpandRow = (record) => {
-    const isRowExpanded = expandedRowKeys.includes(record.key);
+    console.log("Expanding row:", record);
+    const isRowExpanded = expandedRowKeys.includes(record.id);
     setExpandedRowKeys(isRowExpanded 
-      ? expandedRowKeys.filter((key) => key !== record.key) 
-      : [...expandedRowKeys, record.key]);
-  };  
-  const [searchTerm, setSearchTerm] = useState(""); // Trạng thái tìm kiếm
-  const [filteredProducts, setFilteredProducts] = useState(productList); // Sản phẩm đã lọc
-  
-  const handleSearch = (e) => {
-    const value = e.target.value.toLowerCase();
-    setSearchTerm(value);
-    const filtered = productList.filter((product) =>
-      product.name.toLowerCase().includes(value)
-    );
-    setFilteredProducts(filtered);
+      ? expandedRowKeys.filter((key) => key !== record.id) 
+      : [...expandedRowKeys, record.id]);
   };
 
-  const [data, setData] = useState([
-    {
-      key: "1",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123876",
-      postedDate: "29 Dec 2022",
-      customerName: "John Bushmill",
-      price: "13.000.000",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      paymentMethod: "Mastercard",
-      status: "Đang xử lý",
-      checked: true,
-      expanded: false,
-      image: "/kc_v.png",
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 }
-      ]
-    },
-    {
-      key: "2",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123876",
-      postedDate: "24 Dec 2022",
-      customerName: "Linda Blair",
-      price: "13.000.000",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      paymentMethod: "Visa",
-      status: "Đã giao",
-      checked: false,
-      expanded: false,
-      image: "/kc_v.png",
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 }
-      ]
-    },
-    {
-      key: "3",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123876",
-      postedDate: "12 Dec 2022",
-      customerName: "M Karim",
-      price: "13.000.000",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      paymentMethod: "Mastercard",
-      status: "Đã hủy",
-      checked: false,
-      expanded: false,
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 }
-      ]
-    }
-  ]);
-  const menu = (
-    <Menu>
-      <Menu.Item key="1">Sắp xếp tên</Menu.Item>
-      <Menu.Item key="2">Sắp xếp theo ...</Menu.Item>
-      <Menu.Item key="3">Sắp xếp theo ...</Menu.Item>
-    </Menu>
-  );
-  
-
-  const menu1 = (
-    <Menu>
-      <Menu.Item key="1">Sắp xếp tăng dần</Menu.Item>
-      <Menu.Item key="2">Sắp xếp giảm dần</Menu.Item>
-    </Menu>
-  );
-
-  const menu2 = (
-    <Menu>
-      <Menu.Item key="1">Đang xử lý</Menu.Item>
-      <Menu.Item key="2">Đã giao</Menu.Item>
-      <Menu.Item key="3">Đã hủy</Menu.Item>
-    </Menu>
-  );
-  const toggleExpandRow = (recordKey) => {
-    setExpandedRowKeys((prevExpandedKeys) =>
-      prevExpandedKeys.includes(recordKey)
-        ? prevExpandedKeys.filter((key) => key !== recordKey) // Thu gọn
-        : [...prevExpandedKeys, recordKey] // Mở rộng
-    );
+  const handleEditClick = (record) => {
+    setSelectedProduct(record);
+    setIsAddOrderModalVisible(true);
   };
-  useEffect(() => {
-    if (activeTab === "Tất cả") {
-      setFilteredData(data); // Hiển thị tất cả
-    } else {
-      const filtered = data.filter((item) => item.status === activeTab);
-      setFilteredData(filtered);
-    }
-  }, [data, activeTab]);
-  const handleCheckboxChange = (key) => {
-    const updatedData = data.map((item) =>
-      item.key === key ? { ...item, checked: !item.checked } : item
-    );
-    setData(updatedData);
+
+  const handleMultiDelete = () => {
+    handleChange("isModalVisible", true);
   };
-  
+
   const columns = [
     {
-      title: "Mã sản phẩm",
-      dataIndex: "productCode",
-      key: "productCode",
-      width: "15%",
-      render: (text, record) => (
-        <div
-      style={{
-        display: "flex",
-        alignItems: "center", // Căn giữa theo chiều dọc
-        gap: "0px", // Khoảng cách giữa checkbox và chữ
-        marginRight: "80px",
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={record.checked}
-        onChange={() => handleCheckboxChange(record.key)}
-        style={{ cursor: "pointer" }}
-      />
-      <span style={{ whiteSpace: "nowrap", marginLeft: "10px" }}>{record.productCode}</span>
-    </div>
-      ),
-    },
-    
-    {
-      title: "Tên sản phẩm",
-      dataIndex: "productName",
-      key: "productName",
-      width: "22%",
-      render: (text, record) => (
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <img
-            src={record.image}
-            alt="Product"
-            style={{ width: "5px", height: "5px" }}
-          />
-          <div>
-            <strong>{record.productName}</strong>
-            <br />
-            <span>{record.category}</span>
-          </div>
-        </div>
-      ),
+      title: "Mã đơn",
+      dataIndex: "id",
+      key: "id",
     },
     {
-      title: (
-        <Dropdown
-          overlay={
-            <Menu>
-              <Menu.Item key="1">
-                <DatePicker
-                  onChange={(date, dateString) => console.log("Ngày:", dateString)}
-                  style={{ width: "100%", alignItems: "left",justifyItems: "left"}}
-                />
-              </Menu.Item>
-            </Menu>
-          }
-          trigger={["click"]}
-        >
-          <span style={{ cursor: "pointer" }}>
-            Ngày <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
-      dataIndex: "postedDate",
-      key: "postedDate",
-      width: "13%",
+      title: "Ngày",
+      dataIndex: "date",
+      key: "date",
     },
     {
       title: "Khách hàng",
-      dataIndex: "customerName",
-      key: "customerName",
-      width: "15%",
-    },
-    {
-      title: (
-        <Dropdown overlay={menu1} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Tổng tiền <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
-      dataIndex: "price",
-      key: "price",
-      width: "15%",
+      dataIndex: "customer",
+      key: "customer",
     },
     {
       title: "Hình thức",
-      dataIndex: "paymentMethod",
-      key: "paymentMethod",
-      width: "13%",
+      dataIndex: "payment",
+      key: "payment",
     },
     {
-      title: (
-        <Dropdown overlay={menu2} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Tình Trạng<DownOutlined />
-          </span>
-        </Dropdown>
-      ),
-      dataIndex: "status",
-      key: "status",
-      width: "13%",
+      title: "Tổng tiền",
+      dataIndex: "total",
+      key: "total",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "action",
+      key: "action",
       render: (status) => {
-        let color;
+        
+        let color = "";
         switch (status) {
           case "Đang xử lý":
-            color = "yellow";
-            break;
-          case "Đã giao":
-            color = "blue";
-            break;
-          case "Đã hủy":
             color = "red";
             break;
-          default:
+          case "Đã giao":
+            color = "orange";
+            break;
+          case "Đã hủy":
             color = "gray";
+            break;
+          default:
+            color = "blue";
         }
         return <Tag color={color}>{status}</Tag>;
       },
     },
-    {
-      title: "Hành động",
-      key: "action",
-      width: "13%",
-      render: (_, record) => (
-        <Space size="middle">
-          <EditOutlined
-            style={{ color: "#1890ff", cursor: "pointer" }}
-            onClick={() => handleOpenEditModal(record)} // Mở modal chỉnh sửa
-          />
-          <EyeOutlined
-            style={{ color: "#52c41a", cursor: "pointer" }}
-            onClick={() => handleExpandRow(record)}
-          />
-          <DeleteOutlined
-            style={{ color: "#ff4d4f", cursor: "pointer" }}
-            onClick={() => handleDeleteClick(record)}
-          />
-        </Space>
-      ),
-    },
   ];
-  useEffect(() => {
-    setFilteredData(data); // Hiển thị tất cả khi load lần đầu
-  }, []);
 
-  // Mở modal thêm đơn hàng
-  const handleOpenAddModal = () => {
-    setModalMode("add"); // Chế độ thêm mới
-    setSelectedOrder(null); // Không có dữ liệu chỉnh sửa
-    setIsModalVisible(true); // Mở modal
-  };
-
-  // Mở modal chỉnh sửa đơn hàng
-  const handleOpenEditModal = (order) => {
-    setModalMode("edit"); // Chế độ chỉnh sửa
-    setSelectedOrder(order); // Lưu dữ liệu sản phẩm được chọn
-    setIsModalVisible(true); // Mở modal
-  };
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const handleTabClick = (tab) => {
-    setActiveTab(tab);
-
-    if (tab === "Tất cả") {
-      setFilteredData(data); // Hiển thị tất cả
-    } else {
-      // Lọc dữ liệu theo trạng thái
-      const filtered = data.filter((item) => item.status === tab);
-      setFilteredData(filtered);
-  }
-  };
-  const [filteredData, setFilteredData] = useState([]);
-  const handleOpenModal = () => {
-    setModalMode("add");
-    setIsModalVisible(true); // Mở modal
-  };
-
-  const handleCloseModal = () => {
-    setIsModalVisible(false); // Đóng modal
-  };
-  const tabs = ["Tất cả", "Đã giao", "Đang xử lý", "Đã hủy"];
-  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false); // Hiển thị modal xóa
-  const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null); // Lưu đơn hàng được chọn để xóa
-  const handleDeleteClick = (order) => {
-    setSelectedDeleteOrder(order); // Lưu đơn hàng được chọn để xóa
-    setIsDeleteModalVisible(true); // Hiển thị modal xác nhận
-  };
-  const handleDeleteConfirm = () => {
-    const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key); // Lọc bỏ đơn hàng được chọn
-    setData(updatedData); // Cập nhật danh sách
-    setIsDeleteModalVisible(false); // Đóng modal
-    setSelectedDeleteOrder(null); // Xóa thông tin đơn hàng đã chọn
-  };
   return (
-    <div className="order-page">
-      <main className="order-table-container">
-        <Header onAddOrder={handleOpenModal} title={"Đơn hàng"} button_modal={"Thêm đơn hàng"}/>
-        <FilterBar tabs={tabs} activeTab={activeTab} onTabClick={handleTabClick} />
-        <section className="header-actions">
-          <Table
-            className="tablee-containero"
-            columns={columns}
-            dataSource={filteredData}
-            tableLayout="fixed"
-            expandable={{
-              expandedRowKeys,
-              onExpand: (expanded, record) => handleExpandRow(record),
-              expandedRowRender: (record) => (
-                <div className="detail">
-                  {record.details.map((detail, index) => (
-                    <p key={index}>
-                      {detail.type}: {detail.stock} sản phẩm
-                    </p>
-                  ))}
-                </div>
-              ),
-              rowExpandable: (record) => record.details.length > 0,
-              showExpandColumn: false,
-              expandIcon: () => null
-            }}
-          />
-        </section>
+    <div>
+      <div style={{ marginLeft: "270px" }}>
+        <Topbar title="Quản lý đơn hàng" />
+      </div>
+
+      <div className="orderproduct">
+        <header className="order-header">
+          <div className="header-actions">
+            <Input.Search
+              placeholder="Tìm kiếm đơn hàng..."
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+            <Button
+              type="primary"
+              className="export-button"
+              icon={<ExportOutlined />}
+            >
+              Xuất file
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              className="add-product-button"
+              onClick={() => setIsAddOrderModalVisible(true)}
+            >
+              Thêm đơn hàng
+            </Button>
+          </div>
+        </header>
+
+        <div className="filter-section">
+          <div className="filter-button">
+            {["Tất cả đơn hàng", "Đang xử lý", "Đã giao", "Đã hủy"].map((type) => (
+              <Button
+                key={type}
+                onClick={() => handleTabClick(type)}
+                className={`filter-btn ${
+                  activeTab === type || 
+                  (type === "Tất cả đơn hàng" && activeTab === "Tất cả") 
+                    ? "active" 
+                    : ""
+                }`}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+          <div className="filter-button">
+            <DatePicker
+              placeholder="Chọn ngày"
+              onChange={(date, dateString) => {
+                handleChange("date", date);
+                handleChange("dateString", dateString);
+              }}
+              format="DD/MM/YYYY"
+              value={state.filters.date}
+            />
+          
+          <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        disabled={state.selectedOrders.length === 0}
+                        onClick={() => handleChange("isModalVisible", true)}
+                        className="delete-all-button"
+                      >
+                        Xóa đã chọn
+                      </Button>
+            </div>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="id"
+          onRow={(record) => ({
+            onClick: () => handleEditClick(record),
+            style: { cursor: 'pointer' }
+          })}
+          rowSelection={{
+            selectedRowKeys: state.selectedOrders,
+            onChange: (selectedRowKeys) =>
+              handleChange("selectedOrders", selectedRowKeys),
+          }}
+          expandable={{
+            expandedRowKeys,
+            onExpand: (expanded, record) => handleExpandRow(record),
+            expandedRowRender: (record) => (
+              <div className="detail">
+                {record.products.otherProducts.map((product, index) => (
+                  <p key={index}>
+                    {product}
+                  </p>
+                ))}
+              </div>
+            ),
+            rowExpandable: (record) => record.products.otherProducts.length > 0,
+            showExpandColumn: false,
+            expandIcon: () => null
+          }}
+          pagination={{ pageSize: 5 }}
+        />
+
+        <Modal
+          title="Xác nhận xóa"
+          visible={state.isModalVisible}
+          onOk={handleConfirmDelete}
+          onCancel={() => handleChange("isModalVisible", false)}
+          okText="Xóa"
+          cancelText="Hủy"
+        >
+          <p>Bạn có chắc chắn muốn xóa những đơn hàng đã chọn?</p>
+        </Modal>
+
         <AddOrderModal
-          isVisible={isModalVisible}
-          onClose={handleCloseModal}
-          mode={modalMode} // Chế độ "add" hoặc "edit"
-          title={modalMode === "add" ? "Tạo đơn hàng mới" : "Chỉnh sửa đơn hàng"}
-          save={modalMode === "add" ? "Lưu đơn hàng" : "Lưu chỉnh sửa"}
-          order={modalMode === "edit" ? selectedOrder : null} // Dữ liệu sản phẩm khi chỉnh sửa
-          searchTerm={searchTerm} // Truyền searchTerm xuống
-          handleSearch={handleSearch} // Truyền hàm xử lý tìm kiếm
-          filteredProducts={filteredProducts} // Truyền danh sách sản phẩm đã lọc 
+          isVisible={isAddOrderModalVisible}
+          onClose={() => {
+            setIsAddOrderModalVisible(false);
+            setSelectedProduct(null);
+          }}
+          title={selectedProduct ? "Sửa đơn hàng" : "Thêm đơn hàng"}
+          save={selectedProduct ? "Lưu thay đổi" : "Lưu"}
+          product={selectedProduct}
         />
-        <DeleteConfirmationModal
-          isVisible={isDeleteModalVisible}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setIsDeleteModalVisible(false)}
-          order={selectedDeleteOrder}
-        />
-      </main>
+      </div>
     </div>
   );
 };
 
-export default App1;
+export default OrderProductPage;

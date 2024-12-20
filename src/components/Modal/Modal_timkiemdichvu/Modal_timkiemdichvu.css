@@ -1,6 +1,7 @@
 .service-modal{
   width: 1100px !important;
   margin-left: 270px;
+  z-index: 1001 !important;
 }
 .service-modal .ant-modal {
   max-width: 1000px !important; /* Đảm bảo modal có kích thước hợp lý */

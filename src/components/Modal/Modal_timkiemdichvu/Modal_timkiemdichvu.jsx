@@ -7,6 +7,12 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
   const [searchValue, setSearchValue] = useState("");
   const [quantities, setQuantities] = useState({});
 
+  // Add debugging logs
+  useEffect(() => {
+    console.log('Modal visibility:', isVisible);
+    console.log('Available services:', services);
+  }, [isVisible, services]);
+
   // Reset states when modal closes
   useEffect(() => {
     if (!isVisible) {
@@ -137,7 +143,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
   return (
     <Modal
       title="Tìm kiếm dịch vụ"
-      open={isVisible}
+      visible={isVisible}
       onCancel={onCancel}
       footer={[
         <Button 

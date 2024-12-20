@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ServiceConfirmationModal from "../../components/Modal/Modal_xacnhan/Modal_xacnhan";
 import ServiceModal from "../../components/Modal/Modal_timkiemdichvu/Modal_timkiemdichvu"
 import CustomerModal from "../../components/Modal/Modal_timkiemkhachhang/Modal_timkiemkhachhang";
@@ -18,38 +18,19 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import "./AddServicePage.css";
-import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 const { Sider, Content } = Layout;
 const { TextArea } = Input;
 const { Search } = Input;
 const App = () => {
   const [isPaid, setIsPaid] = useState(null); // null: chưa chọn, true: Đã thanh toán, false: Thanh toán sau
-
-  // Hàm xử lý khi nhấn vào nút "Đã thanh toán"
-  const handlePaidClick = () => {
-    setIsPaid(true);
-  };
-
-  const handlePayLaterClick = () => {
-    setIsPaid(false);
-  };
   const { Option } = Select;  
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const showModal = () => {
-    setIsModalVisible(true);
-
-  };
   const [searchValue, setSearchValue] = useState("");
   const [filteredCustomers, setFilteredCustomers] = useState([]);
 
   const handleCancel = () => {
     setIsModalVisible(false);
   };
-  const [customer, setCustomer] = useState({
-    name: "Vân Mây",
-    email: "vanmay.nguyennngoc@gmail.com",
-    avatar: "https://via.placeholder.com/40", // Link ảnh đại diện (hoặc icon)
-  });
   const [services] = useState([
     { id: 1, name: "Dịch vụ kiểm định và định giá", price: 1000000 },
     { id: 2, name: "Thiết kế trang sức theo yêu cầu", price: 5000000 },
@@ -124,17 +105,15 @@ const App = () => {
       ),
     }
   ];
-  const onSearch2 = () => {
+  const onSearch22 = () => {
     setIsModalVisible(true);
   };
   const [totalQuantity, setTotalQuantity] = useState(0); // Tổng số lượng dịch vụ
   const [totalAmount, setTotalAmount] = useState(0); // Tổng tiền
   // Hàm xử lý khi xác nhận chọn dịch vụ từ modal
-  const handleCancel_cus = () => {
-    setIsCustomerModalVisible(false);
-  };
-  const handleConfirm_cus = (customer) => {
-    setSelectedCustomer(customer); // Lưu thông tin khách hàng đã chọn
+  const handleConfirm_cus = (customers) => {
+    console.log("Selected customers:", customers); // Thêm log để debug
+    setSelectedCustomers(customers); // Lưu thông tin khách hàng đã chọn
     setIsCustomerModalVisible(false); // Đóng modal
   };
   const handleConfirm = (selectedServices) => {
@@ -165,14 +144,10 @@ const App = () => {
     { id: 3, name: "Văn Mây", phone: "0328345671" },
   ];
   const handleSearch = () => {
-    const result = customers.filter((customer) =>
-      customer.name.toLowerCase().includes(searchValue.toLowerCase())
-    );
-    setFilteredCustomers(result);
-    setIsCustomerModalVisible(true);
+    setIsCustomerModalVisible(true); // Chỉ cần mở modal
   };
 
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
   const [data, setData] = useState([]); // Khởi tạo state cho danh sách dịch vụ
   const discount = 50000; // Example discount
@@ -211,6 +186,11 @@ const App = () => {
   const handleCancelSave = () => {
     setIsConfirmModalVisible(false);
   };
+
+  useEffect(() => {
+    console.log('Modal state changed:', isModalVisible);
+  }, [isModalVisible]);
+
   return (
     <Layout className="app-layout">
       {/* Sidebar */}
@@ -263,7 +243,7 @@ const App = () => {
                       borderRadius: "8px",
                       boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
                     }}
-                    onClick={onSearch2}
+                    onClick={onSearch22}
                   >
                     Chọn dịch vụ
                   </Button>
@@ -296,10 +276,10 @@ const App = () => {
               </Col>
             </Row>
             <ServiceModal
-              isVisible={isModalVisible}
+              isVisible={isModalVisible}  // Giữ nguyên tên prop để đồng nhất
               onCancel={handleCancel}
               onConfirm={handleConfirm}
-              services={services} // Truyền danh sách dịch vụ từ component cha
+              services={services}
             />
             {/* Thông tin chung */}
             <div 
@@ -340,34 +320,56 @@ const App = () => {
                 customers={customers}
               />
 
-              {selectedCustomer && (
-                <Card
-                  bordered={false}
-                  style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    marginTop: "16px",
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <UserOutlined
-                      style={{
-                        fontSize: "40px",
-                        marginRight: "10px",
-                        color: "#1890ff",
+              {selectedCustomers && selectedCustomers.length > 0 && (
+                <div style={{ 
+                  maxHeight: "300px", 
+                  overflowY: "auto",
+                  padding: "8px",
+                  borderRadius: "8px",
+                }}>
+                  {selectedCustomers.map(customer => (
+                    <Card
+                      key={customer.id}
+                      bordered={false}
+                      style={{ 
+                        marginBottom: "8px",
+                        borderRadius: "8px",
+                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)"
                       }}
-                    />
-                    <div>
-                      <span style={{ fontSize: "16px", fontWeight: "500" }}>
-                        {selectedCustomer.name}
-                      </span>
-                      <br />
-                      <span style={{ color: "#888" }}>{selectedCustomer.phone}</span>
-                    </div>
-                  </div>
-                </Card>
+                    >
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <UserOutlined
+                          style={{
+                            fontSize: "40px",
+                            marginRight: "10px",
+                            color: "#1890ff",
+                          }}
+                        />
+                        <div>
+                          <span style={{ fontSize: "16px", fontWeight: "500" }}>
+                            {customer.name}
+                          </span>
+                          <br />
+                          <span style={{ color: "#888" }}>{customer.phone}</span>
+                        </div>
+                        <Button 
+                          type="text" 
+                          danger
+                          onClick={() => {
+                            setSelectedCustomers(prev => 
+                              prev.filter(c => c.id !== customer.id)
+                            );
+                          }}
+                          style={{
+                            marginLeft: "auto"
+                          }}
+                        >
+                          Xóa
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               )}
             </div>
             {data.length > 0 && (

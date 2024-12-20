@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Layout, Form, Input, Button, Typography, Space, message } from 'antd';
 import { UserOutlined, LockOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { signIn } from '../../service/UserAPI';
 import { useAuth } from '../../contexts/AuthContext';
 import './SignIn.css';
+import axios from 'axios';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -13,20 +15,39 @@ const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-
   const onSearch = (value) => console.log(value);
 
   const onFinish = async (values) => {
     try {
       setLoading(true);
-      // Here you would make an API call to authenticate
-      // For demo purposes, we'll simulate an API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      login(values); // Store auth state
-      message.success('Đăng nhập thành công!');
-      navigate('/list-service'); // Redirect after login
+      // Hardcoded credentials
+      const validCredentials = {
+        username: "bao",
+        password: "123456"
+      };
+
+      if (values.username === validCredentials.username && 
+          values.password === validCredentials.password) {
+        
+        // Mock response
+        const mockResponse = {
+          token: "mock-token-123",
+          user: {
+            username: validCredentials.username,
+            role: "admin"
+          }
+        };
+
+        login(mockResponse);
+        localStorage.setItem('token', mockResponse.token);
+        message.success('Đăng nhập thành công!');
+        navigate('/list-service');
+      } else {
+        message.error('Tên đăng nhập hoặc mật khẩu không đúng!');
+      }
     } catch (error) {
+      console.error('Login failed:', error);
       message.error('Đăng nhập thất bại!');
     } finally {
       setLoading(false);
@@ -34,7 +55,7 @@ const SignIn = () => {
   };
 
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-signin">
       <Header  className="headerr">
         <div className="header-content">
           <img src="/logo.png" alt="Logo" className="logo-image" />
@@ -73,6 +94,10 @@ const SignIn = () => {
               <Input 
                 prefix={<UserOutlined />} 
                 placeholder="Nhập tên đăng nhập"
+                style={{ 
+                  border: '2px solid #d9d9d9',
+                  borderRadius: '8px',
+                }}
               />
             </Form.Item>
 
@@ -84,6 +109,10 @@ const SignIn = () => {
               <Input.Password 
                 prefix={<LockOutlined />} 
                 placeholder="Nhập mật khẩu"
+                style={{ 
+                  border: '2px solid #d9d9d9',
+                  borderRadius: '8px',
+                }}
               />
             </Form.Item>
 
