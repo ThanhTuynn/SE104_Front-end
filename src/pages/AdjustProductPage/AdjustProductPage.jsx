@@ -42,100 +42,158 @@ const App = () => {
     ]);
   };
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-container-adjust">
       {/* Sidebar */}
       <div className="body_them">
         <Layout>
         <Content className="app-content">
             <div className="title-container">
                 <h1 className="title">Sửa sản phẩm</h1>
-                <img src="/bell.jpg" alt="Logo" className="logo-image1" />
-                <img src="/girl.jpg" alt="Logo" className="logo-image2" />
+                <img src="/bell.jpg" alt="Logo" className="logo-image111" />
+                <img src="/girl.jpg" alt="Logo" className="logo-image211" />
             </div>
             <div className="header-actions">
-              <Button type="default" className="action-btn">
-                Hủy
-              </Button>
-              <Button type="primary" className="action-btn">
-                + Lưu thay đổi
-              </Button>
-            </div>
-            <Row gutter={16} className="classification-status">
-              <Col span={12}>
-                <div className="section">
-                  <h2>Phân loại</h2>
-                  <Select
-                    className="select1"
-                    placeholder="Chọn phân loại..."
-                    style={{ width: "100%" }}
-                  >
-                    <Option value="category1">Danh mục 1</Option>
-                    <Option value="category2">Danh mục 2</Option>
-                  </Select>
-                </div>
-              </Col>
-              <Col span={12}>
-                <div className="section">
-                  <h2>Tình trạng</h2>
-                  <Select
-                    placeholder="Chọn tình trạng..."
-                    style={{ width: "100%" }}
-                  >
-                    <Option value="new">Mới</Option>
-                    <Option value="used">Đã sử dụng</Option>
-                  </Select>
-                </div>
-              </Col>
-            </Row>
-
+            <Button 
+              type="default" 
+              className="action-btn"
+              style={{ 
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '30px'
+              }}
+            >
+              Hủy
+            </Button>
+            <Button 
+              type="primary" 
+              className="action-btn"
+              style={{ 
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '30px'
+              }}
+            >
+              + Lưu thay đổi
+            </Button>
+          </div>
+          <Row gutter={16} className="classification-status" style={{
+                backgroundColor: "#f8f9ff",
+                padding: "0px",
+                marginLeft: "0px",
+                borderRadius: "12px",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+                border: "1px solid #e6e9f0",
+                marginBottom: "20px",
+                width: "100%"
+              }}>
+                <Col span={12}>
+                  <div className="section">
+                    <h2>Phân loại</h2>
+                    <Select
+                      className="select1"
+                      placeholder="Chọn phân loại..."
+                      style={{ 
+                        width: "475px",
+                        borderRadius: "8px",
+                        marginLeft:"-5px"
+                      }}
+                    >
+                      <Option value="category1">Danh mục 1</Option>
+                      <Option value="category2">Danh mục 2</Option>
+                    </Select>
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <div className="section">
+                    <h2>Tình trạng</h2>
+                    <Select
+                      placeholder="Chọn tình trạng..."
+                      style={{ 
+                        width: "100%",
+                        borderRadius: "8px"
+                      }}
+                    >
+                      <Option value="new">Mới</Option>
+                      <Option value="used">Đã sử dụng</Option>
+                    </Select>
+                  </div>
+                </Col>
+              </Row>
             {/* Thông tin chung */}
-            <div className="section">
+            {/* Thông tin chung */}
+            <div className="section" style={{
+              backgroundColor: "#f8f9ff",
+              padding: "20px",
+              borderRadius: "12px",
+              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+              border: "1px solid #e6e9f0",
+              marginBottom: "20px",
+              width: "100%"
+            }}>
               <h2>Thông tin chung</h2>
               <Row gutter={16}>
                 <Col span={12}>
                   <label>Tên sản phẩm</label>
-                  <Input placeholder="Nhập tên sản phẩm" />
+                  <Input 
+                    placeholder="Nhập tên sản phẩm" 
+                    style={{ borderRadius: "8px" }}
+                  />
                 </Col>
                 <Col span={12}>
-                  <label>Mô tả</label>
-                  <TextArea placeholder="Nhập mô tả sản phẩm ở đây..." rows={4} />
+                  <label style={{marginLeft:"20px"}}>Mô tả</label>
+                  <TextArea 
+                    placeholder="Nhập mô tả sản phẩm ở đây..." 
+                    rows={4} 
+                    style={{ borderRadius: "8px", marginLeft:"20px",width:"455px" }}
+                  />
                 </Col>
               </Row>
-            </div>
-
             {/* Minh họa */}
-            <div className="section">
               <h2>Minh họa</h2>
-              <div className="upload-box">
+              <div className="upload-box" style={{
+                border: "4px dashed #e6e9f0",
+                borderRadius: "8px",
+                padding: "20px",
+                textAlign: "center"
+              }}>
                 <p>Kéo và thả hình ảnh vào đây hoặc nhấn "Thêm hình ảnh"</p>
-                <Button>Thêm hình ảnh</Button>
+                <Button style={{ borderRadius: "8px" }}>Thêm hình ảnh</Button>
               </div>
             </div>
-
             {/* Giá */}
-            <div className="section_gia">
-              <h2>Giá</h2>
+            <div className="section" style={{
+              backgroundColor: "#f8f9ff",
+              padding: "20px",
+              borderRadius: "12px",
+              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+              border: "1px solid #e6e9f0",
+              marginBottom: "20px",
+              width: "100%"
+            }}>
+              <h2>Giá sản phẩm</h2>
               <Row gutter={16}>
                 <Col span={12}>
-                  <label>Giá gốc</label>
+                  <label style={{marginLeft: "20px"}}>Giá gốc</label>
                   <Input
-                    prefix="$"
+                    
                     placeholder="Nhập giá gốc"
                     className="gia_nhap"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
                       height: '40px',
-                      width: '1050px',
-                      lineHeight: '40px',
-                      padding: '0',
+                      width: '910px',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      alignItems:"center",
+                      fontSize: '14px',
+                      marginLeft:"20px",
                     }}
                   />
                 </Col>
               </Row>
-            </div>
             <div className="section_LG">
               <Row gutter={16}>
                 <Col span={12}>
@@ -148,7 +206,6 @@ const App = () => {
                 <Col span={12}>
                   <label>Phần trăm giảm giá(%)</label>
                   <Input
-                    prefix="%"
                     placeholder="Nhập phần trăm giảm giá"
                     className="phan_tram_input"
                     style={{
@@ -156,8 +213,8 @@ const App = () => {
                       display: 'flex', // Flexbox để căn chỉnh
                       alignItems: 'center', // Căn giữa theo chiều dọc
                       justifyContent: 'center', // Căn giữa theo chiều ngang
-                      textAlign: 'center', // Căn giữa văn bản
-                      padding: '0', // Loại bỏ padding nếu cần
+                      textAlign: 'left', // Căn giữa văn bản
+                      padding: '10px', // Loại bỏ padding nếu cần
                     }}
                   />
                 </Col>
@@ -175,7 +232,6 @@ const App = () => {
                 <Col span={12}>
                   <label>Phần trăm thuế(%)</label>
                   <Input
-                    prefix="%"
                     placeholder="Nhập phần trăm thuế"
                     className="phan_tram_input"
                     style={{
@@ -183,34 +239,74 @@ const App = () => {
                       display: 'flex', // Flexbox để căn chỉnh
                       alignItems: 'center', // Căn giữa theo chiều dọc
                       justifyContent: 'center', // Căn giữa theo chiều ngang
-                      textAlign: 'center', // Căn giữa văn bản
-                      padding: '0', // Loại bỏ padding nếu cần
+                      textAlign: 'left', // Căn giữa văn bản
+                      padding: '10px', // Loại bỏ padding nếu cần
                     }}
                   />
                 </Col>
               </Row>
+              </div>
             </div>
             {/* Tồn kho */}
-            <div className="section">
-              <h2>Tồn kho</h2>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <label>Mã sản phẩm</label>
-                  <Input placeholder="Nhập mã sản phẩm" />
-                </Col>
-                <Col span={8}>
-                  <label>Mã vạch</label>
-                  <Input placeholder="Nhập mã vạch sản phẩm" />
-                </Col>
-                <Col span={8}>
-                  <label>Số lượng</label>
-                  <Input placeholder="Nhập số lượng" />
-                </Col>
-              </Row>
-            </div>
-
+            <div className="section" style={{
+                backgroundColor: "#f8f9ff",
+                padding: "20px",
+                borderRadius: "12px",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+                border: "1px solid #e6e9f0",
+                marginBottom: "20px",
+                width: "100%"
+              }}>
+                <h2>Tồn kho</h2>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <label>Mã sản phẩm</label>
+                    <Input 
+                      placeholder="Nhập mã sản phẩm"
+                      style={{
+                        height: '40px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        lineHeight: '40px'
+                      }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <label>Mã vạch</label>
+                    <Input 
+                      placeholder="Nhập mã vạch sản phẩm"
+                      style={{
+                        height: '40px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        lineHeight: '40px'
+                      }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <label>Số lượng</label>
+                    <Input 
+                      placeholder="Nhập số lượng"
+                      style={{
+                        height: '40px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        lineHeight: '40px'
+                      }}
+                    />
+                  </Col>
+                </Row>
+              </div>
             {/* Thuộc tính */}
-            <div className="section">
+            <div className="section" style={{
+                backgroundColor: "#f8f9ff",
+                padding: "20px",
+                borderRadius: "12px",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+                border: "1px solid #e6e9f0",
+                marginBottom: "20px",
+                width: "100%"
+              }}>
                 <h2>Thuộc tính</h2>
                 {attributes.map((attr, index) => (
                   <Row gutter={16} key={attr.key} style={{ marginBottom: "10px" }}>
@@ -218,13 +314,6 @@ const App = () => {
                       <label>Thuộc tính</label>
                       <Select
                         placeholder="Chọn thuộc tính"
-                        style={{ width: "100%" }}
-                        value={attr.property}
-                        onChange={(value) => {
-                          const updatedAttributes = [...attributes];
-                          updatedAttributes[index].property = value;
-                          setAttributes(updatedAttributes);
-                        }}
                       >
                         <Option value="color">Màu sắc</Option>
                         <Option value="size">Kích thước</Option>
@@ -247,25 +336,53 @@ const App = () => {
                           alignItems: "center",
                           justifyContent: "center",
                           textAlign: "left",
-                          padding: "10px",
+                          
                         }}
                       />
                     </Col>
                   </Row>
                 ))}
                 <Button
-                  className="add-attribute-btn"
-                  onClick={addAttribute}
-                  type="primary"
-                >
-                  + Thêm thuộc tính
-                </Button>
+                className="add-attribute-btn"
+                onClick={addAttribute}
+                type="primary"
+                style={{
+                  borderRadius: '8px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: '16px'
+                }}
+              >
+                + Thêm thuộc tính
+              </Button>
               </div>
             {/* Vận chuyển */}
-            <div className="section">
+            <div className="section" style={{
+                backgroundColor: "#f8f9ff",
+                padding: "20px",
+                borderRadius: "12px",
+                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
+                border: "1px solid #e6e9f0",
+                marginBottom: "20px",
+                width: "100%"
+              }}>
               <div className="checkboxxx">
                 <h2>Vận chuyển</h2>
-                <Checkbox>Đây là một mặt hàng vật lý</Checkbox>
+                <Checkbox style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span style={{
+                    lineHeight: '1.5',
+                    marginTop: '6 px', // Move text down slightly
+                    display: 'inline-block'
+                  }}>
+                    Đây là một mặt hàng vật lý
+                  </span>
+                </Checkbox>
               </div>
               <Row gutter={16} style={{ marginTop: "10px" }}>
                 <Col span={6}>

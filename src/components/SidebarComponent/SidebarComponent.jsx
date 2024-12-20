@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   DashboardOutlined,
   AppstoreOutlined,
@@ -10,107 +10,96 @@ import {
   DollarOutlined,
   LogoutOutlined,
 } from "@ant-design/icons";
-import { Link, useLocation } from "react-router-dom";
-import logo from '../../assets/logo.png';
+import { Link } from "react-router-dom";
+import logo from '../../assets/logo.png'
 import "./SidebarComponent.css";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from '../../contexts/AuthContext';
+import { message } from 'antd';
 
 const SidebarComponent = () => {
-  const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, isAuthenticated } = useAuth();
 
-  // Kiểm tra đường dẫn hiện tại
-  const isActive = (path) => location.pathname === path;
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    message.success('Đăng xuất thành công');
+    navigate('/', { replace: true });
+  };
 
   return (
     <aside className="sidebar">
       <header className="sidebar-header">
-        <Link to="/" className="header-logo">
-          <img src={logo} alt="BUTTH Luxury Jewelry" />
-        </Link>
+        <div onClick={() => handleNavigation('/dashboard')} className="header-logo" style={{ cursor: 'pointer' }}>
+          <img src={logo} alt="BUTTH Luxury Jewery" />
+        </div>
       </header>
       <nav className="sidebar-nav">
         <ul className="nav-list primary-nav">
           <li>
-            <Link 
-              to="/" 
-              className={`nav-link ${isActive("/") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/dashboard')} className="nav-link" style={{ cursor: 'pointer' }}>
               <DashboardOutlined />
               <span>Dashboard</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-product" 
-              className={`nav-link ${isActive("/list-product") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/list-product')} className="nav-link" style={{ cursor: 'pointer' }}>
               <AppstoreOutlined />
               <span>Quản lý kho</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-order-product" 
-              className={`nav-link ${isActive("/list-order-product") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/list-order-product')} className="nav-link" style={{ cursor: 'pointer' }}>
               <FileAddOutlined />
               <span>Quản lý phiếu bán hàng</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-import-product" 
-              className={`nav-link ${isActive("/list-import-product") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/list-import-product')} className="nav-link" style={{ cursor: 'pointer' }}>
               <ShoppingCartOutlined />
               <span>Quản lý phiếu mua hàng</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-service" 
-              className={`nav-link ${isActive("/list-service") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/list-service')} className="nav-link" style={{ cursor: 'pointer' }}>
               <FileOutlined />
               <span>Quản lý phiếu dịch vụ</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-customer" 
-              className={`nav-link ${isActive("/list-customer") ? "active" : ""}`}
-            >
+            <div onClick={() => handleNavigation('/list-customer')} className="nav-link" style={{ cursor: 'pointer' }}>
               <TeamOutlined />
               <span>Quản lý khách hàng</span>
-            </Link>
+            </div>
           </li>
           <li>
-            <Link 
-              to="/list-employee" 
-              className={`nav-link ${isActive("/list-employee") ? "active" : ""}`}
-            >
-              <TeamOutlined />
+            <div onClick={() => handleNavigation('/list-employee')} className="nav-link" style={{ cursor: 'pointer' }}>
+              <UserOutlined />
               <span>Quản lý nhân viên</span>
-            </Link>
-          </li>
-          <li>
-            <a href="#" className={`nav-link`}>
-              <DollarOutlined />
-              <span>Quản lý doanh thu</span>
-            </a>
+            </div>
           </li>
         </ul>
         <ul className="nav-list secondary-nav">
           <li>
-            <a href="#" className="nav-link">
+            <div onClick={() => handleNavigation('/personalinfopage')} className="nav-link" style={{ cursor: 'pointer' }}>
               <UserOutlined />
               <span>Cá nhân</span>
-            </a>
+            </div>
           </li>
           <li>
-            <a href="#" className="nav-link">
-              <LogoutOutlined style={{ color: "red" }} />
-              <span style={{ color: "red" }}>Đăng xuất</span>
-            </a>
+            <div onClick={handleLogout} className="nav-link" style={{ cursor: 'pointer' }}>
+              <LogoutOutlined />
+              <span>Đăng xuất</span>
+            </div>
           </li>
         </ul>
       </nav>

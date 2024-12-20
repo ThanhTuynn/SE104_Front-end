@@ -1,10 +1,18 @@
-import React, { useState, useMemo } from "react";
-import { Modal, Button, Input, List, Avatar } from "antd";
+import React, { useState, useMemo, useEffect } from "react";
+import { Modal, Button, Input, List, Avatar, Checkbox } from "antd";
 import "./Modal_timkiemkhachhang.css";
 
-const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [],title }) => {
+const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [], title }) => {
   const [searchValue, setSearchValue] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedCustomers, setSelectedCustomers] = useState([]);
+
+  // Thêm useEffect để reset selected customers khi đóng modal
+  useEffect(() => {
+    if (!isVisible) {
+      setSelectedCustomers([]);
+      setSearchValue("");
+    }
+  }, [isVisible]);
 
   // Lọc danh sách khách hàng theo từ khóa tìm kiếm
   const filteredCustomers = useMemo(() => {
@@ -13,16 +21,28 @@ const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [],ti
     );
   }, [customers, searchValue]);
 
+  // Hàm xử lý khi chọn/bỏ chọn khách hàng
+  const handleSelectCustomer = (customer) => {
+    setSelectedCustomers(prev => {
+      const isSelected = prev.some(c => c.id === customer.id);
+      if (isSelected) {
+        return prev.filter(c => c.id !== customer.id);
+      } else {
+        return [...prev, customer];
+      }
+    });
+  };
+
   // Hàm xử lý xác nhận khách hàng
   const handleOk = () => {
-    if (selectedCustomer) {
-      onConfirm(selectedCustomer);
+    if (selectedCustomers.length > 0) {
+      onConfirm(selectedCustomers);
     }
   };
 
   return (
     <Modal
-      title={title}
+      title={title || "Tìm kiếm khách hàng"}
       visible={isVisible}
       onCancel={onCancel}
       footer={[
@@ -33,9 +53,9 @@ const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [],ti
           key="confirm"
           type="primary"
           onClick={handleOk}
-          disabled={!selectedCustomer}
+          disabled={selectedCustomers.length === 0}
         >
-          Hoàn tất chọn
+          Hoàn tất chọn ({selectedCustomers.length})
         </Button>,
       ]}
       centered
@@ -43,29 +63,30 @@ const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [],ti
     >
       <div className="search-container">
         <Input
-          placeholder="Tìm kiếm sản phẩm"
+          placeholder="Tìm kiếm khách hàng"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           className="search-input"
         />
-        <Button type="primary" className="search-button">
-          Tìm kiếm
-        </Button>
       </div>
       <List
         itemLayout="horizontal"
         dataSource={filteredCustomers}
         renderItem={(item) => (
           <List.Item
-            onClick={() => setSelectedCustomer(item)}
             className={`list-item ${
-              selectedCustomer?.id === item.id ? "selected" : ""
+              selectedCustomers.some(c => c.id === item.id) ? "selected" : ""
             }`}
           >
+            <Checkbox
+              checked={selectedCustomers.some(c => c.id === item.id)}
+              onChange={() => handleSelectCustomer(item)}
+            />
             <List.Item.Meta
               avatar={<Avatar>{item.name.charAt(0)}</Avatar>}
               title={item.name}
               description={`Số điện thoại: ${item.phone}`}
+              style={{ marginLeft: "12px" }}
             />
           </List.Item>
         )}

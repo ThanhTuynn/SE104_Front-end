@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from "react";
-import { Table, Button, Input, DatePicker, Modal } from "antd";
+import { Table, Button, Input, DatePicker, Modal, Tag } from "antd";
 import { ExportOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import "./ImportProduct.css";
+import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 
 const initData = () => [
   {
@@ -103,17 +104,50 @@ const ImportProduct = () => {
 
   const filteredData = useMemo(() => {
     const { orderType, dateString, searchQuery } = state.filters;
+    
     return state.data.filter((item) => {
-      const matchesSearchQuery = item.products.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      return (
-        (orderType === "Tất cả phiếu mua hàng" || item.action === orderType) &&
-        (dateString ? item.date.includes(dateString) : true) &&
-        matchesSearchQuery
-      );
+      // Search filter
+      const searchMatch = 
+        searchQuery === "" || 
+        item.products.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.customer.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Order type filter - use exact string comparison
+      let orderTypeMatch = true;
+      if (orderType !== "Tất cả phiếu mua hàng") {
+        orderTypeMatch = item.action === orderType;
+      }
+
+      // Date filter
+      const dateMatch = !dateString || item.date.includes(dateString);
+
+      // For debugging
+      console.log({
+        item: item.id,
+        orderType,
+        itemAction: item.action,
+        orderTypeMatch,
+        searchMatch,
+        dateMatch
+      });
+
+      return searchMatch && orderTypeMatch && dateMatch;
     });
   }, [state.data, state.filters]);
+
+  // Add debugging for filter changes
+  const handleFilterClick = (type) => {
+    console.log("Previous filter:", state.filters.orderType);
+    console.log("New filter:", type);
+    
+    setState(prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        orderType: type
+      }
+    }));
+  };
 
   const handleConfirmDelete = () => {
     const remainingOrders = state.data.filter(
@@ -129,6 +163,7 @@ const ImportProduct = () => {
   };
 
   const handleRowClick = (record) => {
+    console.log("Navigating to import product detail with ID:", record.id);
     navigate(`/import-product-detail/${record.id}`);
   };
 
@@ -138,11 +173,13 @@ const ImportProduct = () => {
       title: "Mã đơn",
       dataIndex: "id",
       key: "id",
+      width: 100,
     },
     {
       title: "Sản phẩm",
       dataIndex: "products",
       key: "products",
+      width: 300, 
       render: (products) => {
         const { name, otherProducts } = products;
         const remainingCount = otherProducts.length;
@@ -183,24 +220,23 @@ const ImportProduct = () => {
       title: "Xử lý",
       dataIndex: "action",
       key: "action",
-      render: (action) => {
-        const actionStyle = {
-          "Đang xử lý": { color: "#E8A300", backgroundColor: "#feedc7" },
-          "Đã giao": { color: "green", backgroundColor: "rgb(224, 251, 224)" },
-          "Đã hủy": { color: "red", backgroundColor: "rgb(255, 236, 236)" },
-        };
-
-        return (
-          <Button
-            style={{
-              ...actionStyle[action],
-              cursor: "default",
-            }}
-            disabled
-          >
-            {action}
-          </Button>
-        );
+      width: "12%",
+      render: (status) => {
+        let color = "";
+        switch (status) {
+          case "Đang xử lý":
+            color = "orange";
+            break;
+          case "Đã giao":
+            color = "green";
+            break;
+          case "Đã hủy":
+            color = "red";
+            break;
+          default:
+            color = "blue";
+        }
+        return <Tag color={color}>{status}</Tag>;
       },
     },
   ];
@@ -211,14 +247,14 @@ const ImportProduct = () => {
         <Topbar title="Quản lý phiếu mua hàng" />
       </div>
 
-      <div className="order-table-container">
+      <div className="order-table-container12">
         <header className="order-header">
           <div className="header-actions">
             <Input.Search
               placeholder="Tìm kiếm phiếu mua hàng..."
               onSearch={(value) => handleChange("searchQuery", value)}
               onChange={(e) => handleChange("searchQuery", e.target.value)}
-              value={state.filters.searchQuery}
+              value={state.filters.searchQuery} 
             />
             <Button
               type="primary"
@@ -244,10 +280,8 @@ const ImportProduct = () => {
             {["Tất cả phiếu mua hàng", "Đang xử lý", "Đã giao", "Đã hủy"].map((type) => (
               <Button
                 key={type}
-                onClick={() => handleChange("orderType", type)}
-                className={`filter-btn ${
-                  state.filters.orderType === type ? "active" : ""
-                }`}
+                onClick={() => handleFilterClick(type)}
+                className={`filter-btn ${state.filters.orderType === type ? "active" : ""}`}
               >
                 {type}
               </Button>
@@ -263,9 +297,7 @@ const ImportProduct = () => {
               format="DD/MM/YYYY"
               value={state.filters.date}
             />
-          
           <Button
-              type="primary"
               danger
               icon={<DeleteOutlined />}
               disabled={state.selectedOrders.length === 0}
@@ -274,7 +306,7 @@ const ImportProduct = () => {
             >
               Xóa đã chọn
             </Button>
-            </div>
+          </div>
         </div>
 
         <Table

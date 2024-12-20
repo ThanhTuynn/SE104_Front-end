@@ -1,38 +1,19 @@
-import React, { useState, useEffect } from "react";
-import Sidebar from "../../components/Sidebar/Sidebar";
-import Header from "../../components/Header/Header";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
+import { Table, Tag, Space, Input, DatePicker, Dropdown, Menu, Button, Modal } from "antd";
+import { EditOutlined, EyeOutlined, DeleteOutlined, DownOutlined, PlusOutlined, ExportOutlined } from "@ant-design/icons";
+import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import FilterBar from "../../components/FilterBar/FilterBar";
-import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa"
-import {
-  EditOutlined,
-  EyeOutlined,
-  DeleteOutlined,
-  DownOutlined,
-} from "@ant-design/icons";
-import { Table, Tag, Space, Input, DatePicker, Dropdown, Menu} from "antd";
+import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa";
 import dayjs from "dayjs";
-
-
 import "./ProductPage.css";
 
 const { Search } = Input;
 
-const App = () => {
+const ProductPage = () => {
   const navigate = useNavigate();
-
-  const handleCreateProduct = () => {
-    navigate('/add-product');
-  };
   const [activeTab, setActiveTab] = useState("Tất cả");
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
-  const handleExpandRow = (record) => {
-    const isRowExpanded = expandedRowKeys.includes(record.key);
-    setExpandedRowKeys(isRowExpanded 
-      ? expandedRowKeys.filter((key) => key !== record.key) 
-      : [...expandedRowKeys, record.key]);
-  };  
-  const tabs = ["Tất cả", "Đã đăng", "Tồn kho thấp", "Nháp"];
   const [data, setData] = useState([
     {
       key: "1",
@@ -89,6 +70,112 @@ const App = () => {
       ],
     },
   ]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null);
+  const [searchText, setSearchText] = useState('');
+
+  const [state, setState] = useState({
+    filters: {
+      orderType: "Tất cả",
+      date: null,
+      dateString: "",
+      searchQuery: "",
+    },
+    selectedProducts: [],
+    isModalVisible: false,
+  });
+
+  const handleCreateProduct = () => {
+    navigate('/add-product');
+  };
+
+  const handleExpandRow = (record) => {
+    console.log("Expanding row:", record);
+    const isRowExpanded = expandedRowKeys.includes(record.key);
+    setExpandedRowKeys(isRowExpanded 
+      ? expandedRowKeys.filter((key) => key !== record.key) 
+      : [...expandedRowKeys, record.key]);
+  };
+  const handleEditProduct = (key) => {
+    navigate(`/adjust-product/${key}`);
+  };
+
+  const handleDeleteClick = (product) => {
+    setSelectedDeleteOrder({
+      name: product.productName,
+      key: product.key,
+      code: product.productCode
+    });
+    setIsDeleteModalVisible(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key);
+    setData(updatedData);
+    setIsDeleteModalVisible(false);
+    setSelectedDeleteOrder(null);
+  };
+
+  const handleTabClick = (tabName) => {
+    setActiveTab(tabName);
+  };
+
+  const handleDateChange = (date, dateString, key) => {
+    const updatedData = data.map((item) =>
+      item.key === key ? { ...item, postedDate: dateString } : item
+    );
+    setData(updatedData);
+  };
+
+  const handleChange = (key, value) => {
+    setState((prev) => {
+      const updatedState = { ...prev };
+      if (key in prev.filters) {
+        updatedState.filters[key] = value;
+      } else {
+        updatedState[key] = value;
+      }
+      return updatedState;
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    const remainingProducts = data.filter(
+      (item) => !state.selectedProducts.includes(item.key)
+    );
+    setData(remainingProducts);
+    setState((prev) => ({
+      ...prev,
+      selectedProducts: [],
+      isModalVisible: false,
+    }));
+    alert("Đã xóa sản phẩm đã chọn thành công");
+  };
+
+  useEffect(() => {
+    let filtered = data;
+
+    if (activeTab !== "Tất cả") {
+      filtered = filtered.filter((item) => item.status === activeTab);
+    }
+
+    if (searchText) {
+      const lowerSearchText = searchText.toLowerCase();
+      filtered = filtered.filter((item) =>
+        Object.values(item).some((value) =>
+          String(value).toLowerCase().includes(lowerSearchText)
+        )
+      );
+    }
+
+    setFilteredData(filtered);
+  }, [data, activeTab, searchText]);
+
+  useEffect(() => {
+    setFilteredData(data);
+  }, []);
+
   const menu = (
     <Menu>
       <Menu.Item key="1">Sắp xếp tên</Menu.Item>
@@ -111,92 +198,61 @@ const App = () => {
       <Menu.Item key="3">Nháp</Menu.Item>
     </Menu>
   );
-  const handleCheckboxChange = (key) => {
-    const updatedData = data.map((item) =>
-      item.key === key ? { ...item, checked: !item.checked } : item
-    );
-    setData(updatedData);
-  };
 
-  
-  const navigate1 = useNavigate();
-  const handleEditProduct = (key) => {
-    navigate1(`/adjust-product/${key}`);
-  };
   const columns = [
     {
-      title: (
-        <Dropdown overlay={menu} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Tên sản phẩm <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
+      title: "Sản phẩm",
       dataIndex: "productName",
       key: "productName",
-      width: "25%",
       render: (text, record) => (
-        <div className="checkbb" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <input
-            type="checkbox"
-            checked={record.checked}
-            onChange={(e) => handleCheckboxChange(record.key)}
-          />
+        <div 
+          style={{ display: "flex", alignItems: "center", gap: "10px" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleExpandRow(record);
+          }}
+        >
           <img
-            src={record.imagqe}
-            alt={record.productName || "Product Image"}
-            className="image_productt"
+            src={record.image}
+            alt={record.productName}
+            style={{ width: 40, height: 40, objectFit: "cover" }}
           />
-          <div className="content-tssp">
-            <strong>{record.productName}</strong>
+          <div>
+            <strong>{text}</strong>
             <br />
-            <span>{record.category}</span>
+            <div style={{ color: "#888", cursor: 'pointer' }}>
+              {record.category} {record.details.length > 0 && <DownOutlined style={{ fontSize: '12px' }} />}
+            </div>
           </div>
         </div>
       ),
     },
     { 
-      title: "Mã SP",
+      title: "Mã Sản phẩm",
       dataIndex: "productCode",
       key: "productCode",
-      width: 80,
     },
     {
-
       title: "Phân loại",
       dataIndex: "classification",
       key: "classification",
-      width: "10%",
     },
     {
       title: "Lượng tồn",
       dataIndex: "stock",
       key: "stock",
-      width: "12%",
     },
     {
-      title: (
-        <Dropdown overlay={menu1} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Giá <DownOutlined />
-          </span>
-        </Dropdown>
+      title: ("Giá"
       ),
       dataIndex: "price",
       key: "price",
-      width: "10%",
     },
     {
-      title: (
-        <Dropdown overlay={menu2} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Tình Trạng<DownOutlined />
-          </span>
-        </Dropdown>
+      title: ("Trạng thái"
       ),
       dataIndex: "status",
       key: "status",
-      width: "12%",
       render: (status) => {
         let color = "";
         switch (status) {
@@ -215,139 +271,128 @@ const App = () => {
         return <Tag color={color}>{status}</Tag>;
       },
     },
-    {
-      title: (
-        <Dropdown
-          overlay={
-            <Menu>
-              <Menu.Item key="1">
-                <DatePicker
-                  onChange={(date, dateString) => console.log("Chọn ngày:", dateString)}
-                  style={{ width: "100%" }}
-                />
-              </Menu.Item>
-            </Menu>
-          }
-          trigger={["click"]}
-        >
-          <span style={{ cursor: "pointer" }}>
-            Đăng vào <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
-      dataIndex: "postedDate",
-      key: "postedDate",
-      width: "13%",
-    },
-    {
-      title: "Hành động",
-      key: "action",
-      width: "13%",
-      render: (text, record) => (
-        <Space size="middle" style={{ paddingLeft: "0", marginLeft: "0px" }}>
-          <EditOutlined 
-            style={{ color: "#1890ff", cursor: "pointer" }} 
-            onClick={() => handleEditProduct(record.key)} // Thêm sự kiện onClick để điều hướng
-          />
-          <EyeOutlined
-            style={{ color: "#52c41a", cursor: "pointer" }}
-            onClick={() => handleExpandRow(record)}
-          />
-          <DeleteOutlined
-            style={{ color: "#ff4d4f", cursor: "pointer" }}
-            onClick={() => handleDeleteClick(record)}
-          />
-        </Space>
-      ),
-    }
   ];
-  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null); // Lưu đơn hàng được chọn để xóa
-  const handleDeleteClick = (order) => {
-    setSelectedDeleteOrder(order); // Lưu đơn hàng được chọn để xóa
-    setIsDeleteModalVisible(true); // Hiển thị modal xác nhận
-  };
-  const handleViewDetails = (record) => {
-    setSelectedOrder(record); // Lưu thông tin đơn hàng được chọn
-    setIsModalVisible(true);  // Hiển thị modal
-  };
-  const handleDeleteConfirm = () => {
-    const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key); // Lọc bỏ đơn hàng được chọn
-    setData(updatedData); // Cập nhật danh sách
-    setIsDeleteModalVisible(false); // Đóng modal
-    setSelectedDeleteOrder(null); // Xóa thông tin đơn hàng đã chọn
-  };
-  const handleCancel = () => {
-    setIsModalVisible(false); // Đóng modal
-  };
-  const onSearch = (value) => {
-    console.log("Tìm kiếm:", value);
-  };
 
-  const handleTabClick = (tabName) => {
-    setActiveTab(tabName);
-  };
-  const handleDateChange = (date, dateString, key) => {
-    const updatedData = data.map((item) =>
-      item.key === key ? { ...item, postedDate: dateString } : item
-    );
-    setData(updatedData);
-  };
-  useEffect(() => {
-    if (activeTab === "Tất cả") {
-      setFilteredData(data); // Hiển thị tất cả
-    } else {
-      const filtered = data.filter((item) => item.status === activeTab);
-      setFilteredData(filtered);
-    }
-  }, [data, activeTab]);
-  useEffect(() => {
-    setFilteredData(data); // Hiển thị tất cả khi load lần đầu
-  }, []);
-  const [filteredData, setFilteredData] = useState([]);
   return (
-    <div className="order-page">
-      <main className="order-table-container">
-      <Header title={"Sản phẩm"} button_modal={"Tạo sản phẩm"} onAddOrder={handleCreateProduct}/>
-        <FilterBar tabs={tabs} activeTab={activeTab} onTabClick={handleTabClick} />
-        <section className="order-header">
-          <Table
-            className="table-containerr"
-            columns={columns}
-            dataSource={filteredData}
-            tableLayout="fixed"
-            expandable={{
-              expandedRowKeys,
-              onExpand: (expanded, record) => handleExpandRow(record),
-              expandedRowRender: (record) => (
-                <div className="detail">
-                  {record.details.map((detail, index) => (
-                    <p key={index}>
-                      {detail.type}: {detail.stock} sản phẩm
-                    </p>
-                  ))}
-                </div>
-              ),
-              rowExpandable: (record) => record.details.length > 0,
-              showExpandColumn: false,
-              expandIcon: () => null
-            }}
-            scroll={{
-              y: 300,
-            }}
-          />
-        </section>
-        <DeleteConfirmationModal
-                isVisible={isDeleteModalVisible}
-                onConfirm={handleDeleteConfirm}
-                onCancel={() => setIsDeleteModalVisible(false)}
-                order={selectedDeleteOrder}
+    <div>
+      <div style={{ marginLeft: "270px" }}>
+        <Topbar title="Quản lý sản phẩm" />
+      </div>
+
+      <div className="order-table-container1">
+        <header className="order-header">
+          <div className="header-actions">
+            <Input.Search
+              placeholder="Tìm kiếm sản phẩm..."
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+            <Button
+              type="primary"
+              className="export-button"
+              icon={<ExportOutlined />}
+            >
+              Xuất file
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              className="add-product-button"
+              onClick={handleCreateProduct}
+            >
+              Thêm sản phẩm
+            </Button>
+          </div>
+        </header>
+
+        <div className="filter-section">
+          <div className="filter-button">
+            {["Tất cả", "Đã đăng", "Tồn kho thấp", "Nháp"].map((type) => (
+              <Button
+                key={type}
+                onClick={() => handleTabClick(type)}
+                className={`filter-btn ${activeTab === type ? "active" : ""}`}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            disabled={state.selectedProducts.length === 0}
+            onClick={() => handleChange("isModalVisible", true)}
+            className="delete-all-button"
+          >
+            Xóa đã chọn
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="key"
+          expandable={{
+            expandedRowKeys,
+            onExpand: (expanded, record) => handleExpandRow(record),
+            expandedRowRender: (record) => (
+              <div style={{ 
+                padding: '10px 20px',
+                marginLeft: '50px', // Indent the details
+                borderLeft: '2px solid #f0f0f0'
+              }}>
+                <h4>Chi tiết phân loại:</h4>
+                {record.details.map((detail, index) => (
+                  <div key={index} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    padding: '5px 20px',
+                    backgroundColor: index % 2 ? '#f8f8f8' : 'white'
+                  }}>
+                    <span>{detail.type}</span>
+                    <span>Số lượng: {detail.stock}</span>
+                  </div>
+                ))}
+              </div>
+            ),
+            rowExpandable: (record) => record.details.length > 0,
+            showExpandColumn: false,
+            expandIcon: () => null
+          }}
+          pagination={{ 
+            pageSize: 10,
+            position: ['bottomRight'],
+          }}
+          rowSelection={{
+            selectedRowKeys: state.selectedProducts,
+            onChange: (selectedRowKeys) =>
+              handleChange("selectedProducts", selectedRowKeys),
+          }}
+          onRow={(record) => ({
+            onClick: () => navigate(`/adjust-product/${record.key}`),
+            style: { cursor: 'pointer' }
+          })}
         />
-      </main>
+
+        <DeleteConfirmationModal
+          isVisible={isDeleteModalVisible}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setIsDeleteModalVisible(false)}
+          message={`Bạn có chắc chắn muốn xóa sản phẩm ${selectedDeleteOrder?.name} có mã sản phẩm là ${selectedDeleteOrder?.code} không?`}
+        />
+
+        <Modal
+          title="Xác nhận xóa"
+          visible={state.isModalVisible}
+          onOk={handleConfirmDelete}
+          onCancel={() => handleChange("isModalVisible", false)}
+          okText="Xóa"
+          cancelText="Hủy"
+        >
+          <p>Bạn có chắc chắn muốn xóa những sản phẩm đã chọn?</p>
+        </Modal>
+      </div>
     </div>
   );
 };
 
-export default App;
+export default ProductPage;

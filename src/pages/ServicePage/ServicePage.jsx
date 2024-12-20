@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Table, Button, Input, DatePicker, Space, Tag, Menu, Modal } from "antd";
+import { ExportOutlined, DeleteOutlined, PlusOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
+import { useNavigate } from 'react-router-dom';
+import Topbar from "../../components/TopbarComponent/TopbarComponent";
+import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa";
 import Header from "../../components/Header/Header";
 import FilterBar from "../../components/FilterBar/FilterBar";
-import { useNavigate } from 'react-router-dom';
-import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa"
 import {
-  EditOutlined,
-  EyeOutlined,
-  DeleteOutlined,
   DownOutlined,
 } from "@ant-design/icons";
-import {Tag,Input,DatePicker,Dropdown,Menu,Table,Space } from "antd";
 import "./ServicePage.css";
 const { Search } = Input;
 const App1 = () => {
@@ -20,62 +19,49 @@ const App1 = () => {
   };
   const [modalMode, setModalMode] = useState("add"); 
   const [activeTab, setActiveTab] = useState("Tất cả");
-  const [expandedRowKeys, setExpandedRowKeys] = useState([]);
-  const handleExpandRow = (record) => {
-    const isRowExpanded = expandedRowKeys.includes(record.key);
-    setExpandedRowKeys(isRowExpanded
-      ? expandedRowKeys.filter((key) => key !== record.key)
-      : [...expandedRowKeys, record.key]);
-  };  
+  const [state, setState] = useState({
+    filters: {
+      orderType: "Tất cả",
+      date: null,
+      dateString: "",
+      searchQuery: "",
+    },
+    selectedOrders: [],
+    isModalVisible: false,
+  });
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+
   const [data, setData] = useState([
     {
       key: "1",
       productCode: "123876",
+      serviceName: "Sửa chữa điện thoại",
       postedDate: "29 Dec 2022",
       price: "13.000.000",
       customer: "bao",
       statuss: "Chưa giao hàng",
       checked: true,
-      expanded: false,
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-        { type: "Size 7", stock: 1 },
-      ],
     },
     {
       key: "2",
       productCode: "123878",
+      serviceName: "Thay pin laptop",
       postedDate: "30 Dec 2022",
-      price: "12.000.000",
+      price: "12.000.000", 
       customer: "minh",
       statuss: "Đã hủy",
       checked: true,
-      expanded: false,
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 },
-      ],
     },
     {
       key: "3",
       productCode: "1238769",
+      serviceName: "Vệ sinh máy tính",
       postedDate: "22 Dec 2022",
       price: "1.000.000.000.000 VNĐ",
       customer: "Nguyễn Phương Hằng",
       statuss: "Đã hoàn tất",
       checked: true,
-      expanded: false,
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 },
-      ],
     },
   ]);
   const menu = (
@@ -118,136 +104,73 @@ const App1 = () => {
   const handleOpenEditModal2 = (record) => {
     navigate(`/adjust-service/${record.key}`);
   };
+  const [selectedService, setSelectedService] = useState(null);
+  const [isAddServiceModalVisible, setIsAddServiceModalVisible] = useState(false);
+
+  const handleEditClick = (record) => {
+    navigate(`/adjust-service/${record.key}`);
+  };
+
   const columns = [
     {
-      title: "Mã sản phẩm",
+      title: "Mã phiếu",
       dataIndex: "productCode",
       key: "productCode",
-      width: "20%",
-      render: (text, record) => (
-        <div
-      style={{
-        display: "flex",
-        alignItems: "center", // Căn giữa theo chiều dọc
-        gap: "0px", // Khoảng cách giữa checkbox và chữ
-        marginRight: "80px",
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={record.checked}
-        onChange={() => handleCheckboxChange(record.key)}
-        style={{ cursor: "pointer" }}
-      />
-      <span style={{ whiteSpace: "nowrap", marginLeft: "10px" }}>{record.productCode}</span>
-    </div>
-      ),
     },
     {
-      title: (
-        <Dropdown
-          overlay={
-            <Menu>
-              <Menu.Item key="1">
-                <DatePicker
-                  onChange={(date, dateString) => console.log("Chọn ngày:", dateString)}
-                  style={{ width: "100%" }}
-                />
-              </Menu.Item>
-            </Menu>
-          }
-          trigger={["click"]}
-        >
-          <span style={{ cursor: "pointer" }}>
-            Đăng vào <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
+      title: "Dịch vụ",
+      dataIndex: "serviceName",
+      key: "serviceName",
+    },
+    {
+      title: "Ngày",
       dataIndex: "postedDate",
       key: "postedDate",
-      width: "25%",
     },
     {
       title: "Khách hàng",
       dataIndex: "customer",
       key: "customer",
-      width: "30%",
     },
     {
-      title: (
-        <Dropdown overlay={menu2} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Tình Trạng<DownOutlined />
-          </span>
-        </Dropdown>
-      ),
+      title: "Thành tiền",
+      dataIndex: "price",
+      key: "price",
+    },
+    {
+      title: "Trạng thái",
       dataIndex: "statuss",
       key: "statuss",
-      width: "20%",
       render: (statuss) => {
         let color;
         switch (statuss) {
           case "Chưa giao hàng":
-            color = "yellow";
+            color = "orange";
             break;
           case "Đã hoàn tất":
-            color = "blue";
+            color = "green";
             break;
           case "Đã hủy":
             color = "red";
             break;
           default:
-            color = "white";
+            color = "blue";
         }
         return <Tag color={color}>{statuss}</Tag>;
       },
     },
-    {
-      title: (
-        <Dropdown overlay={menu1} trigger={["click"]}>
-          <span style={{ cursor: "pointer" }}>
-            Thành tiền <DownOutlined />
-          </span>
-        </Dropdown>
-      ),
-      dataIndex: "price",
-      key: "price",
-      width: "30%",
-    },
-    {
-      title: "Hành động",
-      key: "action",
-      width: "20%",
-      render: (_, record) => (
-        <Space size="middle">
-          <EditOutlined
-            style={{ color: "#1890ff", cursor: "pointer" }}
-            onClick={() => handleOpenEditModal2(record)} // Mở modal chỉnh sửa
-          />
-          <EyeOutlined
-            style={{ color: "#52c41a", cursor: "pointer" }}
-            onClick={() => handleExpandRow(record)}
-          />
-          <DeleteOutlined
-            style={{ color: "#ff4d4f", cursor: "pointer" }}
-            onClick={() => handleDeleteClick(record)}
-          />
-        </Space>
-      ),
-    },
   ];
-  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false); // Hiển thị modal xóa
+
   const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null); // Lưu đơn hàng được chọn để xóa
   const handleDeleteClick = (order) => {
     setSelectedDeleteOrder(order); // Lưu đơn hàng được chọn để xóa
-    setIsDeleteModalVisible(true); // Hiển thị modal xác nhận
+    handleChange("isModalVisible", true); // Hiển thị modal xác nhận
   };
   const handleOpenEditModal = (order) => {
     setModalMode("edit"); // Chế độ chỉnh sửa
     setSelectedOrder(order); // Lưu dữ liệu sản phẩm được chọn
     setIsModalVisible(true); // Mở modal
   };
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const handleViewDetails = (record) => {
@@ -264,108 +187,164 @@ const App1 = () => {
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
-
-    if (tab === "Tất cả") {
-      setFilteredData(data); // Hiển thị tất cả
-    } else {
-      // Lọc dữ liệu theo trạng thái
-      const filtered = data.filter((item) => item.statuss === tab);
-      setFilteredData(filtered);
-  }
+    setState(prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        orderType: tab
+      }
+    }));
   };
+
   const handleDateChange = (date, dateString, key) => {
     const updatedData = data.map((item) =>
       item.key === key ? { ...item, postedDate: dateString } : item
     );
     setData(updatedData);
   };
-  const toggleExpandRow = (recordKey) => {
-    const updatedData = [...data];
-    const recordIndex = updatedData.findIndex((item) => item.key === recordKey);
-  
-    if (recordIndex >= 0) {
-      // Nếu đã mở chi tiết thì xóa dòng chi tiết khỏi data
-      if (updatedData[recordIndex].expanded) {
-        updatedData.splice(recordIndex + 1, 1);
+  const handleChange = (key, value) => {
+    setState((prev) => {
+      const updatedState = { ...prev };
+      if (key in prev.filters) {
+        updatedState.filters[key] = value;
       } else {
-        // Thêm hàng chi tiết ngay sau dòng chính
-        updatedData.splice(recordIndex + 1, 0, {
-          key: `${recordKey}-detail`,
-          isDetail: true,
-          details: updatedData[recordIndex].details,
-        });
+        updatedState[key] = value;
       }
-      // Cập nhật trạng thái mở rộng
-      updatedData[recordIndex].expanded = !updatedData[recordIndex].expanded;
-    }
-    setData(updatedData);
+      return updatedState;
+    });
   };
-  const [filteredData, setFilteredData] = useState([]);
-  useEffect(() => {
-    setFilteredData(data); // Hiển thị tất cả khi load lần đầu
-  }, []);
+  const filteredData = useMemo(() => {
+    const { orderType, dateString, searchQuery } = state.filters;
+
+    return data.filter((item) => {
+      const matchesSearchQuery = 
+        searchQuery === "" || 
+        item.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.customer.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesOrderType = 
+        orderType === "Tất cả" || 
+        item.statuss === orderType;
+
+      const matchesDate = !dateString || item.postedDate.includes(dateString);
+
+      return matchesSearchQuery && matchesOrderType && matchesDate;
+    });
+  }, [data, state.filters]);
+
   const handleDeleteConfirm = () => {
     const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key); // Lọc bỏ đơn hàng được chọn
     setData(updatedData); // Cập nhật danh sách
-    setIsDeleteModalVisible(false); // Đóng modal
+    handleChange("isModalVisible", false); // Đóng modal
     setSelectedDeleteOrder(null); // Xóa thông tin đơn hàng đã chọn
   };
-  useEffect(() => {
-    setFilteredData(data); // Hiển thị tất cả khi load lần đầu
-  }, []);
-  useEffect(() => {
-    if (activeTab === "Tất cả") {
-      setFilteredData(data); // Hiển thị tất cả
-    } else {
-      const filtered = data.filter((item) => item.statuss === activeTab);
-      setFilteredData(filtered);
-    }
-  }, [data, activeTab]);
+  const handleMultiDelete = () => {
+    handleChange("isModalVisible", true);
+  };
+  const handleConfirmDelete = () => {
+    const remainingData = data.filter(
+      (item) => !state.selectedOrders.includes(item.key)
+    );
+    setData(remainingData);
+    setState((prev) => ({
+      ...prev,
+      selectedOrders: [],
+      isModalVisible: false,
+    }));
+  };
   const tabs = ["Tất cả", "Đã hủy", "Chưa giao hàng", "Đã hoàn tất"];
     return (
-        <div className="order-page">
-          <main className="order-table-container">
-              <Header 
-                title={"Danh sách phiếu dịch vụ"} 
-                button_modal={"Thêm dịch vụ"}
-                onAddOrder={handleAddService} // Add this prop
-              />
-            <FilterBar tabs={tabs}  activeTab={activeTab} onTabClick={handleTabClick} />
-            <section className="order-header">    
-              <Table
-                className="tableer-containers"
-                columns={columns}
-                dataSource={filteredData}
-                tableLayout="fixed"
-                expandable={{
-                  expandedRowKeys,
-                  onExpand: (expanded, record) => toggleExpandRow(record),
-                  expandedRowRender: (record) => (
-                    <div className="detail">
-                      {record.details.map((detail, index) => (
-                        <p key={index}>
-                          {detail.type}: {detail.stock} sản phẩm
-                        </p>
-                      ))}
-                    </div>
-                  ),
-                  rowExpandable: (record) => record.details.length > 0,
-                  showExpandColumn: false,
-                  expandIcon: () => null
-                }}
-                scroll={{
-                  y: 300,
-                }}
-              />
-              </section>
-              <DeleteConfirmationModal
-                isVisible={isDeleteModalVisible}
-                onConfirm={handleDeleteConfirm}
-                onCancel={() => setIsDeleteModalVisible(false)}
-                order={selectedDeleteOrder}
-              />
-          </main>
+    <div>
+      <div style={{ marginLeft: "270px" }}>
+        <Topbar title="Danh sách phiếu dịch vụ" />
+      </div>
+
+      <div className="order-table-container-sr">
+        <header className="order-header">
+          <div className="header-actions">
+            <Input.Search
+              placeholder="Tìm kiếm phiếu dịch vụ..."
+              onSearch={onSearch}
+            />
+            <Button
+              type="primary"
+              className="export-button"
+              icon={<ExportOutlined />}
+            >
+              Xuất file
+            </Button>
+            <Button
+              type="primary"
+              className="add-product-button"
+              icon={<PlusOutlined />}
+              onClick={handleAddService}
+            >
+              Thêm dịch vụ
+            </Button>
+          </div>
+        </header>
+
+        <div className="filter-section">
+          <div className="filter-button">
+            {tabs.map((type) => (
+              <Button
+                key={type}
+                onClick={() => handleTabClick(type)}
+                className={`filter-btn ${activeTab === type ? "active" : ""}`}
+              >
+                {type}
+              </Button>
+            ))}
+          </div>
+          <DatePicker
+            placeholder="Chọn ngày"
+            onChange={handleDateChange}
+            format="DD/MM/YYYY"
+          />
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            disabled={state.selectedOrders.length === 0}
+            onClick={() => handleChange("isModalVisible", true)}
+            className="delete-all-button"
+          >
+            Xóa đã chọn
+          </Button>
         </div>
-    );
+
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="key"
+          onRow={(record) => ({
+            onClick: () => navigate(`/adjust-service/${record.key}`),
+            style: { cursor: 'pointer' }
+          })}
+          rowSelection={{
+            selectedRowKeys: state.selectedOrders,
+            onChange: (selectedRowKeys) => handleChange("selectedOrders", selectedRowKeys),
+          }}
+          pagination={{ 
+            pageSize: 10,
+            position: ['bottomRight']
+          }}
+          scroll={{ x: 'max-content' }}
+        />
+
+        <Modal
+          title="Xác nhận xóa"
+          visible={state.isModalVisible} // Use 'visible' if you're using Ant Design v4.x
+          // If using Ant Design v5.x, use 'open' instead:
+          // open={state.isModalVisible}
+          onOk={handleConfirmDelete}
+          onCancel={() => handleChange("isModalVisible", false)}
+          okText="Xóa"
+          cancelText="Hủy"
+        >
+          <p>Bạn có chắc chắn muốn xóa những phiếu dịch vụ đã chọn?</p>
+        </Modal>
+    </div>
+  </div>
+  );
 }
 export default App1;
