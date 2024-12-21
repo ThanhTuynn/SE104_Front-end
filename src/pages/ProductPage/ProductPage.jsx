@@ -23,6 +23,10 @@ const ProductPage = () => {
   const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState({});
+  const [uniqueCategories, setUniqueCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [allCategories, setAllCategories] = useState([]);
 
   const [state, setState] = useState({
     filters: {
@@ -114,34 +118,25 @@ const ProductPage = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Update URL to match backend
-      const response = await axios.get('http://localhost:3001/api/product/get-all');
-      console.log('Raw API response:', response.data);
+      const products = await productService.getAllProducts();
       
-      if (!response.data) {
-        throw new Error('No data received');
-      }
-
-      const formattedData = response.data.map(product => ({
-        key: product.MaSanPham,
-        productName: product.TenSanPham,
-        productCode: product.MaSanPham,
-        category: product.TenLoaiSanPham || 'Chưa phân loại',
-        stock: product.SoLuong || 0,
+      const formattedData = products.map(product => ({
+        ...product,
         price: new Intl.NumberFormat('vi-VN', { 
           style: 'currency', 
           currency: 'VND' 
-        }).format(product.DonGia || 0)
+        }).format(product.price)
       }));
       
       setData(formattedData);
       setFilteredData(formattedData);
+      
+      // Lấy danh sách unique categories
+      const uniqueCats = [...new Set(formattedData.map(item => item.category))];
+      setUniqueCategories(uniqueCats);
+      
     } catch (error) {
-      console.error('Fetch error details:', {
-        message: error.message,
-        status: error?.response?.status,
-        url: error?.config?.url
-      });
+      console.error('Fetch error:', error);
       message.error('Không thể tải dữ liệu sản phẩm');
     } finally {
       setLoading(false);
@@ -149,7 +144,7 @@ const ProductPage = () => {
   };
 
   useEffect(() => {
-    fetchProducts(); // Remove test connection and fetch directly
+    fetchProducts();
   }, []);
 
   const getProductStatus = (stock) => {
@@ -159,10 +154,20 @@ const ProductPage = () => {
   };
 
   useEffect(() => {
+    // Lấy danh sách unique categories từ data
+    const categories = [...new Set(data.map(item => item.category))];
+    setUniqueCategories(categories);
+  }, [data]);
+
+  useEffect(() => {
     let filtered = data;
 
     if (activeTab !== "Tất cả") {
       filtered = filtered.filter((item) => item.status === activeTab);
+    }
+
+    if (selectedCategory) {
+      filtered = filtered.filter((item) => item.category === selectedCategory);
     }
 
     if (searchText) {
@@ -175,10 +180,22 @@ const ProductPage = () => {
     }
 
     setFilteredData(filtered);
-  }, [data, activeTab, searchText]);
+  }, [data, activeTab, searchText, selectedCategory]);
 
   useEffect(() => {
     setFilteredData(data);
+  }, []);
+
+  useEffect(() => {
+    const fetchAllCategories = async () => {
+      try {
+        const categories = await productService.getAllCategories();
+        setAllCategories(categories);
+      } catch (error) {
+        console.error('Error fetching all categories:', error);
+      }
+    };
+    fetchAllCategories();
   }, []);
 
   const menu = (
@@ -210,13 +227,7 @@ const ProductPage = () => {
       dataIndex: "productName",
       key: "productName",
       render: (text, record) => (
-        <div 
-          style={{ display: "flex", alignItems: "center", gap: "10px" }}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleExpandRow(record);
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
             src={record.image}
             alt={record.productName}
@@ -224,10 +235,6 @@ const ProductPage = () => {
           />
           <div>
             <strong>{text}</strong>
-            <br />
-            <div style={{ color: "#888", cursor: 'pointer' }}>
-              {record.category} {record.details.length > 0 && <DownOutlined style={{ fontSize: '12px' }} />}
-            </div>
           </div>
         </div>
       ),
@@ -236,12 +243,36 @@ const ProductPage = () => {
       title: "Mã Sản phẩm",
       dataIndex: "productCode",
       key: "productCode",
-      width: 150,
+    },
+    {
+      title: "Phân loại",
+      dataIndex: "category",
+      key: "category",
+      filters: allCategories.map(cat => ({
+        text: cat.text,
+        value: cat.text
+      })),
+      onFilter: (value, record) => record.category === value,
+      filterSearch: true,
+      render: (category) => (
+        <Tag color="#108ee9" style={{ fontSize: '12px' }}>
+          {category}
+        </Tag>
+      )
     },
     {
       title: "Lượng tồn",
       dataIndex: "stock",
       key: "stock",
+      sorter: (a, b) => a.stock - b.stock,
+      render: (stock) => (
+        <span style={{ 
+            color: stock <= 5 ? '#ff4d4f' : stock <= 10 ? '#faad14' : '#52c41a',
+            fontWeight: 'bold'
+        }}>
+            {stock} {/* Hiển thị SoLuong từ database */}
+        </span>
+      )
     },
     {
       title: "Giá",
@@ -281,18 +312,7 @@ const ProductPage = () => {
           </div>
         </header>
 
-        <div className="filter-section">
-          <div className="filter-button">
-            {["Tất cả", "Đã đăng", "Tồn kho thấp", "Nháp"].map((type) => (
-              <Button
-                key={type}
-                onClick={() => handleTabClick(type)}
-                className={`filter-btn ${activeTab === type ? "active" : ""}`}
-              >
-                {type}
-              </Button>
-            ))}
-          </div>
+        <div className="filter-section" style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             danger
             icon={<DeleteOutlined />}
@@ -309,33 +329,6 @@ const ProductPage = () => {
           columns={columns}
           dataSource={filteredData}
           rowKey="key"
-          expandable={{
-            expandedRowKeys,
-            onExpand: (expanded, record) => handleExpandRow(record),
-            expandedRowRender: (record) => (
-              <div style={{ 
-                padding: '10px 20px',
-                marginLeft: '50px', // Indent the details
-                borderLeft: '2px solid #f0f0f0'
-              }}>
-                <h4>Chi tiết phân loại:</h4>
-                {record.details.map((detail, index) => (
-                  <div key={index} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    padding: '5px 20px',
-                    backgroundColor: index % 2 ? '#f8f8f8' : 'white'
-                  }}>
-                    <span>{detail.type}</span>
-                    <span>Số lượng: {detail.stock}</span>
-                  </div>
-                ))}
-              </div>
-            ),
-            rowExpandable: (record) => record.details.length > 0,
-            showExpandColumn: false,
-            expandIcon: () => null
-          }}
           pagination={{ 
             pageSize: 5,
             position: ['bottomRight'],

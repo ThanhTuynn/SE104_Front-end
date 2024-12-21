@@ -1,38 +1,32 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://localhost:3000';
 
-// Create axios instance
-const axiosClient = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  withCredentials: true
 });
-
-// Add response interceptor
-axiosClient.interceptors.response.use(
-  response => response,
-  error => {
-    console.error('API Error:', error.response);
-    throw error;
-  }
-);
 
 export const signIn = async (username, password) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/users/login`, {
+    const response = await axiosInstance.post('/api/user/login', {
       username,
-      password
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      password,
     });
+
+    console.log('Login response:', response.data); // Debug log
+
+    if (!response.data) {
+      throw new Error('No response data received');
+    }
 
     // Transform backend response to match frontend expectations
     return {
-      token: `Bearer ${response.data.userId}`, // Create a token format
+      token: response.data.accessToken,
       user: {
         id: response.data.userId,
         username: response.data.username,
@@ -40,16 +34,29 @@ export const signIn = async (username, password) => {
       }
     };
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to sign in');
+    console.error('Login Error:', {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data
+    });
+    throw new Error(error.response?.data?.message || 'Đăng nhập thất bại');
   }
 };
 
-export const signUp = async (username, password, role) => {
+export const signUp = async (username, password, email, role) => {
   try {
-    const response = await axiosClient.post('/api/users/register', {
-      username,
-      password,
-      role
+    console.log('Sending signup request with data:', {
+      TenTaiKhoan: username,
+      MatKhau: password,
+      Email: email,
+      Role: role
+    });
+
+    const response = await axiosInstance.post('/api/user/register', {
+      TenTaiKhoan: username,
+      MatKhau: password,
+      Email: email,
+      Role: role
     });
 
     return {
@@ -57,14 +64,10 @@ export const signUp = async (username, password, role) => {
       data: response.data
     };
   } catch (error) {
-    console.error('Signup Error:', {
-      status: error.response?.status,
-      message: error.response?.data?.message || error.message
-    });
-
+    console.error('Signup Error:', error.response?.data || error.message);
     return {
       success: false,
-      message: error.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.'
+      message: error.response?.data?.message || 'Đăng ký thất bại.'
     };
   }
 };

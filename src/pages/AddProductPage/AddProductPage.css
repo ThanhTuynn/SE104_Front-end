@@ -1,8 +1,27 @@
-  /* AddProductPage.css */
+/* AddProductPage.css */
 .app-layout_app{
   .section {
       border-radius: 8px;
-  }.body_them{
+      width: 100%;
+      margin-bottom: 20px;
+  }
+  .section .ant-row {
+      width: 100%;
+  }
+  .section .ant-col {
+      width: 100%;
+  }
+  .section label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+  }
+  .section .ant-input,
+  .section .ant-select {
+      width: 100%;
+      height: 40px;
+  }
+  .body_them{
     margin-top: -30px;
   }
   .container {
@@ -13,7 +32,7 @@
   }
 
   .select1 {
-      border-radius: 8px !important;
+      width:(100% - 40px);
   }
 
   .header-actions {
@@ -92,7 +111,7 @@
       border-radius: 8px !important;
     }
   .app-layout {
-      max-width: 1400px;
+      max-width: 100%;
       margin-left: 20px;
       overflow: hidden;
       border-radius: 8px; /* Bo tròn khung */
@@ -335,8 +354,11 @@
     
     /* Classification and Status */
     .classification-status {
-      display: flex;
+      display: block;
       margin-bottom: 20px;
+      width: 100%;
+      margin: 0;
+      padding: 0;
     }
     
     .classification-status .section {
@@ -424,4 +446,62 @@
       top: 50%; /* Center vertically */
       transform: translateY(-50%);  
     }
+
+  .classification-status {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    display: block;
+  }
+
+  .classification-status .ant-col {
+    width: 100%;
+    padding: 0;
+  }
+
+  .classification-status .section {
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .classification-status .select1 {
+    width: 100%;
+    display: block;
+  }
+
+  .ant-select .ant-select-selector {
+    height: 40px !important;
+    padding: 4px 11px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .ant-select-selection-placeholder,
+  .ant-select-selection-item {
+    line-height: 32px !important;
+    font-size: 14px;
+  }
+
+  .ant-select {
+    .ant-select-selector {
+      height: 40px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .ant-select-selection-placeholder {
+      color: #bfbfbf;
+      font-size: 14px;
+      line-height: 36px !important;
+      display: flex !important;
+      align-items: center !important;
+      z-index: 1001!important;
+    }
+
+    .ant-select-selection-item {
+      display: flex !important;
+      align-items: center !important;
+    }
+  }
 }
