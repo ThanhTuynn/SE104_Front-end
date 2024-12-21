@@ -270,7 +270,7 @@ const ProductPage = () => {
             color: stock <= 5 ? '#ff4d4f' : stock <= 10 ? '#faad14' : '#52c41a',
             fontWeight: 'bold'
         }}>
-            {stock} {/* Hiển thị số lần xuất hiện của mã sản phẩm */}
+            {stock} {/* Hiển thị SoLuong từ database */}
         </span>
       )
     },
