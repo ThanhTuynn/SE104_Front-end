@@ -97,36 +97,60 @@ const productService = {
 
     addProduct: async (productData) => {
         try {
-            // Kiểm tra sản phẩm tồn tại
-            const allProducts = await axios.get(`${BASE_URL}/product/get-all`);
-            const existingProduct = allProducts.data.find(
-                p => p.MaSanPham === productData.productCode
-            );
-
-            if (existingProduct) {
-                // Nếu sản phẩm đã tồn tại, tạo một bản ghi mới với thông tin của sản phẩm cũ
-                const response = await axios.post(`${BASE_URL}/product/create`, {
-                    TenSanPham: existingProduct.TenSanPham,
-                    MaLoaiSanPham: existingProduct.MaLoaiSanPham,
-                    MaSanPham: existingProduct.MaSanPham,
-                    DonGia: existingProduct.DonGia,
-                    SoLuong: 1 // Mỗi lần thêm mới là cộng 1
-                });
-                return response.data;
-            } else {
-                // Nếu là sản phẩm mới
-                const response = await axios.post(`${BASE_URL}/product/create`, {
-                    TenSanPham: productData.productName,
-                    MaLoaiSanPham: productData.categoryId,
-                    MaSanPham: productData.productCode,
-                    DonGia: parseFloat(productData.price),
-                    SoLuong: 0
-                });
-                return response.data;
-            }
+            console.log('Sending product data:', productData);
+            const response = await axios.post(`${BASE_URL}/product/create`, {
+                TenSanPham: productData.TenSanPham,
+                MaLoaiSanPham: productData.MaLoaiSanPham,
+                MaSanPham: productData.MaSanPham,
+                DonGia: parseFloat(productData.DonGia),
+                SoLuong: productData.SoLuong || 0
+            });
+            return response.data;
         } catch (error) {
-            console.error('Error adding product:', error);
+            console.error('Error adding product:', error.response?.data || error);
             throw new Error(error.response?.data?.message || 'Không thể thêm sản phẩm');
+        }
+    },
+
+    updateProduct: async (id, productData) => {
+        try {
+            console.log('Sending update request:', {
+                id,
+                data: {
+                    TenSanPham: productData.TenSanPham,
+                    MaLoaiSanPham: productData.MaLoaiSanPham,
+                    MaSanPham: productData.MaSanPham,
+                    DonGia: parseFloat(productData.DonGia || productData.price),
+                    SoLuong: productData.SoLuong || 0 // Thêm trường SoLuong
+                }
+            });
+
+            const response = await axios.patch(`${BASE_URL}/product/update/${id}`, {
+                TenSanPham: productData.TenSanPham,
+                MaLoaiSanPham: productData.MaLoaiSanPham,
+                MaSanPham: productData.MaSanPham,
+                DonGia: parseFloat(productData.DonGia || productData.price),
+                SoLuong: productData.SoLuong || 0 // Thêm trường SoLuong
+            });
+
+            console.log('Update response:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Update error details:', error.response?.data || error);
+            throw new Error(error.response?.data?.message || 'Không thể cập nhật sản phẩm');
+        }
+    },
+
+    getProductById: async (id) => {
+        try {
+            console.log("Calling API with ID:", id);
+            // Sửa lại endpoint để lấy chi tiết sản phẩm
+            const response = await axios.get(`${BASE_URL}/product/get-details/${id}`);
+            console.log("API Response:", response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching product:', error);
+            throw error;
         }
     }
 };

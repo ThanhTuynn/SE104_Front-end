@@ -1,4 +1,8 @@
-import React, { useState} from "react";
+import React, { useState, useEffect } from "react";  // Thêm useEffect
+import axios from 'axios';  // Thêm import axios
+import { message } from 'antd';  // Thêm import message
+import productService from '../../services/productService';
+import { useParams, useNavigate, useLocation } from 'react-router-dom'; // Add this import
 import {
   Layout,
   Menu,
@@ -29,9 +33,19 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const App = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [attributes, setAttributes] = useState([
     { key: 1, property: "", detail: "" },
   ]);
+  const [categories, setCategories] = useState([]);
+  const [formData, setFormData] = useState({
+    productName: '',
+    categoryId: '',
+    productCode: '',
+    price: ''
+  });
 
   // Hàm thêm thuộc tính mới
   const addAttribute = () => {
@@ -41,6 +55,99 @@ const App = () => {
       { key: newKey, property: "", detail: "" },
     ]);
   };
+
+  // Thêm useEffect để lấy danh sách loại sản phẩm
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await productService.getCategories();
+        console.log('Categories fetched:', categoriesData); // Debug log
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        message.error('Không thể tải danh sách phân loại');
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Add new useEffect to fetch product details
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        if (location.state?.productData) {
+          const product = location.state.productData;
+          console.log("Setting product data:", product);
+          setFormData({
+            productName: product.productName,
+            categoryId: product.categoryId,
+            productCode: product.productCode,
+            price: String(product.price).replace(/[^\d]/g, '') // Remove currency formatting
+          });
+        } else {
+          // Fallback to API call if no state data
+          const products = await productService.getAllProducts();
+          const product = products.find(p => p.key === id);
+          if (product) {
+            setFormData({
+              productName: product.productName,
+              categoryId: product.categoryId,
+              productCode: product.productCode,
+              price: String(product.price).replace(/[^\d]/g, '')
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading product:', error);
+        message.error('Không thể tải thông tin sản phẩm');
+      }
+    };
+
+    fetchProductDetails();
+  }, [id, location]);
+
+  console.log('Current categories:', categories); // Debug log
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveProduct = async () => {
+    try {
+      const currentProduct = location.state?.productData;
+      
+      if (!currentProduct) {
+        message.error('Không tìm thấy thông tin sản phẩm');
+        return;
+      }
+
+      // Format dữ liệu theo đúng yêu cầu của API
+      const updatedProduct = {
+        TenSanPham: formData.productName,
+        MaLoaiSanPham: formData.categoryId,
+        MaSanPham: formData.productCode,
+        DonGia: parseFloat(formData.price),
+        SoLuong: currentProduct.stock // Thêm số lượng từ sản phẩm hiện tại
+      };
+
+      console.log('Updating product:', {
+        id: currentProduct.key,
+        data: updatedProduct
+      });
+
+      await productService.updateProduct(currentProduct.key, updatedProduct);
+      message.success('Cập nhật sản phẩm thành công');
+      navigate('/list-product');
+    } catch (error) {
+      console.error('Error updating product:', error);
+      message.error('Không thể cập nhật sản phẩm: ' + error.message);
+    }
+  };
+
   return (
     <Layout className="app-layout-container-adjust">
       {/* Sidebar */}
@@ -69,6 +176,7 @@ const App = () => {
             <Button 
               type="primary" 
               className="action-btn"
+              onClick={handleSaveProduct}
               style={{ 
                 borderRadius: '8px',
                 display: 'flex',
@@ -80,50 +188,7 @@ const App = () => {
               + Lưu thay đổi
             </Button>
           </div>
-          <Row gutter={16} className="classification-status" style={{
-                backgroundColor: "#f8f9ff",
-                padding: "0px",
-                marginLeft: "0px",
-                borderRadius: "12px",
-                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
-                border: "1px solid #e6e9f0",
-                marginBottom: "20px",
-                width: "100%"
-              }}>
-                <Col span={12}>
-                  <div className="section">
-                    <h2>Phân loại</h2>
-                    <Select
-                      className="select1"
-                      placeholder="Chọn phân loại..."
-                      style={{ 
-                        width: "475px",
-                        borderRadius: "8px",
-                        marginLeft:"-5px"
-                      }}
-                    >
-                      <Option value="category1">Danh mục 1</Option>
-                      <Option value="category2">Danh mục 2</Option>
-                    </Select>
-                  </div>
-                </Col>
-                <Col span={12}>
-                  <div className="section">
-                    <h2>Tình trạng</h2>
-                    <Select
-                      placeholder="Chọn tình trạng..."
-                      style={{ 
-                        width: "100%",
-                        borderRadius: "8px"
-                      }}
-                    >
-                      <Option value="new">Mới</Option>
-                      <Option value="used">Đã sử dụng</Option>
-                    </Select>
-                  </div>
-                </Col>
-              </Row>
-            {/* Thông tin chung */}
+          {/* Phân loại */}
             {/* Thông tin chung */}
             <div className="section" style={{
               backgroundColor: "#f8f9ff",
@@ -131,275 +196,58 @@ const App = () => {
               borderRadius: "12px",
               boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
               border: "1px solid #e6e9f0",
-              marginBottom: "20px",
-              width: "100%"
+              marginBottom: "20px"
             }}>
               <h2>Thông tin chung</h2>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={24}>
                   <label>Tên sản phẩm</label>
                   <Input 
                     placeholder="Nhập tên sản phẩm" 
-                    style={{ borderRadius: "8px" }}
-                  />
-                </Col>
-                <Col span={12}>
-                  <label style={{marginLeft:"20px"}}>Mô tả</label>
-                  <TextArea 
-                    placeholder="Nhập mô tả sản phẩm ở đây..." 
-                    rows={4} 
-                    style={{ borderRadius: "8px", marginLeft:"20px",width:"455px" }}
+                    value={formData.productName}
+                    onChange={(e) => handleInputChange('productName', e.target.value)}
                   />
                 </Col>
               </Row>
-            {/* Minh họa */}
-              <h2>Minh họa</h2>
-              <div className="upload-box" style={{
-                border: "4px dashed #e6e9f0",
-                borderRadius: "8px",
-                padding: "20px",
-                textAlign: "center"
-              }}>
-                <p>Kéo và thả hình ảnh vào đây hoặc nhấn "Thêm hình ảnh"</p>
-                <Button style={{ borderRadius: "8px" }}>Thêm hình ảnh</Button>
-              </div>
-            </div>
-            {/* Giá */}
-            <div className="section" style={{
-              backgroundColor: "#f8f9ff",
-              padding: "20px",
-              borderRadius: "12px",
-              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
-              border: "1px solid #e6e9f0",
-              marginBottom: "20px",
-              width: "100%"
-            }}>
-              <h2>Giá sản phẩm</h2>
               <Row gutter={16}>
-                <Col span={12}>
-                  <label style={{marginLeft: "20px"}}>Giá gốc</label>
+                <Col span={24}>
+                  <label>Phân loại</label>
+                  <Select
+                    className="select1"
+                    placeholder="Chọn loại sản phẩm"
+                    value={formData.categoryId || undefined}
+                    onChange={(value) => { // Sửa lại tham số và cách xử lý
+                      console.log('Selected category:', value);
+                      handleInputChange('categoryId', value);
+                    }}
+                  >
+                    {categories.map(cat => (
+                      <Option key={cat.MaLoaiSanPham} value={cat.MaLoaiSanPham}>
+                        {cat.TenLoaiSanPham}
+                      </Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <label>Mã sản phẩm</label>
+                  <Input 
+                    placeholder="Nhập mã sản phẩm"
+                    value={formData.productCode}
+                    onChange={(e) => handleInputChange('productCode', e.target.value)}
+                  />
+                </Col>
+              </Row>
+              <label>Giá sản phẩm</label>
+              <Row gutter={16}>
+                <Col span={24}>
                   <Input
-                    
                     placeholder="Nhập giá gốc"
-                    className="gia_nhap"
-                    style={{
-                      height: '40px',
-                      width: '910px',
-                      borderRadius: '8px',
-                      textAlign: 'left',
-                      alignItems:"center",
-                      fontSize: '14px',
-                      marginLeft:"20px",
-                    }}
+                    value={formData.price}
+                    onChange={(e) => handleInputChange('price', e.target.value)}
+                    style={{ width: "100%" }}
                   />
-                </Col>
-              </Row>
-            <div className="section_LG">
-              <Row gutter={16}>
-                <Col span={12}>
-                  <label>Loại giảm giá</label>
-                  <Select placeholder="Chọn loại giảm giá" style={{ width: "100%" }}>
-                    <Option value="percentage">Loại 1</Option>
-                    <Option value="amount">Loại 2</Option>
-                  </Select>
-                </Col>
-                <Col span={12}>
-                  <label>Phần trăm giảm giá(%)</label>
-                  <Input
-                    placeholder="Nhập phần trăm giảm giá"
-                    className="phan_tram_input"
-                    style={{
-                      height: '40px', // Chiều cao
-                      display: 'flex', // Flexbox để căn chỉnh
-                      alignItems: 'center', // Căn giữa theo chiều dọc
-                      justifyContent: 'center', // Căn giữa theo chiều ngang
-                      textAlign: 'left', // Căn giữa văn bản
-                      padding: '10px', // Loại bỏ padding nếu cần
-                    }}
-                  />
-                </Col>
-              </Row>
-            </div>
-            <div className="section_LG2">
-              <Row gutter={16}>
-                <Col span={12}>
-                  <label>Loại thuế</label>
-                  <Select placeholder="Chọn loại thuế" style={{ width: "100%" }}>
-                    <Option value="percentage">Loại 1</Option>
-                    <Option value="amount">Loại 2</Option>
-                  </Select>
-                </Col>
-                <Col span={12}>
-                  <label>Phần trăm thuế(%)</label>
-                  <Input
-                    placeholder="Nhập phần trăm thuế"
-                    className="phan_tram_input"
-                    style={{
-                      height: '40px', // Chiều cao
-                      display: 'flex', // Flexbox để căn chỉnh
-                      alignItems: 'center', // Căn giữa theo chiều dọc
-                      justifyContent: 'center', // Căn giữa theo chiều ngang
-                      textAlign: 'left', // Căn giữa văn bản
-                      padding: '10px', // Loại bỏ padding nếu cần
-                    }}
-                  />
-                </Col>
-              </Row>
-              </div>
-            </div>
-            {/* Tồn kho */}
-            <div className="section" style={{
-                backgroundColor: "#f8f9ff",
-                padding: "20px",
-                borderRadius: "12px",
-                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
-                border: "1px solid #e6e9f0",
-                marginBottom: "20px",
-                width: "100%"
-              }}>
-                <h2>Tồn kho</h2>
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <label>Mã sản phẩm</label>
-                    <Input 
-                      placeholder="Nhập mã sản phẩm"
-                      style={{
-                        height: '40px',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        lineHeight: '40px'
-                      }}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <label>Mã vạch</label>
-                    <Input 
-                      placeholder="Nhập mã vạch sản phẩm"
-                      style={{
-                        height: '40px',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        lineHeight: '40px'
-                      }}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <label>Số lượng</label>
-                    <Input 
-                      placeholder="Nhập số lượng"
-                      style={{
-                        height: '40px',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        lineHeight: '40px'
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </div>
-            {/* Thuộc tính */}
-            <div className="section" style={{
-                backgroundColor: "#f8f9ff",
-                padding: "20px",
-                borderRadius: "12px",
-                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
-                border: "1px solid #e6e9f0",
-                marginBottom: "20px",
-                width: "100%"
-              }}>
-                <h2>Thuộc tính</h2>
-                {attributes.map((attr, index) => (
-                  <Row gutter={16} key={attr.key} style={{ marginBottom: "10px" }}>
-                    <Col span={12}>
-                      <label>Thuộc tính</label>
-                      <Select
-                        placeholder="Chọn thuộc tính"
-                      >
-                        <Option value="color">Màu sắc</Option>
-                        <Option value="size">Kích thước</Option>
-                      </Select>
-                    </Col>
-                    <Col span={12}>
-                      <label>Cụ thể</label>
-                      <Input
-                        placeholder="Nhập cụ thể"
-                        value={attr.detail}
-                        onChange={(e) => {
-                          const updatedAttributes = [...attributes];
-                          updatedAttributes[index].detail = e.target.value;
-                          setAttributes(updatedAttributes);
-                        }}
-                        className="phan_tram_input"
-                        style={{
-                          height: "40px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          textAlign: "left",
-                          
-                        }}
-                      />
-                    </Col>
-                  </Row>
-                ))}
-                <Button
-                className="add-attribute-btn"
-                onClick={addAttribute}
-                type="primary"
-                style={{
-                  borderRadius: '8px',
-                  height: '30px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginTop: '16px'
-                }}
-              >
-                + Thêm thuộc tính
-              </Button>
-              </div>
-            {/* Vận chuyển */}
-            <div className="section" style={{
-                backgroundColor: "#f8f9ff",
-                padding: "20px",
-                borderRadius: "12px",
-                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.4)",
-                border: "1px solid #e6e9f0",
-                marginBottom: "20px",
-                width: "100%"
-              }}>
-              <div className="checkboxxx">
-                <h2>Vận chuyển</h2>
-                <Checkbox style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <span style={{
-                    lineHeight: '1.5',
-                    marginTop: '6 px', // Move text down slightly
-                    display: 'inline-block'
-                  }}>
-                    Đây là một mặt hàng vật lý
-                  </span>
-                </Checkbox>
-              </div>
-              <Row gutter={16} style={{ marginTop: "10px" }}>
-                <Col span={6}>
-                  <label>Cân nặng</label>
-                  <Input placeholder="Nhập cân nặng" />
-                </Col>
-                <Col span={6}>
-                  <label>Chiều cao</label>
-                  <Input placeholder="Nhập chiều cao" />
-                </Col>
-                <Col span={6}>
-                  <label>Độ dài</label>
-                  <Input placeholder="Nhập độ dài" />
-                </Col>
-                <Col span={6}>
-                  <label>Chiều rộng</label>
-                  <Input placeholder="Nhập chiều rộng" />
                 </Col>
               </Row>
             </div>

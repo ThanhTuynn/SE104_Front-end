@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";  // Thêm useEffect
+import { useNavigate } from 'react-router-dom'; // Thêm dòng này
 import axios from 'axios';  // Thêm import axios
 import { message } from 'antd';  // Thêm import message
 import productService from '../../services/productService';
@@ -32,6 +33,7 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const App = () => {
+  const navigate = useNavigate(); // Thêm dòng này
   const [attributes, setAttributes] = useState([
     { key: 1, property: "", detail: "" },
   ]);
@@ -79,20 +81,22 @@ const App = () => {
 
   const handleSaveProduct = async () => {
     try {
-      // Validate form
       if (!formData.productName || !formData.categoryId || !formData.productCode || !formData.price) {
         message.error('Vui lòng điền đầy đủ thông tin sản phẩm');
         return;
       }
 
-      await productService.addProduct(formData);
-      message.success('Thêm sản phẩm thành công');
-      setFormData({
-        productName: '',
-        categoryId: '',
-        productCode: '',
-        price: ''
+      // Đảm bảo gửi đúng format dữ liệu
+      await productService.addProduct({
+        TenSanPham: formData.productName,
+        MaLoaiSanPham: formData.categoryId,
+        MaSanPham: formData.productCode,
+        DonGia: parseFloat(formData.price),
+        SoLuong: 0 // Thêm mới với số lượng 0
       });
+
+      message.success('Thêm sản phẩm thành công');
+      navigate('/list-product'); // Giờ có thể sử dụng navigate
     } catch (error) {
       message.error('Không thể thêm sản phẩm: ' + error.message);
     }
