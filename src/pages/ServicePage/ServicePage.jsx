@@ -300,6 +300,7 @@ const App1 = () => {
             placeholder="Chọn ngày"
             onChange={handleDateChange}
             format="DD/MM/YYYY"
+            className="date-picker"
           />
           <Button
             danger

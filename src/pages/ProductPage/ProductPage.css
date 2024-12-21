@@ -2,7 +2,7 @@
 
 
 .order-table-container1 {
-  margin-left: 270px;
+  margin-left: 270px; /* Revert margin-left to match OrderProductPage */
   padding: 20px;
   background-color: #f9f9f9;
   min-height: 100vh;
@@ -11,11 +11,13 @@
   .ant-table-wrapper {
     width: 100%;
     margin: 0;
+    padding: 0;
     overflow: hidden; /* Hide both scrollbars */
   }
   .table-containerr {
     width: 100%;
-    margin-left: 30px;
+    margin: 0;
+    padding: 0;
   }
   .detail{
     margin-left: 60px;
@@ -23,12 +25,37 @@
   /* Add this to ensure proper table layout */
   .ant-table {
     width: 100%;
-    margin: 0;
-    margin-left: -40px;
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     overflow-x: hidden !important; /* Hide horizontal scrollbar */
+    table-layout: fixed;  /* Add this to ensure equal column distribution */
+    
+
+    .ant-table-thead > tr > th {
+      text-align: left;
+      padding: 16px 8px;
+    }
+
+    .ant-table-tbody > tr > td {
+      text-align: left;
+      padding: 16px 8px;
+    }
+
+    /* Add these new styles for checkbox alignment */
+    .ant-table-selection-column {
+      text-align: left;
+    }
+
+    .ant-table-selection-column .ant-checkbox-wrapper {
+      margin-left: -50px;
+      width: 10px;
+    }
+  }
+
+  .ant-table-cell {
+    white-space: normal;
+    word-wrap: break-word;
   }
 
   .ant-table-body {
@@ -96,5 +123,4 @@
       background-color: #cdd1ff;
       color: #091057;
     }
-  }
-}
+  }}

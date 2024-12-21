@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { Table, Tag, Space, Input, DatePicker, Dropdown, Menu, Button, Modal } from "antd";
+import { Table, Tag, Space, Input, DatePicker, Dropdown, Menu, Button, Modal, message } from "antd";
 import { EditOutlined, EyeOutlined, DeleteOutlined, DownOutlined, PlusOutlined, ExportOutlined } from "@ant-design/icons";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import FilterBar from "../../components/FilterBar/FilterBar";
 import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa";
 import dayjs from "dayjs";
 import "./ProductPage.css";
+import { width } from "@fortawesome/free-solid-svg-icons/fa0";
+import productService from '../../services/productService';
+import axios from 'axios';
 
 const { Search } = Input;
 
@@ -14,66 +17,12 @@ const ProductPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Tất cả");
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
-  const [data, setData] = useState([
-    {
-      key: "1",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123876",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      stock: 2,
-      price: "13.000.000",
-      status: "Tồn kho thấp",
-      postedDate: "29 Dec 2022",
-      checked: true,
-      expanded: false,
-      image: "/kc_v.png",
-      details: [
-        { type: "Size 6", stock: 1 },
-        { type: "Size 7", stock: 1 },
-      ],
-    },
-    {
-      key: "2",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123877",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      stock: 120,
-      price: "13.000.000",
-      status: "Đã đăng",
-      postedDate: "24 Dec 2022",
-      checked: false,
-      expanded: false,
-      image: "/kc_v.png",
-      details: [
-        { type: "Size 8", stock: 50 },
-        { type: "Size 9", stock: 70 },
-      ],
-    },
-    {
-      key: "3",
-      productName: "Nhẫn Kim cương Vàng",
-      productCode: "123878",
-      category: "3 phân loại",
-      classification: "Nhẫn",
-      stock: 43,
-      price: "13.000.000",
-      status: "Nháp",
-      postedDate: "12 Dec 2022",
-      checked: false,
-      expanded: false,
-      image: "/kc_v.png",
-      details: [
-        { type: "Size 6", stock: 20 },
-        { type: "Size 7", stock: 23 },
-      ],
-    },
-  ]);
+  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [selectedDeleteOrder, setSelectedDeleteOrder] = useState(null);
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [state, setState] = useState({
     filters: {
@@ -110,11 +59,17 @@ const ProductPage = () => {
     setIsDeleteModalVisible(true);
   };
 
-  const handleDeleteConfirm = () => {
-    const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key);
-    setData(updatedData);
-    setIsDeleteModalVisible(false);
-    setSelectedDeleteOrder(null);
+  const handleDeleteConfirm = async () => {
+    try {
+      await productService.deleteProduct(selectedDeleteOrder.key);
+      message.success('Xóa sản phẩm thành công');
+      fetchProducts(); // Refresh the list
+      setIsDeleteModalVisible(false);
+      setSelectedDeleteOrder(null);
+    } catch (error) {
+      message.error('Không thể xóa sản phẩm');
+      console.error('Error deleting product:', error);
+    }
   };
 
   const handleTabClick = (tabName) => {
@@ -140,17 +95,67 @@ const ProductPage = () => {
     });
   };
 
-  const handleConfirmDelete = () => {
-    const remainingProducts = data.filter(
-      (item) => !state.selectedProducts.includes(item.key)
-    );
-    setData(remainingProducts);
-    setState((prev) => ({
-      ...prev,
-      selectedProducts: [],
-      isModalVisible: false,
-    }));
-    alert("Đã xóa sản phẩm đã chọn thành công");
+  const handleConfirmDelete = async () => {
+    try {
+      await productService.deleteMultipleProducts(state.selectedProducts);
+      message.success('Đã xóa các sản phẩm đã chọn');
+      fetchProducts(); // Refresh the list
+      setState(prev => ({
+        ...prev,
+        selectedProducts: [],
+        isModalVisible: false
+      }));
+    } catch (error) {
+      message.error('Không thể xóa các sản phẩm đã chọn');
+      console.error('Error deleting products:', error);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      // Update URL to match backend
+      const response = await axios.get('http://localhost:3001/api/product/get-all');
+      console.log('Raw API response:', response.data);
+      
+      if (!response.data) {
+        throw new Error('No data received');
+      }
+
+      const formattedData = response.data.map(product => ({
+        key: product.MaSanPham,
+        productName: product.TenSanPham,
+        productCode: product.MaSanPham,
+        category: product.TenLoaiSanPham || 'Chưa phân loại',
+        stock: product.SoLuong || 0,
+        price: new Intl.NumberFormat('vi-VN', { 
+          style: 'currency', 
+          currency: 'VND' 
+        }).format(product.DonGia || 0)
+      }));
+      
+      setData(formattedData);
+      setFilteredData(formattedData);
+    } catch (error) {
+      console.error('Fetch error details:', {
+        message: error.message,
+        status: error?.response?.status,
+        url: error?.config?.url
+      });
+      message.error('Không thể tải dữ liệu sản phẩm');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(); // Remove test connection and fetch directly
+  }, []);
+
+  const getProductStatus = (stock) => {
+    if (stock <= 5) return "Tồn kho thấp";
+    if (stock > 5) return "Đã đăng";
+    return "Nháp";
   };
 
   useEffect(() => {
@@ -231,11 +236,7 @@ const ProductPage = () => {
       title: "Mã Sản phẩm",
       dataIndex: "productCode",
       key: "productCode",
-    },
-    {
-      title: "Phân loại",
-      dataIndex: "classification",
-      key: "classification",
+      width: 150,
     },
     {
       title: "Lượng tồn",
@@ -243,34 +244,10 @@ const ProductPage = () => {
       key: "stock",
     },
     {
-      title: ("Giá"
-      ),
+      title: "Giá",
       dataIndex: "price",
       key: "price",
-    },
-    {
-      title: ("Trạng thái"
-      ),
-      dataIndex: "status",
-      key: "status",
-      render: (status) => {
-        let color = "";
-        switch (status) {
-          case "Tồn kho thấp":
-            color = "red";
-            break;
-          case "Đã đăng":
-            color = "orange";
-            break;
-          case "Nháp":
-            color = "gray";
-            break;
-          default:
-            color = "blue";
-        }
-        return <Tag color={color}>{status}</Tag>;
-      },
-    },
+    }
   ];
 
   return (
@@ -328,6 +305,7 @@ const ProductPage = () => {
         </div>
 
         <Table
+          loading={loading}
           columns={columns}
           dataSource={filteredData}
           rowKey="key"
@@ -359,7 +337,7 @@ const ProductPage = () => {
             expandIcon: () => null
           }}
           pagination={{ 
-            pageSize: 10,
+            pageSize: 5,
             position: ['bottomRight'],
           }}
           rowSelection={{

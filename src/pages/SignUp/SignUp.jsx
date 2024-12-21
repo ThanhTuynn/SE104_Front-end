@@ -14,14 +14,17 @@ const SignUp = () => {
   const { login } = useAuth();
 
   const onFinish = async (values) => {
-    // Store form data
-    localStorage.setItem('signupBasicData', JSON.stringify({
-      username: values.username,
-      email: values.email
-    }));
-    
-    // Navigate to details page
-    navigate('/signup-details');
+    try {
+      // Store form data
+      localStorage.setItem('signupBasicData', JSON.stringify({
+        username: values.username
+      }));
+      
+      // Navigate to details page
+      navigate('/signup-details');
+    } catch (error) {
+      message.error('Lỗi khi lưu thông tin đăng ký');
+    }
   };
 
   return (
