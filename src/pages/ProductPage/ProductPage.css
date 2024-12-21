@@ -48,7 +48,6 @@
     }
 
     .ant-table-selection-column .ant-checkbox-wrapper {
-      margin-left: -50px;
       width: 10px;
     }
   }
@@ -85,7 +84,7 @@
   /* Filter section styling */
   .filter-section {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;  /* Thay đổi từ space-between thành flex-end */
     margin-bottom: 20px;
 
     .filter-button {
@@ -93,14 +92,9 @@
       gap: 10px;
       align-items: center;
     }
-
-    .filter-btn {
-      margin-right: 8px;
-      &.active {
-        background-color: #e6f7ff;
-        border-color: #91d5ff;
-        color: #1890ff;
-      }
+    
+    .delete-all-button {
+      margin-left: auto;  /* Thêm margin-left: auto để đẩy button về phía phải */
     }
   }
 

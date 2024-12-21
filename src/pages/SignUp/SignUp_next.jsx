@@ -19,26 +19,20 @@ const SignUpDetails = () => {
       setLoading(true);
       const basicData = JSON.parse(localStorage.getItem('signupBasicData'));
       
-      if (!basicData || !basicData.username) {
+      if (!basicData || !basicData.username || !basicData.email) {
         message.error('Thông tin đăng ký không đầy đủ');
         navigate('/signup');
         return;
       }
 
-      if (values.password.length < 6) {
-        message.error('Mật khẩu phải có ít nhất 6 ký tự');
-        return;
-      }
-
-      console.log('Attempting signup...', {
-        username: basicData.username,
-        role: values.role
-      });
+      // Convert role values to match backend
+      const backendRole = values.role === 'seller' ? 'seller' : 'warehouse';
 
       const response = await signUp(
         basicData.username,
         values.password,
-        values.role
+        basicData.email,
+        backendRole
       );
 
       if (response.success) {
@@ -46,11 +40,11 @@ const SignUpDetails = () => {
         localStorage.removeItem('signupBasicData');
         navigate('/dang-nhap');
       } else {
-        message.error(response.message);
+        throw new Error(response.message);
       }
     } catch (error) {
-      console.error('Signup Component Error:', error);
-      message.error('Có lỗi xảy ra khi đăng ký');
+      console.error('Signup error:', error);
+      message.error(error.message || 'Có lỗi xảy ra khi đăng ký');
     } finally {
       setLoading(false);
     }

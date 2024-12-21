@@ -17,7 +17,8 @@ const SignUp = () => {
     try {
       // Store form data
       localStorage.setItem('signupBasicData', JSON.stringify({
-        username: values.username
+        username: values.username,
+        email: values.email    // Add email to stored data
       }));
       
       // Navigate to details page
