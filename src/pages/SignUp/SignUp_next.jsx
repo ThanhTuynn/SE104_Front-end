@@ -3,6 +3,7 @@ import { Layout, Form, Input, Button, Typography, Radio, message } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { signUp } from '../../services/userAPI'; // Fix import path
 import './SignUp_next.css';
 
 const { Header, Content } = Layout;
@@ -17,15 +18,39 @@ const SignUpDetails = () => {
     try {
       setLoading(true);
       const basicData = JSON.parse(localStorage.getItem('signupBasicData'));
-      const fullData = { ...basicData, ...values };
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      login(fullData);
-      localStorage.removeItem('signupBasicData');
-      message.success('Đăng ký thành công!');
-      navigate('/');
+      if (!basicData || !basicData.username) {
+        message.error('Thông tin đăng ký không đầy đủ');
+        navigate('/signup');
+        return;
+      }
+
+      if (values.password.length < 6) {
+        message.error('Mật khẩu phải có ít nhất 6 ký tự');
+        return;
+      }
+
+      console.log('Attempting signup...', {
+        username: basicData.username,
+        role: values.role
+      });
+
+      const response = await signUp(
+        basicData.username,
+        values.password,
+        values.role
+      );
+
+      if (response.success) {
+        message.success('Đăng ký thành công! Vui lòng đăng nhập.');
+        localStorage.removeItem('signupBasicData');
+        navigate('/dang-nhap');
+      } else {
+        message.error(response.message);
+      }
     } catch (error) {
-      message.error('Đăng ký thất bại!');
+      console.error('Signup Component Error:', error);
+      message.error('Có lỗi xảy ra khi đăng ký');
     } finally {
       setLoading(false);
     }
@@ -76,7 +101,7 @@ const SignUpDetails = () => {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                 }}
               >
-                <Radio value="sales" style={{ flex: 1, height: '40px', display: 'flex', alignItems: 'center' }}>
+                <Radio value="seller" style={{ flex: 1, height: '40px', display: 'flex', alignItems: 'center' }}>
                   Nhân viên bán hàng
                 </Radio>
                 <Radio value="warehouse" style={{ flex: 1, height: '40px', display: 'flex', alignItems: 'center' }}>
