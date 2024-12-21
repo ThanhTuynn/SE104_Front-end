@@ -339,7 +339,14 @@ const ProductPage = () => {
               handleChange("selectedProducts", selectedRowKeys),
           }}
           onRow={(record) => ({
-            onClick: () => navigate(`/adjust-product/${record.key}`),
+            onClick: () => {
+              console.log("Selected product for edit:", record);
+              navigate(`/adjust-product/${record.key}`, { 
+                state: { 
+                  productData: record 
+                }
+              });
+            },
             style: { cursor: 'pointer' }
           })}
         />
