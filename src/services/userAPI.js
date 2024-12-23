@@ -6,37 +6,29 @@ const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  },
-  withCredentials: true
+  }
 });
 
 export const signIn = async (username, password) => {
   try {
+    // Sửa lại format request body để khớp với backend
     const response = await axiosInstance.post('/api/user/login', {
       username,
-      password,
+      password
     });
 
-    console.log('Login response:', response.data); // Debug log
+    // Log để debug
+    console.log('Login API Response:', response.data);
 
     if (!response.data) {
       throw new Error('No response data received');
     }
 
-    // Transform backend response to match frontend expectations
-    return {
-      token: response.data.accessToken,
-      user: {
-        id: response.data.userId,
-        username: response.data.username,
-        role: response.data.role
-      }
-    };
+    return response.data;
   } catch (error) {
-    console.error('Login Error:', {
+    console.error('Login Error Details:', {
       status: error.response?.status,
-      message: error.response?.data?.message || error.message,
+      message: error.response?.data?.message,
       data: error.response?.data
     });
     throw new Error(error.response?.data?.message || 'Đăng nhập thất bại');
@@ -46,17 +38,17 @@ export const signIn = async (username, password) => {
 export const signUp = async (username, password, email, role) => {
   try {
     console.log('Sending signup request with data:', {
-      TenTaiKhoan: username,
-      MatKhau: password,
-      Email: email,
-      Role: role
+      username,
+      password,
+      email,
+      role
     });
 
     const response = await axiosInstance.post('/api/user/register', {
-      TenTaiKhoan: username,
-      MatKhau: password,
-      Email: email,
-      Role: role
+      username,
+      password,
+      email,
+      role
     });
 
     return {

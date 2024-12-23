@@ -147,11 +147,6 @@ const ProductPage = () => {
     fetchProducts();
   }, []);
 
-  const getProductStatus = (stock) => {
-    if (stock <= 5) return "Tồn kho thấp";
-    if (stock > 5) return "Đã đăng";
-    return "Nháp";
-  };
 
   useEffect(() => {
     // Lấy danh sách unique categories từ data
@@ -294,13 +289,17 @@ const ProductPage = () => {
               placeholder="Tìm kiếm sản phẩm..."
               onChange={(e) => setSearchText(e.target.value)}
             />
-            <Button
-              type="primary"
-              className="export-button"
-              icon={<ExportOutlined />}
-            >
-              Xuất file
-            </Button>
+            <div className="filter-section" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            disabled={state.selectedProducts.length === 0}
+            onClick={() => handleChange("isModalVisible", true)}
+            className="delete-all-button"
+          >
+            Xóa đã chọn
+          </Button>
+        </div>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -312,17 +311,6 @@ const ProductPage = () => {
           </div>
         </header>
 
-        <div className="filter-section" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            disabled={state.selectedProducts.length === 0}
-            onClick={() => handleChange("isModalVisible", true)}
-            className="delete-all-button"
-          >
-            Xóa đã chọn
-          </Button>
-        </div>
 
         <Table
           loading={loading}

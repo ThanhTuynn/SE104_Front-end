@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Modal, Button, Checkbox, Input, Table } from "antd";
+import ServiceTypeService from '../../../services/ServiceTypeService';
 import "./Modal_timkiemdichvu.css";
 
-const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
+const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [searchValue, setSearchValue] = useState("");
   const [quantities, setQuantities] = useState({});
+  const [fetchedServices, setFetchedServices] = useState([]);
 
   // Add debugging logs
   useEffect(() => {
     console.log('Modal visibility:', isVisible);
-    console.log('Available services:', services);
-  }, [isVisible, services]);
+    console.log('Available services:', fetchedServices);
+  }, [isVisible, fetchedServices]);
 
   // Reset states when modal closes
   useEffect(() => {
@@ -22,12 +24,36 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
     }
   }, [isVisible]);
 
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const data = await ServiceTypeService.getAllServiceTypes();
+        console.log('Fetched data:', data); // Debug log
+        const mappedData = (Array.isArray(data) ? data : []).map(item => ({
+          id: item.MaLoaiDV,
+          name: item.TenLoaiDichVu,
+          price: item.DonGiaDV,
+          image: null
+        }));
+        setFetchedServices(mappedData);
+      } catch (error) {
+        console.error('Error fetching services:', error);
+        // Optionally show error message to user
+        // message.error('Không thể tải danh sách dịch vụ');
+      }
+    };
+
+    if (isVisible) {
+      fetchServices();
+    }
+  }, [isVisible]);
+
   // Filter services based on search
   const filteredServices = useMemo(() => {
-    return services.filter((service) =>
+    return fetchedServices.filter((service) =>
       service.name.toLowerCase().includes(searchValue.toLowerCase())
     );
-  }, [services, searchValue]);
+  }, [fetchedServices, searchValue]);
 
   // Handle quantity updates
   const updateQuantity = (serviceId, change) => {
@@ -55,6 +81,14 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
         [record.id]: 1
       }));
     }
+  };
+
+  // Thêm hàm định dạng tiền
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount).replace('₫', 'VND');
   };
 
   const columns = [
@@ -115,7 +149,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
       title: "Giá (VND)",
       dataIndex: "price",
       key: "price",
-      render: (price) => price.toLocaleString(),
+      render: (price) => formatCurrency(price),
     },
     {
       title: "",
@@ -135,7 +169,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
     const servicesWithQuantities = selectedServices.map(service => ({
       ...service,
       quantity: quantities[service.id] || 1,
-      total: (service.price * (quantities[service.id] || 1)).toLocaleString() + ' VND'
+      total: formatCurrency(service.price * (quantities[service.id] || 1))
     }));
     onConfirm(servicesWithQuantities);
   };
@@ -164,6 +198,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
       ]}
       centered
       className="service-modal"
+      width={800} // Điều chỉnh độ rộng modal
     >
       <Input
         placeholder="Tìm kiếm dịch vụ"
@@ -175,13 +210,20 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm, services = [] }) => {
           borderRadius: "4px",
         }}
       />
-      <Table
-        dataSource={filteredServices}
-        columns={columns}
-        rowKey="id"
-        pagination={false}
-        bordered
-      />
+      <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+        <Table
+          dataSource={filteredServices}
+          columns={columns}
+          rowKey="id"
+          pagination={false}
+          bordered
+          scroll={{ y: 350 }} // Thêm cuộn dọc với chiều cao cố định
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: "8px",
+          }}
+        />
+      </div>
     </Modal>
   );
 };

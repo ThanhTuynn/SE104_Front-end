@@ -10,6 +10,7 @@ import {
   DownOutlined,
 } from "@ant-design/icons";
 import "./ServicePage.css";
+import serviceService from '../../services/serviceService';
 const { Search } = Input;
 const App1 = () => {
   const navigate = useNavigate();
@@ -32,38 +33,23 @@ const App1 = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
-  const [data, setData] = useState([
-    {
-      key: "1",
-      productCode: "123876",
-      serviceName: "Sửa chữa điện thoại",
-      postedDate: "29 Dec 2022",
-      price: "13.000.000",
-      customer: "bao",
-      statuss: "Chưa giao hàng",
-      checked: true,
-    },
-    {
-      key: "2",
-      productCode: "123878",
-      serviceName: "Thay pin laptop",
-      postedDate: "30 Dec 2022",
-      price: "12.000.000", 
-      customer: "minh",
-      statuss: "Đã hủy",
-      checked: true,
-    },
-    {
-      key: "3",
-      productCode: "1238769",
-      serviceName: "Vệ sinh máy tính",
-      postedDate: "22 Dec 2022",
-      price: "1.000.000.000.000 VNĐ",
-      customer: "Nguyễn Phương Hằng",
-      statuss: "Đã hoàn tất",
-      checked: true,
-    },
-  ]);
+  const [data, setData] = useState([]);
+  useEffect(() => {
+    const fetchServiceTickets = async () => {
+      try {
+        const serviceData = await serviceService.getAllServiceTickets();
+        setData(serviceData);
+      } catch (error) {
+        console.error('Failed to fetch service tickets:', error);
+        Modal.error({
+          title: 'Lỗi',
+          content: 'Không thể tải dữ liệu phiếu dịch vụ'
+        });
+      }
+    };
+
+    fetchServiceTickets();
+  }, []);
   const menu = (
     <Menu>
       <Menu.Item key="1">Sắp xếp tên</Menu.Item>
@@ -116,11 +102,6 @@ const App1 = () => {
       title: "Mã phiếu",
       dataIndex: "productCode",
       key: "productCode",
-    },
-    {
-      title: "Dịch vụ",
-      dataIndex: "serviceName",
-      key: "serviceName",
     },
     {
       title: "Ngày",
@@ -182,7 +163,13 @@ const App1 = () => {
     setIsModalVisible(false); // Đóng modal
   };
   const onSearch = (value) => {
-    console.log("Tìm kiếm:", value);
+    setState(prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        searchQuery: value
+      }
+    }));
   };
 
   const handleTabClick = (tab) => {
@@ -232,27 +219,49 @@ const App1 = () => {
     });
   }, [data, state.filters]);
 
-  const handleDeleteConfirm = () => {
-    const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key); // Lọc bỏ đơn hàng được chọn
-    setData(updatedData); // Cập nhật danh sách
-    handleChange("isModalVisible", false); // Đóng modal
-    setSelectedDeleteOrder(null); // Xóa thông tin đơn hàng đã chọn
+  const handleDeleteConfirm = async () => {
+    try {
+      await serviceService.deleteServiceTicket(selectedDeleteOrder.key);
+      const updatedData = data.filter((item) => item.key !== selectedDeleteOrder.key);
+      setData(updatedData);
+      handleChange("isModalVisible", false);
+      setSelectedDeleteOrder(null);
+      Modal.success({
+        content: 'Xóa phiếu dịch vụ thành công'
+      });
+    } catch (error) {
+      console.error('Failed to delete service ticket:', error);
+      Modal.error({
+        title: 'Lỗi',
+        content: 'Không thể xóa phiếu dịch vụ'
+      });
+    }
   };
-  const handleMultiDelete = () => {
-    handleChange("isModalVisible", true);
+
+  const handleConfirmDelete = async () => {
+    try {
+      await serviceService.deleteMultipleServiceTickets(state.selectedOrders);
+      const remainingData = data.filter(
+        (item) => !state.selectedOrders.includes(item.key)
+      );
+      setData(remainingData);
+      setState((prev) => ({
+        ...prev,
+        selectedOrders: [],
+        isModalVisible: false,
+      }));
+      Modal.success({
+        content: 'Xóa các phiếu dịch vụ thành công'
+      });
+    } catch (error) {
+      console.error('Failed to delete service tickets:', error);
+      Modal.error({
+        title: 'Lỗi',
+        content: 'Không thể xóa các phiếu dịch vụ'
+      });
+    }
   };
-  const handleConfirmDelete = () => {
-    const remainingData = data.filter(
-      (item) => !state.selectedOrders.includes(item.key)
-    );
-    setData(remainingData);
-    setState((prev) => ({
-      ...prev,
-      selectedOrders: [],
-      isModalVisible: false,
-    }));
-  };
-  const tabs = ["Tất cả", "Đã hủy", "Chưa giao hàng", "Đã hoàn tất"];
+  const tabs = ["Tất cả", "Hoàn thành", "Đang xử lý", "Chưa hoàn thành"];
     return (
     <div>
       <div style={{ marginLeft: "270px" }}>
@@ -326,7 +335,7 @@ const App1 = () => {
             onChange: (selectedRowKeys) => handleChange("selectedOrders", selectedRowKeys),
           }}
           pagination={{ 
-            pageSize: 10,
+            pageSize: 5,
             position: ['bottomRight']
           }}
           scroll={{ x: 'max-content' }}

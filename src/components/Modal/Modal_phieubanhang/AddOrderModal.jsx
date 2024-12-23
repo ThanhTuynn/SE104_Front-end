@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Select, Input, Button, Space } from "antd";
 import { UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhang";
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";
+import axios from 'axios';
+import { createOrder } from '../../../services/Orderproduct'; // Thay đổi import
 const { Option } = Select;
 
 const AddOrderModal = ({ isVisible, onClose, title, save }) => {
@@ -12,27 +14,10 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   const [cart, setCart] = useState([]); // Giỏ hàng
   const [isProductModalVisible, setIsProductModalVisible] = useState(false);
   const [quantities, setQuantities] = useState({}); // Thêm state để lưu số lượng
-  const productList = [
-    { id: 1, name: "Sản phẩm A", image: "/product1.png", price: "100,000 VNĐ" },
-    { id: 2, name: "Sản phẩm B", image: "/product2.png", price: "200,000 VNĐ" },
-    { id: 3, name: "Sản phẩm C", image: "/product3.png", price: "300,000 VNĐ" },
-    { id: 4, name: "Sản phẩm D", image: "/product4.png", price: "400,000 VNĐ" },
-  ];
-  const customerList = [
-    { id: 1, name: "Nguyễn Văn A", phone: "0123456789" },
-    { id: 2, name: "Trần Thị B", phone: "0987654321" },
-    { id: 3, name: "Lê Văn C", phone: "0912345678" },
-    { id: 4, name: "Phạm Thị D", phone: "0934567890" },
-  ];
-  // Lọc sản phẩm dựa trên từ khóa tìm kiếm
-  const handleSearch = (e) => {
-    const value = e.target.value.toLowerCase();
-    setSearchTerm(value);
-    const filtered = productList.filter((product) =>
-      product.name.toLowerCase().includes(value)
-    );
-    setFilteredProducts(filtered);
-  };
+  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Remove handleSearch function and productList since we don't need them anymore
+  
   const handleProductSelect = (product) => {
     if (!cart.some((item) => item.id === product.id)) {
       // Add product with its quantity to cart
@@ -59,22 +44,91 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
       [productId]: Math.max(1, (prev[productId] || 1) + change)
     }));
   };
-
+  const resetModal = () => {
+    setSearchTerm("");
+    setFilteredProducts([]);
+    setCart([]);
+    setQuantities({});
+    setOrderDate(new Date().toISOString().split('T')[0]);
+    setSelectedCustomer(null);
+    setIsProductModalVisible(false);
+    setIsCustomerModalVisible(false);
+  };
   // Xóa sản phẩm khỏi giỏ hàng
   const removeFromCart = (productId) => {
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
   };
   const [selectedProducts, setSelectedProducts] = useState([]);
+  // Format ngày tháng khi gửi lên server
+  const formatDateForServer = (dateString) => {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  };
   // Lưu đơn hàng
-  const handleSaveOrder = () => {
-    console.log("Đơn hàng đã lưu:", cart); // Kết nối xử lý lưu đơn hàng tại đây
-    onClose(); // Đóng modal
+  const handleSaveOrder = async () => {
+    try {
+      // Validate input data
+      if (!selectedCustomer?.id) {
+        alert('Vui lòng chọn khách hàng');
+        return;
+      }
+
+      if (!orderDate) {
+        alert('Vui lòng chọn ngày lập phiếu');
+        return;
+      }
+
+      if (cart.length === 0) {
+        alert('Vui lòng thêm sản phẩm vào giỏ hàng');
+        return;
+      }
+
+      // Format invoice data
+      const invoiceData = {
+        NgayLap: orderDate,
+        MaKhachHang: selectedCustomer.id,
+        TongTien: cart.reduce((total, item) => {
+          const quantity = parseInt(quantities[item.id] || 1);
+          const price = parseFloat(item.rawPrice || 0);
+          return total + (quantity * price);
+        }, 0)
+      };
+
+      // Format details
+      const details = cart.map(item => ({
+        MaSanPham: item.id,
+        SoLuong: parseInt(quantities[item.id] || 1),
+        DonGiaBanRa: parseFloat(item.rawPrice || 0),
+        ThanhTien: parseFloat(item.rawPrice || 0) * parseInt(quantities[item.id] || 1)
+      }));
+
+      // Create final request data structure
+      const orderData = {
+        invoiceData,
+        details 
+      };
+
+      console.log('Sending data:', orderData);
+      const result = await createOrder(orderData);
+      console.log('Server response:', result);
+
+      alert('Lưu phiếu bán hàng thành công!');
+      resetModal(); // Reset all states
+      onClose();    // Close modal
+    } catch (error) {
+      console.error('Error:', error);
+      alert(`Lỗi: ${error.response?.data?.message || 'Có lỗi xảy ra khi lưu phiếu bán hàng'}`);
+    }
   };
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   if (!isVisible) return null;
   const handleCustomerSelect = (customer) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomer({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone
+    });
     setIsCustomerModalVisible(false);
   };
   
@@ -90,11 +144,6 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                 <div className="header-row">
                   <label>Thông tin khách hàng </label>
                   <div className="toggle-container">
-                    <label>Khách hàng mới</label>
-                    <div className="toggle-switch">
-                      <input type="checkbox" id="newCustomer" />
-                      <label htmlFor="newCustomer"></label>
-                    </div>
                   </div>
                 </div>
                 <form>
@@ -131,35 +180,11 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                         isVisible={isCustomerModalVisible}
                         onCancel={() => setIsCustomerModalVisible(false)}
                         title={"Tìm kiếm khách hàng"}
-                        customers={customerList}
-                        onConfirm={(customer) => {
-                          setSelectedCustomer(customer);
-                          setIsCustomerModalVisible(false);
-                        }}
+                        onConfirm={handleCustomerSelect}
                       />
                   </div>
                   <br />
                   <div style={{ display: "flex", gap: "16px" }} className="row3">
-                    {/* Hình thức thanh toán */}
-                    <Select
-                      placeholder="Chọn hình thức thanh toán"
-                      style={{ width: "600px" }}
-                    >
-                      <Option value="mastercard">MasterCard</Option>
-                      <Option value="visa">Visa</Option>
-                      <Option value="paypal">PayPal</Option>
-                    </Select>
-
-                    {/* Loại đơn hàng */}
-                    <Select
-                      showSearch
-                      placeholder="Nhập hoặc chọn Loại đơn hàng"
-                      style={{ width: "600px" }}
-                    >
-                      <Option value="order1">Loại đơn hàng 1</Option>
-                      <Option value="order2">Loại đơn hàng 2</Option>
-                      <Option value="order3">Loại đơn hàng 3</Option>
-                    </Select>
                   </div>
                   <br />
                   <label>Ngày tháng năm đặt hàng</label>
@@ -167,65 +192,39 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                   <div className="days" style={{ display: "flex", gap: "16px" }}>
                     <input
                       type="date"
+                      value={orderDate}
+                      onChange={(e) => setOrderDate(e.target.value)}
                       style={{
                         border: "1px solid #ccc",
                         borderRadius: "8px",
                         width: "100%",
                         height: "30px",
-                      }}
-                    />
-                    <Input
-                      type="time"
-                      style={{
-                        width: "100%",
-                        height: "30px",
-                        paddingLeft: "40px",
-                        paddingRight: "40px",
-                        borderRadius: "8px",
-                        border: "1px solid #ccc",
-                        fontSize: "16px",
-                        textAlign: "center",
-                        boxShadow: "0px 1px 3px rgba(0, 0, 0, 0.1)",
                       }}
                     />
                   </div>
-                  <label className="trangthai-title">Trạng Thái</label>
-                  <br />
-                  <Select placeholder="Chọn trạng thái" className="thanhtt">
-                    <Option value="processing">Đang xử lý</Option>
-                    <Option value="cancelled">Đã hủy</Option>
-                    <Option value="delivered">Đã giao</Option>
-                  </Select>
-                  <br />
-                  <textarea
-                    placeholder="Ghi chú"
-                    className="ghichu"
-                  ></textarea>
                 </form>
               </div>
 
               {/* Cột bên phải: Chọn sản phẩm */}
               {/* Cột bên phải: Chọn sản phẩm và giỏ hàng */}
               <div className="modal-column right-column">
-            <h3>Sản phẩm</h3>
-            <Button
-              type="primary"
-              onClick={() => setIsProductModalVisible(true)}
-              style={{ width: "100%", marginBottom: 16, borderRadius: '8px' }}
-            >
-              Chọn sản phẩm
-            </Button>
-            <ProductSearchModal
-              isVisible={isProductModalVisible}
-              onCancel={() => setIsProductModalVisible(false)}
-              onConfirm={handleProductSelect}
-              products={productList} // Pass the sample product data
-              className="product-modal-in-order" // Add this className
-            />
-            {/* Hiển thị giỏ hàng */}
-            <div className="cart-container">
-              <h3>Giỏ hàng</h3>
-              {cart.length > 0 ? (
+                <h3>Sản phẩm</h3>
+                <Button
+                  type="primary"
+                  onClick={() => setIsProductModalVisible(true)}
+                  style={{ width: "100%", marginBottom: 16, borderRadius: '8px' }}
+                >
+                  Chọn sản phẩm
+                </Button>
+                <ProductSearchModal
+                  isVisible={isProductModalVisible}
+                  onCancel={() => setIsProductModalVisible(false)}
+                  onConfirm={handleProductSelect}
+                />
+                {/* Hiển thị giỏ hàng */}
+                <div className="cart-container">
+                  <h3>Giỏ hàng</h3>
+                  {cart.length > 0 ? (
                             cart.map((item) => (
                               <div
                                 key={item.id}
@@ -276,17 +275,19 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                           ) : (
                             <p>Chưa có sản phẩm trong giỏ hàng</p>
                           )}
+                          
+                        </div>
+                        
+                        {/* Di chuyển modal-footer vào đây */}
+                        <div className="modal-footer">
+                          <button className="cancel-btn" onClick={onClose}>
+                            Hủy
+                          </button>
+                          <button className="submit-btn" onClick={handleSaveOrder}>
+                            {save}
+                          </button>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="modal-footer">
-                      <button className="cancel-btn" onClick={onClose}>
-                        Hủy
-                      </button>
-                      <button className="submit-btn" onClick={handleSaveOrder}>
-                        {save}
-                      </button>
                     </div>
                   </div>
                 </div>

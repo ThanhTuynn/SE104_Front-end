@@ -20,25 +20,45 @@ const SignIn = () => {
   const onFinish = async (values) => {
     try {
       setLoading(true);
-      console.log('Login attempt with:', values.username);
+      
+      console.log('Login attempt with:', values);
       
       const response = await signIn(values.username, values.password);
-      console.log('API response:', response);
-      message.success('Kết nối API thành công!');
+      console.log('Login response:', response);
       
-      if (!response || !response.token) {
+      if (response && response.accessToken) {
+        // Lưu token và user data
+        localStorage.setItem('accessToken', response.accessToken);
+        localStorage.setItem('refreshToken', response.refreshToken);
+        localStorage.setItem('userData', JSON.stringify({
+          userId: response.userId,
+          username: response.username,
+          role: response.role
+        }));
+
+        // Kiểm tra xem đã lưu thành công chưa
+        const savedToken = localStorage.getItem('accessToken');
+        const savedUserData = localStorage.getItem('userData');
+        console.log('Stored token:', savedToken);
+        console.log('Stored user data:', savedUserData);
+
+        // Gọi login từ context nếu có
+        if (login) {
+          login(response);
+        }
+        
+        message.success('Đăng nhập thành công!');
+        
+        // Delay chút trước khi chuyển hướng
+        setTimeout(() => {
+          navigate('/list-service');
+        }, 500);
+      } else {
         throw new Error('Invalid response format from server');
       }
-      
-      login(response); 
-      const authState = localStorage.getItem('token');
-      console.log('Stored auth token:', authState);
-      
-      message.success('Đăng nhập thành công!');
-      navigate('/list-service');
     } catch (error) {
       console.error('Login failed:', error);
-      message.error(`Đăng nhập thất bại: ${error.message}`);
+      message.error(error.message || 'Đăng nhập thất bại');
     } finally {
       setLoading(false);
     }
