@@ -17,12 +17,14 @@
     background: #fff;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%; /* Add this */
 
     .customer-stats {
       display: grid;
-      grid-template-columns: repeat(2, 2fr);
+      grid-template-columns: repeat(2, 1fr); /* Changed from 1 to 2 columns */
       gap: 20px;
       margin-top: 20px;
+      width: 100%; /* Add this */
       .stat-card {
         background: #f8f9fb;
         padding: 20px;
@@ -31,6 +33,41 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        width: 100%; /* Add this */
+        
+        .header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 15px;
+
+          .icon-wrapper {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e6f7ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+
+            .icon {
+              font-size: 20px;
+              color: #1890ff;
+            }
+          }
+        }
+
+        .stat-title {
+          font-size: 14px;
+          color: #8c8c8c;
+          margin-bottom: 8px;
+        }
+
+        .stat-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #262626;
+        }
       }
       .stat-card:nth-child(1) {
         background-color: #b7e0ff; /* Màu nền ô đầu tiên */
@@ -241,6 +278,7 @@
     justify-content: center;
     align-items: center;
     text-align: center;
+    width: 100%; /* Add this */
 
     .left-section {
       flex: 1; /* Chiếm 1 phần */
@@ -251,6 +289,7 @@
       background: #f8f9fb;
       padding: 20px;
       border-radius: 10px;
+      width: 100%; /* Add this */
     }
 
     .avatar-placeholder img {

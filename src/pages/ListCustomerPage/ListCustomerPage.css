@@ -55,13 +55,18 @@
   /* Filter section styling */
   .filter-section {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     margin-bottom: 20px;
 
     .filter-button {
       display: flex;
       gap: 10px;
       align-items: center;
+    }
+  
+    .delete-all-button {
+      margin-left: auto;
+      margin-bottom: -20px;
     }
 
     .filter-btn {
