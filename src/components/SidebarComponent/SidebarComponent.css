@@ -14,11 +14,8 @@ body {
 .sidebar{
     width: 270px;
     position: fixed;
-    margin: 16px;
-    border-radius: 12px;
     background: #091057;
-    height: calc(100vh - 32px);
-    z-index: 1000; /* Add higher z-index to appear above table */
+    height: 100%;
 }
 
 .sidebar-header {
