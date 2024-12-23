@@ -1,98 +1,133 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { Modal, Button, Input, List, Avatar, Checkbox } from "antd";
-import "./Modal_timkiemkhachhang.css";
+import React, { useState, useEffect } from 'react';
+import { Modal, Input, Table, message } from 'antd';
+import axios from 'axios';
+import { API_URL } from '../../../config/constants';
+import { getAccessToken } from '../../../utils/auth';
 
-const CustomerSearchModal = ({ isVisible, onCancel, onConfirm, customers = [], title }) => {
-  const [searchValue, setSearchValue] = useState("");
-  const [selectedCustomers, setSelectedCustomers] = useState([]);
-
-  // Thêm useEffect để reset selected customers khi đóng modal
-  useEffect(() => {
-    if (!isVisible) {
-      setSelectedCustomers([]);
-      setSearchValue("");
+// Create axios instance
+const axiosInstance = axios.create({
+    baseURL: API_URL,
+    headers: {
+        'Content-Type': 'application/json'
     }
-  }, [isVisible]);
+});
 
-  // Lọc danh sách khách hàng theo từ khóa tìm kiếm
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) =>
-      customer.name.toLowerCase().includes(searchValue.toLowerCase())
-    );
-  }, [customers, searchValue]);
+// Add request interceptor for dynamic token
+axiosInstance.interceptors.request.use(
+    (config) => {
+        const token = getAccessToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
 
-  // Hàm xử lý khi chọn/bỏ chọn khách hàng
-  const handleSelectCustomer = (customer) => {
-    setSelectedCustomers(prev => {
-      const isSelected = prev.some(c => c.id === customer.id);
-      if (isSelected) {
-        return prev.filter(c => c.id !== customer.id);
-      } else {
-        return [...prev, customer];
-      }
+const CustomerSearchModal = ({ isVisible, onCancel, onConfirm }) => {
+    const [searchText, setSearchText] = useState('');
+    const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        console.log('Modal visibility changed:', isVisible);
+        if (isVisible) {
+            fetchCustomers();
+        }
+    }, [isVisible]);
+
+    const fetchCustomers = async () => {
+        try {
+            setLoading(true);
+            const response = await axiosInstance.get('/customers/get-all');
+            console.log('Customers data:', response.data);
+            setCustomers(response.data || []);
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+            message.error('Không thể tải danh sách khách hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filteredCustomers = customers.filter(customer => {
+        if (!searchText) return true;
+        
+        const search = searchText.toLowerCase();
+        const name = (customer.TenKhachHang || '').toLowerCase();
+        const phone = (customer.SoDT || '').toLowerCase();
+        const id = (customer.MaKhachHang || '').toLowerCase();
+        
+        return name.includes(search) || phone.includes(search) || id.includes(search);
     });
-  };
 
-  // Hàm xử lý xác nhận khách hàng
-  const handleOk = () => {
-    if (selectedCustomers.length > 0) {
-      onConfirm(selectedCustomers);
-    }
-  };
+    const handleSelect = (record) => {
+        console.log('Selected customer:', record);
+        onConfirm({
+            id: record.MaKhachHang,
+            name: record.TenKhachHang,
+            phone: record.SoDT
+        });
+        onCancel();
+    };
 
-  return (
-    <Modal
-      title={title || "Tìm kiếm khách hàng"}
-      visible={isVisible}
-      onCancel={onCancel}
-      footer={[
-        <Button key="cancel" onClick={onCancel}>
-          Hủy
-        </Button>,
-        <Button
-          key="confirm"
-          type="primary"
-          onClick={handleOk}
-          disabled={selectedCustomers.length === 0}
+    const columns = [
+        {
+            title: 'Mã KH',
+            dataIndex: 'MaKhachHang',
+            key: 'MaKhachHang',
+        },
+        {
+            title: 'Tên khách hàng',
+            dataIndex: 'TenKhachHang',
+            key: 'TenKhachHang',
+        },
+        {
+            title: 'Số điện thoại',
+            dataIndex: 'SoDT',
+            key: 'SoDT',
+        }
+    ];
+
+    return (
+        <Modal
+            title="Tìm kiếm khách hàng"
+            visible={isVisible} // Thay đổi từ open sang visible
+            open={isVisible}   // Giữ cả hai để tương thích với các phiên bản antd
+            onCancel={() => {
+                console.log('Modal closing');
+                onCancel();
+            }}
+            footer={null}
+            width={800}
+            destroyOnClose={true}
+            maskClosable={false}
+            style={{ top: 20 }}
+            bodyStyle={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}
         >
-          Hoàn tất chọn ({selectedCustomers.length})
-        </Button>,
-      ]}
-      centered
-      className="customer-search-modal"
-    >
-      <div className="search-container">
-        <Input
-          placeholder="Tìm kiếm khách hàng"
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          className="search-input"
-        />
-      </div>
-      <List
-        itemLayout="horizontal"
-        dataSource={filteredCustomers}
-        renderItem={(item) => (
-          <List.Item
-            className={`list-item ${
-              selectedCustomers.some(c => c.id === item.id) ? "selected" : ""
-            }`}
-          >
-            <Checkbox
-              checked={selectedCustomers.some(c => c.id === item.id)}
-              onChange={() => handleSelectCustomer(item)}
+            <div style={{ marginBottom: 16 }}>
+                <Input.Search
+                    placeholder="Tìm kiếm theo tên, số điện thoại..."
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                />
+            </div>
+
+            <Table
+                columns={columns}
+                dataSource={filteredCustomers}
+                rowKey="MaKhachHang"
+                loading={loading}
+                onRow={record => ({
+                    onClick: () => handleSelect(record),
+                    style: { cursor: 'pointer' }
+                })}
+                pagination={{ pageSize: 5 }}
             />
-            <List.Item.Meta
-              avatar={<Avatar>{item.name.charAt(0)}</Avatar>}
-              title={item.name}
-              description={`Số điện thoại: ${item.phone}`}
-              style={{ marginLeft: "12px" }}
-            />
-          </List.Item>
-        )}
-      />
-    </Modal>
-  );
+        </Modal>
+    );
 };
 
 export default CustomerSearchModal;

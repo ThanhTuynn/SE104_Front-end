@@ -94,7 +94,8 @@
     }
     
     .delete-all-button {
-      margin-left: auto;  /* Thêm margin-left: auto để đẩy button về phía phải */
+      margin-left: auto;
+      margin-bottom: -20px; /* Thêm margin-left: auto để đẩy button về phía phải */
     }
   }
 

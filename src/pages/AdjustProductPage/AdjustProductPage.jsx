@@ -235,7 +235,11 @@ const App = () => {
                   <Input 
                     placeholder="Nhập mã sản phẩm"
                     value={formData.productCode}
-                    onChange={(e) => handleInputChange('productCode', e.target.value)}
+                    disabled={true} // Disable input mã sản phẩm
+                    style={{ 
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed'
+                    }}
                   />
                 </Col>
               </Row>

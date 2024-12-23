@@ -1,80 +1,13 @@
-import React, { useState, useMemo } from "react";
-import { Table, Button, Input, DatePicker, Space, Tag, Modal } from "antd";
+import React, { useState, useMemo, useEffect } from "react";
+import { Table, Button, Input, DatePicker, Space, Tag, Modal, message } from "antd";
 import { ExportOutlined, DeleteOutlined, PlusOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import AddOrderModal from "../../components/Modal/Modal_phieubanhang/AddOrderModal";
+import EditOrderModal from "../../components/Modal/Modal_phieubanhang/EditOrderModal"; // Add this import
 import "./OrderProductPage.css";
 import { width } from "@fortawesome/free-solid-svg-icons/fa0";
-
-const initData = () => [
-  {
-    id: "1",
-    products: {
-      name: "Nhẫn Kim cương Vàng",
-      otherProducts: [
-        "Nhẫn Kim cương Bạc",
-        "Nhẫn Kim cương Bạch Kim",
-      ],
-    },
-    date: "29 Dec 2022",
-    customer: "John Bushmill",
-    total: "13,000,000",
-    payment: "Mastercard",
-    action: "Đang xử lý",
-  },
-  {
-    id: "2",
-    products: {
-      name: "Nhẫn Kim cương Vàng",
-      otherProducts: [
-        "Nhẫn Kim cương Bạc",
-        "Nhẫn Kim cương Bạch Kim",
-      ],
-    },
-    date: "24 Dec 2022",
-    customer: "Linda Blair",
-    total: "10,000,000",
-    payment: "Visa",
-    action: "Đã hủy",
-  },
-  {
-    id: "3",
-    products: {
-      name: "Nhẫn Kim cương Vàng",
-      otherProducts: [],
-    },
-    date: "12 Dec 2022",
-    customer: "M Karim",
-    total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã giao",
-  },
-  {
-    id: "4",
-    products: {
-      name: "Nhẫn Kim cương Vàng",
-      otherProducts: [],
-    },
-    date: "12 Dec 2022",
-    customer: "M Karim",
-    total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã giao",
-  },
-  {
-    id: "5",
-    products: {
-      name: "Nhẫn Kim cương Vàng",
-      otherProducts: [],
-    },
-    date: "12 Dec 2022",
-    customer: "M Karim",
-    total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã hủy",
-  },
-];
+import { getAllOrders, deleteOrder } from "../../services/Orderproduct";
 
 const OrderProductPage = () => {
   const [searchText, setSearchText] = useState('');
@@ -87,7 +20,7 @@ const OrderProductPage = () => {
       searchQuery: "",
     },
     selectedOrders: [],
-    data: initData(),
+    data: [], // Initialize as empty array
     isModalVisible: false,
     isAddModalVisible: false,
   });
@@ -96,7 +29,64 @@ const OrderProductPage = () => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [expandedRowKeys, setExpandedRowKeys] = useState([]);
-  const [activeTab, setActiveTab] = useState("Tất cả đơn hàng");
+  const [activeTab, setActiveTab] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllOrders();
+      console.log('Raw API Response:', response.data);
+      
+      const formattedData = response.data.map(order => {
+        // Log để debug thông tin khách hàng
+        console.log('Customer info:', {
+          id: order.MaKhachHang,
+          name: order.TenKhachHang,
+          phone: order.SoDienThoai
+        });
+
+        return {
+          id: order.SoPhieuBH,
+          products: {
+            name: order.chitiet?.[0]?.TenSanPham || 'N/A',
+            otherProducts: order.chitiet?.slice(1).map(detail => detail.TenSanPham) || []
+          },
+          date: new Date(order.NgayLap).toLocaleDateString('vi-VN'),
+          customer: order.TenKhachHang || 'Khách lẻ',
+          maKhachHang: order.MaKhachHang,
+          SoDienThoai: order.SoDienThoai,
+          total: new Intl.NumberFormat('vi-VN').format(order.TongTien || 0) + ' đ',
+          payment: order.PhuongThucThanhToan || 'Tiền mặt',
+          action: order.TinhTrang || 'Chưa xác định',
+          originalData: {
+            ...order,
+            // Ensure customer info is properly passed to EditModal
+            TenKhachHang: order.TenKhachHang,
+            MaKhachHang: order.MaKhachHang,
+            SoDienThoai: order.SoDienThoai,
+            chitiet: order.chitiet
+          }
+        };
+      });
+
+      console.log('Final formatted data:', formattedData); // Debug log
+      setState(prev => ({
+        ...prev,
+        data: formattedData
+      }));
+    } catch (error) {
+      message.error('Không thể tải dữ liệu đơn hàng');
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (key, value) => {
     setState((prev) => {
@@ -160,22 +150,25 @@ const OrderProductPage = () => {
     return dataToFilter;
   }, [state.data, state.filters, searchText]);
 
-  const handleConfirmDelete = () => {
-    const remainingOrders = state.data.filter(
-      (order) => !state.selectedOrders.includes(order.id)
-    );
-    setState((prev) => ({
-      ...prev,
-      data: remainingOrders,
-      selectedOrders: [],
-      isModalVisible: false,
-    }));
-    alert("Đã xóa các đơn hàng đã chọn thành công");
-  };
-
-  const handleRowClick = (record) => {
-    console.log("Navigating to order product detail with ID:", record.id);
-    navigate(`/order-product-detail/${record.id}`);
+  const handleConfirmDelete = async () => {
+    try {
+      setLoading(true);
+      for (const orderId of state.selectedOrders) {
+        await deleteOrder(orderId);
+      }
+      message.success('Xóa đơn hàng thành công');
+      setState(prev => ({
+        ...prev,
+        selectedOrders: [],
+        isModalVisible: false
+      }));
+      fetchOrders(); // Refresh the data
+    } catch (error) {
+      message.error('Không thể xóa đơn hàng');
+      console.error('Error deleting orders:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExpandRow = (record) => {
@@ -187,22 +180,50 @@ const OrderProductPage = () => {
   };
 
   const handleEditClick = (record) => {
-    setSelectedProduct(record);
-    setIsAddOrderModalVisible(true);
-  };
+    console.log('Clicking edit for record:', record); // Debug log
 
-  const handleMultiDelete = () => {
-    handleChange("isModalVisible", true);
+    // Check if necessary data exists
+    if (!record || !record.originalData) {
+      console.error('Invalid record data:', record);
+      return;
+    }
+
+    const formattedData = { 
+      SoPhieuBH: record.id,
+      NgayLap: record.originalData.NgayLap,
+      MaKhachHang: record.maKhachHang,
+      TenKhachHang: record.customer,
+      SoDienThoai: record.originalData.SoDienThoai || '',
+      TongTien: record.originalData.TongTien || 0,
+      chitiet: record.originalData.chitiet?.map(detail => ({
+        MaSanPham: detail.MaSanPham,
+        TenSanPham: detail.TenSanPham,
+        SoLuong: detail.SoLuong,
+        DonGiaBanRa: detail.DonGiaBanRa,
+        ThanhTien: detail.ThanhTien,
+        HinhAnh: detail.HinhAnh,
+        id: detail.MaSanPham,
+        name: detail.TenSanPham,
+        price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
+        rawPrice: detail.DonGiaBanRa,
+        image: detail.HinhAnh || 'default-image-url',
+        quantity: detail.SoLuong
+      })) || []
+    };
+
+    console.log('Formatted data for edit:', formattedData); // Debug log
+    setSelectedProduct(formattedData);
+    setIsEditModalVisible(true);
   };
 
   const columns = [
     {
-      title: "Mã đơn",
+      title: "Mã phiếu",
       dataIndex: "id",
       key: "id",
     },
     {
-      title: "Ngày",
+      title: "Ngày lập",
       dataIndex: "date",
       key: "date",
     },
@@ -212,37 +233,9 @@ const OrderProductPage = () => {
       key: "customer",
     },
     {
-      title: "Hình thức",
-      dataIndex: "payment",
-      key: "payment",
-    },
-    {
       title: "Tổng tiền",
       dataIndex: "total",
       key: "total",
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "action",
-      key: "action",
-      render: (status) => {
-        
-        let color = "";
-        switch (status) {
-          case "Đang xử lý":
-            color = "red";
-            break;
-          case "Đã giao":
-            color = "orange";
-            break;
-          case "Đã hủy":
-            color = "gray";
-            break;
-          default:
-            color = "blue";
-        }
-        return <Tag color={color}>{status}</Tag>;
-      },
     },
   ];
 
@@ -279,22 +272,6 @@ const OrderProductPage = () => {
 
         <div className="filter-section">
           <div className="filter-button">
-            {["Tất cả đơn hàng", "Đang xử lý", "Đã giao", "Đã hủy"].map((type) => (
-              <Button
-                key={type}
-                onClick={() => handleTabClick(type)}
-                className={`filter-btn ${
-                  activeTab === type || 
-                  (type === "Tất cả đơn hàng" && activeTab === "Tất cả") 
-                    ? "active" 
-                    : ""
-                }`}
-              >
-                {type}
-              </Button>
-            ))}
-          </div>
-          <div className="filter-button">
             <DatePicker
               placeholder="Chọn ngày"
               onChange={(date, dateString) => {
@@ -318,6 +295,7 @@ const OrderProductPage = () => {
         </div>
 
         <Table
+          loading={loading}
           columns={columns}
           dataSource={filteredData}
           rowKey="id"
@@ -365,10 +343,24 @@ const OrderProductPage = () => {
           onClose={() => {
             setIsAddOrderModalVisible(false);
             setSelectedProduct(null);
+            fetchOrders(); // Refresh data when modal closes
           }}
-          title={selectedProduct ? "Sửa đơn hàng" : "Thêm đơn hàng"}
-          save={selectedProduct ? "Lưu thay đổi" : "Lưu"}
-          product={selectedProduct}
+          onSave={() => {
+            fetchOrders(); // Add this - Refresh data immediately after successful save
+          }}
+          title="Thêm đơn hàng"
+          save="Lưu"
+        />
+
+        <EditOrderModal
+          isVisible={isEditModalVisible}
+          onClose={() => {
+            setIsEditModalVisible(false);
+            setSelectedProduct(null);
+            fetchOrders();
+          }}
+          onSave={fetchOrders}
+          initialData={selectedProduct}
         />
       </div>
     </div>

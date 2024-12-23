@@ -31,13 +31,6 @@ const App = () => {
   const handleCancel = () => {
     setIsModalVisible(false);
   };
-  const [services] = useState([
-    { id: 1, name: "Dịch vụ kiểm định và định giá", price: 1000000 },
-    { id: 2, name: "Thiết kế trang sức theo yêu cầu", price: 5000000 },
-    { id: 3, name: "Tư vấn cá nhân hóa", price: 1000000 },
-    { id: 4, name: "Dịch vụ bảo hành và đổi trả", price: 2000000 },
-    { id: 5, name: "Chương trình khách hàng thân thiết", price: 5000000 },
-  ]);  
   const columns = [
     {
       title: <span style={{ fontSize: "20px" }}>Dịch vụ</span>,
@@ -111,26 +104,34 @@ const App = () => {
   const [totalQuantity, setTotalQuantity] = useState(0); // Tổng số lượng dịch vụ
   const [totalAmount, setTotalAmount] = useState(0); // Tổng tiền
   // Hàm xử lý khi xác nhận chọn dịch vụ từ modal
-  const handleConfirm_cus = (customers) => {
-    console.log("Selected customers:", customers); // Thêm log để debug
-    setSelectedCustomers(customers); // Lưu thông tin khách hàng đã chọn
-    setIsCustomerModalVisible(false); // Đóng modal
+  const handleConfirm_cus = (customer) => {
+    console.log("Selected customer:", customer);
+    setSelectedCustomers([customer]); // Wrap single customer in array
+    setIsCustomerModalVisible(false);
   };
+  // Thêm hàm định dạng tiền
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(amount).replace('₫', 'VND');
+  };
+  // Sửa lại hàm xử lý khi chọn dịch vụ
   const handleConfirm = (selectedServices) => {
     const updatedData = [...data, ...selectedServices.map(service => ({
       ...service,
-      total: (service.price * (service.quantity || 1)).toLocaleString() + " VND",
+      total: formatCurrency(service.price * (service.quantity || 1))
     }))];
   
-    // Calculate total amount using price * quantity
+    // Tính toán tổng số tiền dựa trên DonGiaDV từ LOAIDICHVU
     const newTotalAmount = updatedData.reduce((sum, item) => {
-      const price = item.price || 0;
-      const quantity = item.quantity || 1;
+      const price = parseFloat(item.price) || 0;
+      const quantity = parseInt(item.quantity) || 1;
       return sum + (price * quantity);
     }, 0);
   
     const newTotalQuantity = updatedData.reduce((sum, item) => 
-      sum + (item.quantity || 1), 0
+      sum + (parseInt(item.quantity) || 1), 0
     );
   
     setData(updatedData);
@@ -152,23 +153,36 @@ const App = () => {
   const [data, setData] = useState([]); // Khởi tạo state cho danh sách dịch vụ
   const discount = 50000; // Example discount
   const shippingFee = 30000; // Example shipping fee
-  const totalquantity = data.reduce((sum, item) => sum + (item.quantity || 1), 0);
-  const totalamount = data.reduce((sum, item) => sum + (item.price || 0), 0);
-  const subTotal = totalAmount - discount; // Temporary calculation
-  const vat = Math.round((subTotal - shippingFee) * 0.08); // VAT 8%
-  const totalPayable = subTotal + vat; // Final amount to be paid
+  const totalquantity = data.reduce((sum, item) => sum + (parseInt(item.quantity) || 1), 0);
+  const totalamount = data.reduce((sum, item) => {
+    const price = parseFloat(item.price) || 0;
+    const quantity = parseInt(item.quantity) || 1;
+    return sum + (price * quantity);
+  }, 0);
+  // Tính PhanTramTraTruoc từ LOAIDICHVU
+  const calculatedTraTruoc = data.reduce((sum, item) => {
+    const price = parseFloat(item.price) || 0;
+    const quantity = parseInt(item.quantity) || 1;
+    const phanTramTraTruoc = item.phanTramTraTruoc || 0; // Từ database
+    return sum + ((price * quantity) * (phanTramTraTruoc / 100));
+  }, 0);
+  // Tính toán các giá trị khác
+  const subTotal = totalAmount;
+  const vat = Math.round(subTotal * 0.08); // VAT 8%
+  const totalPayable = subTotal + vat;
+  const conLai = totalPayable - calculatedTraTruoc;
   // Function to handle deleting a service from the table
   const handleDeleteService = (id) => {
     const updatedData = data.filter((service) => service.id !== id);
     
     const newTotalAmount = updatedData.reduce((sum, item) => {
-      const price = item.price || 0;
-      const quantity = item.quantity || 1;
+      const price = parseFloat(item.price) || 0;
+      const quantity = parseInt(item.quantity) || 1;
       return sum + (price * quantity);
     }, 0);
     
     const newTotalQuantity = updatedData.reduce((sum, item) => 
-      sum + (item.quantity || 1), 0
+      sum + (parseInt(item.quantity) || 1), 0
     );
   
     setData(updatedData);
@@ -191,8 +205,12 @@ const App = () => {
     console.log('Modal state changed:', isModalVisible);
   }, [isModalVisible]);
 
+  useEffect(() => {
+    console.log('Updated selected customers:', selectedCustomers);
+  }, [selectedCustomers]);
+
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-ser">
       {/* Sidebar */}
       <div className="bod">
         {/* Nội dung chính */}
@@ -220,15 +238,15 @@ const App = () => {
               content="Bạn có chắc chắn muốn lưu phiếu dịch vụ này không?"
             />
             <Row gutter={16} className="classification-status">
-              <Col span={12}>
+              <Col span={24}>
                 <div className="section" style={{
                   backgroundColor: "#f8f9ff", // Light blue-gray background
                   padding: "20px",
                   borderRadius: "12px",
                   boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
                   border: "1px solid #e6e9f0",
-                  width: "1000px",
                   marginTop: "0px",
+                  width: "100%",
                 }}>
                   <h2>Dịch vụ đăng ký</h2>
                   <Button
@@ -269,7 +287,7 @@ const App = () => {
                 }}>
                   <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
                   <Col span={12} style={{ textAlign: "right" }}>
-                    Tổng tiền: {totalAmount.toLocaleString()} VND
+                    Tổng tiền: {formatCurrency(totalAmount)}
                   </Col>
                 </Row>
                 </div>
@@ -279,7 +297,6 @@ const App = () => {
               isVisible={isModalVisible}  // Giữ nguyên tên prop để đồng nhất
               onCancel={handleCancel}
               onConfirm={handleConfirm}
-              services={services}
             />
             {/* Thông tin chung */}
             <div 
@@ -289,7 +306,6 @@ const App = () => {
                 borderRadius: "12px",
                 boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
                 border: "1px solid #e6e9f0",
-                width: "1000px",
                 marginTop: "20px",
               }}
             >
@@ -320,56 +336,48 @@ const App = () => {
                 customers={customers}
               />
 
-              {selectedCustomers && selectedCustomers.length > 0 && (
-                <div style={{ 
-                  maxHeight: "300px", 
-                  overflowY: "auto",
-                  padding: "8px",
-                  borderRadius: "8px",
-                }}>
-                  {selectedCustomers.map(customer => (
-                    <Card
-                      key={customer.id}
-                      bordered={false}
-                      style={{ 
-                        marginBottom: "8px",
-                        borderRadius: "8px",
-                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)"
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center" }}>
-                        <UserOutlined
-                          style={{
-                            fontSize: "40px",
-                            marginRight: "10px",
-                            color: "#1890ff",
-                          }}
-                        />
-                        <div>
-                          <span style={{ fontSize: "16px", fontWeight: "500" }}>
-                            {customer.name}
-                          </span>
-                          <br />
-                          <span style={{ color: "#888" }}>{customer.phone}</span>
+              {/* Hiển thị thông tin khách hàng đã chọn */}
+              {selectedCustomers?.[0] && (
+                <Card
+                  style={{ 
+                    marginTop: "16px",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)"
+                  }}
+                >
+                  <Row align="middle">
+                    <Col span={2}>
+                      <UserOutlined 
+                        style={{
+                          fontSize: "24px",
+                          backgroundColor: "#1890ff",
+                          padding: "8px",
+                          borderRadius: "50%",
+                          color: "white"
+                        }}
+                      />
+                    </Col>
+                    <Col span={18}>
+                      <div style={{ marginLeft: "16px" }}>
+                        <div style={{ fontSize: "16px", fontWeight: "500" }}>
+                          {selectedCustomers[0].name}
                         </div>
-                        <Button 
-                          type="text" 
-                          danger
-                          onClick={() => {
-                            setSelectedCustomers(prev => 
-                              prev.filter(c => c.id !== customer.id)
-                            );
-                          }}
-                          style={{
-                            marginLeft: "auto"
-                          }}
-                        >
-                          Xóa
-                        </Button>
+                        <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
+                          {selectedCustomers[0].phone}
+                        </div>
                       </div>
-                    </Card>
-                  ))}
-                </div>
+                    </Col>
+                    <Col span={4} style={{ textAlign: "right" }}>
+                      <Button 
+                        type="text" 
+                        danger
+                        onClick={() => setSelectedCustomers([])}
+                      >
+                        Xóa
+                      </Button>
+                    </Col>
+                  </Row>
+                </Card>
               )}
             </div>
             {data.length > 0 && (
@@ -415,15 +423,15 @@ const App = () => {
                   </Row>
                   <Row justify="space-between" style={{ marginTop: "8px" }}>
                     <Col span={12}>Tổng tiền dịch vụ</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{totalamount.toLocaleString()} VND</Col>
+                    <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(totalamount)}</Col>
                   </Row>
                   <Row justify="space-between" style={{ marginTop: "8px" }}>
                     <Col span={12}>Giảm giá</Col>
-                    <Col span={12} style={{ textAlign: "right", color: "#ff4d4f" }}>-{discount.toLocaleString()} VND</Col>
+                    <Col span={12} style={{ textAlign: "right", color: "#ff4d4f" }}>-{formatCurrency(discount)}</Col>
                   </Row>
                   <Row justify="space-between" style={{ marginTop: "8px" }}>
                     <Col span={12}>Tạm tính</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{subTotal.toLocaleString()} VND</Col>
+                    <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(subTotal)}</Col>
                   </Row>
                   <Row justify="space-between" style={{ marginTop: "8px" }}>
                     <Col span={12}>Phí vận chuyển</Col>
@@ -440,7 +448,7 @@ const App = () => {
                     fontWeight: "bold" 
                   }}>
                     <Col span={12}>Phải thu</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{totalPayable.toLocaleString()} VND</Col>
+                    <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(totalPayable)}</Col>
                   </Row>
                 </div>
           

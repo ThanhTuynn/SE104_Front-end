@@ -50,27 +50,26 @@
     }
   }
 
-  /* Filter section styling */
   .filter-section {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;  /* Changed from space-between to flex-end */
     margin-bottom: 20px;
 
     .filter-button {
-      display: flex;
-      gap: 10px;
-      align-items: center;
+        display: flex;
+        gap: 10px;
+        align-items: center;
     }
 
     .filter-btn {
-      margin-right: 8px;
-      &.active {
-        background-color: #e6f7ff;
-        border-color: #91d5ff;
-        color: #1890ff;
-      }
+        margin-right: 8px;
+        &.active {
+            background-color: #e6f7ff;
+            border-color: #91d5ff;
+            color: #1890ff;
+        }
     }
-  }
+}
 
   /* Button styling */
   .export-button {
