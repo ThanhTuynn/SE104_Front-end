@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Modal, Button, Checkbox, Input, Table } from "antd";
+import { Modal, Button, Checkbox, Input, Table, DatePicker } from "antd";
 import ServiceTypeService from '../../../services/ServiceTypeService';
 import "./Modal_timkiemdichvu.css";
 
@@ -8,6 +8,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
   const [searchValue, setSearchValue] = useState("");
   const [quantities, setQuantities] = useState({});
   const [fetchedServices, setFetchedServices] = useState([]);
+  const [deliveryDates, setDeliveryDates] = useState({}); // Add new state for delivery dates
 
   // Add debugging logs
   useEffect(() => {
@@ -33,7 +34,7 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
           id: item.MaLoaiDV,
           name: item.TenLoaiDichVu,
           price: item.DonGiaDV,
-          image: null
+          pttr: item.PhanTramTraTruoc,
         }));
         setFetchedServices(mappedData);
       } catch (error) {
@@ -93,24 +94,6 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
 
   const columns = [
     {
-      title: "Hình ảnh",
-      dataIndex: "image",
-      key: "image",
-      width: "15%",
-      render: (image) => (
-        <img
-          src={image || "https://via.placeholder.com/40"}
-          alt="Dịch vụ"
-          style={{
-            width: "40px",
-            height: "40px",
-            objectFit: "cover",
-            borderRadius: "4px",
-          }}
-        />
-      ),
-    },
-    {
       title: "Dịch vụ",
       dataIndex: "name",
       key: "name",
@@ -152,6 +135,21 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
       render: (price) => formatCurrency(price),
     },
     {
+      title: "Ngày giao",
+      key: "deliveryDate",
+      width: "20%",
+      render: (_, record) => (
+        <DatePicker
+          onChange={(date, dateString) => handleDeliveryDateChange(record.id, date, dateString)}
+          format="DD/MM/YYYY"
+          style={{ width: '100%' }}
+          value={deliveryDates[record.id]}
+          disabled={!selectedServices.some(s => s.id === record.id)}
+          onClick={e => e.stopPropagation()}
+        />
+      ),
+    },
+    {
       title: "",
       key: "select",
       render: (_, record) => (
@@ -165,13 +163,57 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
     },
   ];
 
-  const handleOk = () => {
-    const servicesWithQuantities = selectedServices.map(service => ({
-      ...service,
-      quantity: quantities[service.id] || 1,
-      total: formatCurrency(service.price * (quantities[service.id] || 1))
+  const handleDeliveryDateChange = (serviceId, date) => {
+    setDeliveryDates(prev => ({
+      ...prev,
+      [serviceId]: date
     }));
-    onConfirm(servicesWithQuantities);
+  };
+
+  // Modify handleOk to check for missing delivery dates
+  const handleOk = () => {
+    // Check if any selected service is missing delivery date
+    const missingDeliveryDates = selectedServices.filter(
+      service => !deliveryDates[service.id]
+    );
+
+    if (missingDeliveryDates.length > 0) {
+      Modal.warning({
+        title: 'Thiếu ngày giao',
+        content: (
+          <div>
+            <p>Vui lòng chọn ngày giao cho các dịch vụ sau:</p>
+            <ul>
+              {missingDeliveryDates.map(service => (
+                <li key={service.id}>{service.name}</li>
+              ))}
+            </ul>
+          </div>
+        ),
+      });
+      return;
+    }
+
+    // If all services have delivery dates, proceed with normal flow
+    const servicesWithQuantities = selectedServices.map(service => {
+      const quantity = quantities[service.id] || 1;
+      const totalPrice = service.price * quantity;
+      const prepaymentAmount = (totalPrice * service.pttr) / 100;
+      
+      return {
+        ...service,
+        quantity,
+        total: formatCurrency(totalPrice),
+        prepaymentAmount,
+        deliveryDate: deliveryDates[service.id]
+      };
+    });
+
+    const totalPrepayment = servicesWithQuantities.reduce((sum, service) => 
+      sum + service.prepaymentAmount, 0
+    );
+
+    onConfirm(servicesWithQuantities, totalPrepayment, deliveryDates);
   };
 
   return (

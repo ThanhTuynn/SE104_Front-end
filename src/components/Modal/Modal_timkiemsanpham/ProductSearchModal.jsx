@@ -4,17 +4,18 @@ import axios from 'axios';
 import "./ProductSearchModal.css";
 import productService from '../../../services/productService';
 
-const ProductSearchModal = ({ isVisible, onCancel, onConfirm }) => {
+const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [quantities, setQuantities] = useState({});
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isVisible) {
+    // Chỉ fetch products nếu không phải đang ở trang products
+    if (isVisible && !isProductPage) {
       fetchProducts();
     }
-  }, [isVisible]);
+  }, [isVisible, isProductPage]);
 
   const fetchProducts = async () => {
     try {
@@ -22,10 +23,17 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm }) => {
       const response = await axios.get('http://localhost:3000/api/product/get-all');
       const formattedProducts = response.data.map(product => ({
         id: product.MaSanPham,
+        MaSanPham: product.MaSanPham,
+        TenSanPham: product.TenSanPham,
+        MaLoaiSanPham: product.MaLoaiSanPham,
+        DonGia: product.DonGia,
+        SoLuong: product.SoLuong || 0,
+        // Các trường hiển thị
         name: product.TenSanPham,
         price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
         quantity: product.SoLuong || 0,
         stock: product.SoLuong || 0,
+        image: product.HinhAnh || 'default-image.png',
         rawPrice: product.DonGia
       }));
       setProducts(formattedProducts);
@@ -40,49 +48,46 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm }) => {
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleQuantityChange = (productId, change) => {
+  const handleQuantityChange = (productId, change, maxStock) => {
     setQuantities(prev => {
       const currentQty = prev[productId] || 1;
-      const newQty = Math.max(1, currentQty + change);
+      const newQty = currentQty + change;
+      
+      // Chỉ kiểm tra số lượng, không cập nhật database
+      if (newQty < 1) {
+        return prev;
+      }
+      if (newQty > maxStock) {
+        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${maxStock})`);
+        return prev;
+      }
+      
       return { ...prev, [productId]: newQty };
     });
   };
 
-  const handleProductConfirm = async (product) => {
+  const handleProductConfirm = (product) => {
     try {
       const selectedQuantity = quantities[product.id] || 1;
-      const newStock = product.stock - selectedQuantity;
-
-      if (newStock < 0) {
+      
+      if (selectedQuantity > product.stock) {
         message.error('Số lượng vượt quá tồn kho hiện có!');
         return;
       }
 
-      // Sửa lại cách gọi hàm updateProduct
-      await productService.updateProduct(product.id, {
-        SoLuong: newStock
-      });
-
-      // Gọi onConfirm với thông tin sản phẩm và số lượng
+      // Chỉ gửi thông tin sản phẩm và số lượng yêu cầu, không gọi API
       onConfirm({
         ...product,
         quantity: selectedQuantity,
-        currentStock: newStock
+        originalStock: product.stock,
+        requestedQuantity: selectedQuantity
       });
 
-      // Cập nhật lại danh sách sản phẩm local
-      setProducts(prevProducts => 
-        prevProducts.map(p => 
-          p.id === product.id 
-            ? { ...p, stock: newStock }
-            : p
-        )
-      );
-
-      message.success(`Đã cập nhật tồn kho: ${newStock}`);
+      onCancel();
+      message.success(`Đã thêm ${selectedQuantity} sản phẩm vào giỏ hàng`);
     } catch (error) {
-      console.error('Error updating stock:', error);
-      message.error('Không thể cập nhật số lượng tồn kho');
+      console.error('Error selecting product:', error);
+      message.error('Không thể thêm sản phẩm');
     }
   };
 
@@ -129,7 +134,7 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm }) => {
             render: (_, record) => (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Button
-                  onClick={() => handleQuantityChange(record.id, -1)}
+                  onClick={() => handleQuantityChange(record.id, -1, record.stock)}
                   disabled={(quantities[record.id] || 1) <= 1}
                   style={{
                     width: '24px',
@@ -146,7 +151,7 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm }) => {
                 </Button>
                 <span style={{ margin: '0 4px' }}>{quantities[record.id] || 1}</span>
                 <Button
-                  onClick={() => handleQuantityChange(record.id, 1)}
+                  onClick={() => handleQuantityChange(record.id, 1, record.stock)}
                   style={{
                     width: '24px',
                     height: '24px',

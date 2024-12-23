@@ -1,17 +1,23 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Table, Button, Input, DatePicker, Space, Tag, Menu, Modal } from "antd";
+import { Table, Button, Input, DatePicker, Space, Tag, Menu, Modal, Row, Col } from "antd";
 import { ExportOutlined, DeleteOutlined, PlusOutlined, EditOutlined, EyeOutlined } from "@ant-design/icons";
 import { useNavigate } from 'react-router-dom';
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
-import DeleteConfirmationModal from "../../components/Modal/Modal_xacnhanxoa/Modal_xacnhanxoa";
-import Header from "../../components/Header/Header";
-import FilterBar from "../../components/FilterBar/FilterBar";
 import {
   DownOutlined,
 } from "@ant-design/icons";
 import "./ServicePage.css";
 import serviceService from '../../services/serviceService';
 const { Search } = Input;
+
+// Add formatCurrency function
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(amount).replace('₫', 'VND');
+};
+
 const App1 = () => {
   const navigate = useNavigate();
 
@@ -34,6 +40,7 @@ const App1 = () => {
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
   const [data, setData] = useState([]);
+  const [totalPrepayment, setTotalPrepayment] = useState(0);
   useEffect(() => {
     const fetchServiceTickets = async () => {
       try {
@@ -114,31 +121,14 @@ const App1 = () => {
       key: "customer",
     },
     {
-      title: "Thành tiền",
-      dataIndex: "price",
-      key: "price",
+      title: "Tổng tiền trả trước",
+      dataIndex: "price-repay",
+      key: "price-repay",
     },
     {
-      title: "Trạng thái",
-      dataIndex: "statuss",
-      key: "statuss",
-      render: (statuss) => {
-        let color;
-        switch (statuss) {
-          case "Chưa giao hàng":
-            color = "orange";
-            break;
-          case "Đã hoàn tất":
-            color = "green";
-            break;
-          case "Đã hủy":
-            color = "red";
-            break;
-          default:
-            color = "blue";
-        }
-        return <Tag color={color}>{statuss}</Tag>;
-      },
+      title: "Tổng tiền",
+      dataIndex: "price",
+      key: "price",
     },
   ];
 
@@ -237,8 +227,39 @@ const App1 = () => {
       });
     }
   };
+  const updateServiceStatus = (serviceDetail) => {
+    const currentDate = new Date();
+    const deliveryDate = serviceDetail.NgayGiao ? new Date(serviceDetail.NgayGiao) : null;
+    
+    return {
+      ...serviceDetail,
+      TinhTrang: deliveryDate && deliveryDate <= currentDate ? 'Đã giao' : 'Chưa giao'
+    };
+  };
 
+  // Usage in component
+  const handleStatusUpdate = () => {
+    const updatedData = data.map(service => updateServiceStatus(service));
+    setData(updatedData);
+  };
+  const handleConfirm = (selectedServices, totalPrepayment) => {
+    const updatedData = [...data, ...selectedServices];
+    setData(updatedData);
+    setTotalPrepayment(totalPrepayment); // Update total prepayment state
+    setIsModalVisible(false);
+  };
+  const tabs = ["Tất cả", "Hoàn thành", "Đang xử lý", "Chưa hoàn thành"];
+
+  // Fix handleConfirmDelete implementation
   const handleConfirmDelete = async () => {
+    if (!state.selectedOrders || state.selectedOrders.length === 0) {
+      Modal.warning({
+        title: 'Cảnh báo',
+        content: 'Vui lòng chọn phiếu dịch vụ để xóa'
+      });
+      return;
+    }
+
     try {
       await serviceService.deleteMultipleServiceTickets(state.selectedOrders);
       const remainingData = data.filter(
@@ -261,7 +282,7 @@ const App1 = () => {
       });
     }
   };
-  const tabs = ["Tất cả", "Hoàn thành", "Đang xử lý", "Chưa hoàn thành"];
+
     return (
     <div>
       <div style={{ marginLeft: "270px" }}>
@@ -340,7 +361,6 @@ const App1 = () => {
           }}
           scroll={{ x: 'max-content' }}
         />
-
         <Modal
           title="Xác nhận xóa"
           visible={state.isModalVisible} // Use 'visible' if you're using Ant Design v4.x

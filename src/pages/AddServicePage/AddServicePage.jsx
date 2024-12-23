@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ServiceConfirmationModal from "../../components/Modal/Modal_xacnhan/Modal_xacnhan";
 import ServiceModal from "../../components/Modal/Modal_timkiemdichvu/Modal_timkiemdichvu"
-import CustomerModal from "../../components/Modal/Modal_timkiemkhachhang/Modal_timkiemkhachhang";
+import CustomerSearchModal from "../../components/Modal/Modal_timkiemkhachhang/Modal_timkiemkhachhang";
 import {
   Table,
   Layout,
@@ -13,6 +13,7 @@ import {
   Row,
   Col,
   Card,
+  DatePicker
 } from "antd";
 import {
   UserOutlined,
@@ -27,39 +28,35 @@ const App = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [totalPossiblePrepayment, setTotalPossiblePrepayment] = useState(0); // Add new state for total prepayment
+  const [isCustomerSearchVisible, setIsCustomerSearchVisible] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [deliveryDate, setDeliveryDate] = useState(null); // Add new state for delivery date
+  const [serviceDeliveryDates, setServiceDeliveryDates] = useState({});
+  const [additionalCost, setAdditionalCost] = useState(0); // Add new state for additional cost
 
   const handleCancel = () => {
     setIsModalVisible(false);
   };
   const columns = [
     {
-      title: <span style={{ fontSize: "20px" }}>Dịch vụ</span>,
+      title: <span style={{ fontSize: "14px" }}>Dịch vụ</span>,
       dataIndex: "name",
       key: "name",
+      width: "15%",
       align: "left",
-      width: "50%",
       render: (text, record) => (
         <div style={{ display: "flex", alignItems: "center" }}>
-          <img
-            src={record.image || "https://via.placeholder.com/40"} // Sử dụng ảnh mặc định nếu không có `image`
-            alt="Dịch vụ"
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "4px",
-              marginRight: "10px",
-            }}
-          />
           <span className="title_1">{text}</span>
         </div>
       )      
     },
     {
-      title: <span style={{ fontSize: "20px" }}>Số lượng</span>,
+      title: <span style={{ fontSize: "14px" }}>Số lượng</span>,
       dataIndex: 'quantity',
       key: 'quantity',
       align: 'center',
-      width: '20%',
+      width: '10%',
       render: (text, record) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
           <span style={{ margin: '0 8px' }}>{record.quantity}</span>
@@ -67,10 +64,55 @@ const App = () => {
       )
     },
     {
-      title: <span style={{ fontSize: "20px"}}>Thành tiền</span>,
+      title: <span style={{ fontSize: "14px" }}>Trả trước</span>,
+      key: "prepayment",
+      width: "20%",
+      render: (_, record) => (
+        <Input
+          type="number"
+          placeholder="Nhập số tiền"
+          defaultValue={record.prepaymentAmount || 0}
+          style={{ width: '100%' }}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value) || 0;
+            const updatedData = data.map(item => 
+              item.id === record.id 
+                ? { ...item, prepaymentAmount: value }
+                : item
+            );
+            setData(updatedData);
+          }}
+
+        />
+      ),
+    },
+    {
+      title: <span style={{ fontSize: "14px" }}>Chi phí riêng</span>,
+      key: "additionalCost",
+      width: "20%",
+      render: (_, record) => (
+        <Input
+          type="number"
+          placeholder="Nhập chi phí"
+          defaultValue={record.additionalCost || 0}
+          style={{ width: '100%' }}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value) || 0;
+            const updatedData = data.map(item => 
+              item.id === record.id 
+                ? { ...item, additionalCost: value }
+                : item
+            );
+            setData(updatedData);
+          }}
+          onClick={e => e.stopPropagation()}
+        />
+      ),
+    },
+    {
+      title: <span style={{ fontSize: "14px"}}>Thành tiền</span>,
       key: "totalAndAction",
       align: "left",
-      width: "40%",
       render: (text, record) => (
         <div style={{ 
           display: "flex", 
@@ -117,13 +159,13 @@ const App = () => {
     }).format(amount).replace('₫', 'VND');
   };
   // Sửa lại hàm xử lý khi chọn dịch vụ
-  const handleConfirm = (selectedServices) => {
+  const handleConfirm = (selectedServices, totalPrepayment, deliveryDates) => {
     const updatedData = [...data, ...selectedServices.map(service => ({
       ...service,
       total: formatCurrency(service.price * (service.quantity || 1))
     }))];
   
-    // Tính toán tổng số tiền dựa trên DonGiaDV từ LOAIDICHVU
+    // Calculate new totals
     const newTotalAmount = updatedData.reduce((sum, item) => {
       const price = parseFloat(item.price) || 0;
       const quantity = parseInt(item.quantity) || 1;
@@ -134,16 +176,15 @@ const App = () => {
       sum + (parseInt(item.quantity) || 1), 0
     );
   
+    // Update state with new values
     setData(updatedData);
+    setTotalPossiblePrepayment(totalPrepayment);
+    setServiceDeliveryDates(deliveryDates);
     setTotalAmount(newTotalAmount);
     setTotalQuantity(newTotalQuantity);
     setIsModalVisible(false);
   };
-  const customers = [
-    { id: 1, name: "Nguyễn Văn A", phone: "0312456789" },
-    { id: 2, name: "Trần Thị Ngọc B", phone: "0918276345" },
-    { id: 3, name: "Văn Mây", phone: "0328345671" },
-  ];
+  
   const handleSearch = () => {
     setIsCustomerModalVisible(true); // Chỉ cần mở modal
   };
@@ -199,6 +240,23 @@ const App = () => {
 
   const handleCancelSave = () => {
     setIsConfirmModalVisible(false);
+  };
+
+  const handleCustomerSearch = () => {
+    setIsCustomerSearchVisible(true);
+  };
+
+  const handleCustomerSelect = (customer) => {
+    setSelectedCustomer(customer);
+    setIsCustomerSearchVisible(false);
+  };
+
+  const handleCustomerCancel = () => {
+    setIsCustomerSearchVisible(false);
+  };
+
+  const handleDeliveryDateChange = (date, dateString) => {
+    setDeliveryDate(date);
   };
 
   useEffect(() => {
@@ -314,13 +372,13 @@ const App = () => {
                 <Col span={24} style={{ display: "flex", alignItems: "center" }}>
                   <Button
                     type="primary"
-                    onClick={handleSearch}
+                    onClick={handleCustomerSearch}
                     style={{ 
                       borderRadius: "8px",
                       width: "200px",
                     }}
                   >
-                    Tìm kiếm
+                    Tìm kiếm khách hàng
                   </Button>
                   <span style={{ marginLeft: "10px" }}>hoặc</span>
                   <a href="#" style={{ marginLeft: "10px", color: "#1890ff" }}>
@@ -328,13 +386,6 @@ const App = () => {
                   </a>
                 </Col>
               </Row>
-
-              <CustomerModal
-                isVisible={isCustomerModalVisible}
-                onCancel={() => setIsCustomerModalVisible(false)}
-                onConfirm={handleConfirm_cus}
-                customers={customers}
-              />
 
               {/* Hiển thị thông tin khách hàng đã chọn */}
               {selectedCustomers?.[0] && (
@@ -379,6 +430,47 @@ const App = () => {
                   </Row>
                 </Card>
               )}
+              {selectedCustomer && (
+                <Card style={{ marginTop: "16px" }}>
+                  <Row align="middle">
+                    <Col span={2}>
+                      <UserOutlined 
+                        style={{
+                          fontSize: "24px",
+                          backgroundColor: "#1890ff",
+                          padding: "8px",
+                          borderRadius: "50%",
+                          color: "white"
+                        }}
+                      />
+                    </Col>
+                    <Col span={18}>
+                      <div style={{ marginLeft: "16px" }}>
+                        <div style={{ fontSize: "16px", fontWeight: "500" }}>
+                          {selectedCustomer.name}
+                        </div>
+                        <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
+                          {selectedCustomer.phone}
+                        </div>
+                      </div>
+                    </Col>
+                    <Col span={4} style={{ textAlign: "right" }}>
+                      <Button 
+                        type="text" 
+                        danger
+                        onClick={() => setSelectedCustomer(null)}
+                      >
+                        Xóa
+                      </Button>
+                    </Col>
+                  </Row>
+                </Card>
+              )}
+              <CustomerSearchModal
+                isVisible={isCustomerSearchVisible}
+                onCancel={handleCustomerCancel}
+                onConfirm={handleCustomerSelect}
+              />
             </div>
             {data.length > 0 && (
             <div 
@@ -393,24 +485,8 @@ const App = () => {
             }}
           >
             <h2>Thanh toán</h2>
-            <Row gutter={16}>
-              {/* Cột ghi chú */}
-              <Col span={12}>
-                <div style={{ marginBottom: "16px" }}>
-                  <label>Ghi chú phiếu dịch vụ</label>
-                  <Input.TextArea
-                    placeholder="Nhập ghi chú dịch vụ tại đây"
-                    rows={10}
-                    style={{ 
-                      marginTop: "8px",
-                      borderRadius: "8px"
-                    }}
-                  />
-                </div>
-              </Col>
-          
               {/* Cột thông tin thanh toán */}
-              <Col span={12}>
+              <Col span={24}>
                 <div style={{
                   backgroundColor: "#fff",
                   padding: "16px",
@@ -425,22 +501,6 @@ const App = () => {
                     <Col span={12}>Tổng tiền dịch vụ</Col>
                     <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(totalamount)}</Col>
                   </Row>
-                  <Row justify="space-between" style={{ marginTop: "8px" }}>
-                    <Col span={12}>Giảm giá</Col>
-                    <Col span={12} style={{ textAlign: "right", color: "#ff4d4f" }}>-{formatCurrency(discount)}</Col>
-                  </Row>
-                  <Row justify="space-between" style={{ marginTop: "8px" }}>
-                    <Col span={12}>Tạm tính</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(subTotal)}</Col>
-                  </Row>
-                  <Row justify="space-between" style={{ marginTop: "8px" }}>
-                    <Col span={12}>Phí vận chuyển</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{shippingFee.toLocaleString()} VND</Col>
-                  </Row>
-                  <Row justify="space-between" style={{ marginTop: "8px" }}>
-                    <Col span={12}>Thuế VAT (8%)</Col>
-                    <Col span={12} style={{ textAlign: "right" }}>{vat.toLocaleString()} VND</Col>
-                  </Row>
                   <Row justify="space-between" style={{ 
                     marginTop: "16px", 
                     padding: "12px",
@@ -451,49 +511,7 @@ const App = () => {
                     <Col span={12} style={{ textAlign: "right" }}>{formatCurrency(totalPayable)}</Col>
                   </Row>
                 </div>
-          
-                <div style={{ marginTop: "16px" }}>
-                <Checkbox 
-                      style={{ 
-                        marginBottom: "16px",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "4px 0" // Add padding to create vertical space
-                      }}
-                    >
-                      <span style={{ 
-                        marginLeft: "8px",
-                        lineHeight: "20px", // Adjust line height to match checkbox height
-                        display: "inline-block", // Ensure text behaves as a block
-                        verticalAlign: "middle", // Align text vertically
-                        marginTop: "5px"
-                      }}>
-                        Yêu cầu xuất hóa đơn điện tử
-                      </span>
-                    </Checkbox>
-                  <Row justify="end" gutter={16}>
-                    <Col>
-                      <Button
-                        className={`payment-button ${isPaid === true ? "primary" : "default"}`}
-                        onClick={() => setIsPaid(isPaid === true ? null : true)}
-                        style={{ borderRadius: "8px" }}
-                      >
-                        Đã thanh toán
-                      </Button>
-                    </Col>
-                    <Col>
-                      <Button
-                        className={`payment-button ${isPaid === false ? "primary" : "default"}`}
-                        onClick={() => setIsPaid(isPaid === false ? null : false)}
-                        style={{ borderRadius: "8px" }}
-                      >
-                        Thanh toán sau
-                      </Button>
-                    </Col>
-                  </Row>
-                </div>
               </Col>
-            </Row>
           </div>
             )}
           </Content>
