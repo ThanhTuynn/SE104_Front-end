@@ -167,7 +167,6 @@ const ImportProduct = () => {
     navigate("/import-product-detail/1");
   };
 
-
   const columns = [
     {
       title: "Mã đơn",
