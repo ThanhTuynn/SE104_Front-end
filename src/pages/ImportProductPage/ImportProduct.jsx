@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { Table, Button, Input, DatePicker, Modal, Tag } from "antd";
+import { Table, Button, Input, DatePicker, Modal} from "antd";
 import { ExportOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import "./ImportProduct.css";
-import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 
 const initData = () => [
   {
@@ -19,8 +18,6 @@ const initData = () => [
     date: "29 Dec 2022",
     customer: "John Bushmill",
     total: "13,000,000",
-    payment: "Mastercard",
-    action: "Đang xử lý",
   },
   {
     id: "2",
@@ -34,8 +31,6 @@ const initData = () => [
     date: "24 Dec 2022",
     customer: "Linda Blair",
     total: "10,000,000",
-    payment: "Visa",
-    action: "Đã hủy",
   },
   {
     id: "3",
@@ -46,8 +41,6 @@ const initData = () => [
     date: "12 Dec 2022",
     customer: "M Karim",
     total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã giao",
   },
   {
     id: "4",
@@ -58,8 +51,6 @@ const initData = () => [
     date: "12 Dec 2022",
     customer: "M Karim",
     total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã giao",
   },
   {
     id: "5",
@@ -70,8 +61,6 @@ const initData = () => [
     date: "12 Dec 2022",
     customer: "M Karim",
     total: "5,000,000",
-    payment: "Mastercard",
-    action: "Đã hủy",
   },
 ];
 
@@ -112,12 +101,6 @@ const ImportProduct = () => {
         item.products.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.customer.toLowerCase().includes(searchQuery.toLowerCase());
 
-      // Order type filter - use exact string comparison
-      let orderTypeMatch = true;
-      if (orderType !== "Tất cả phiếu mua hàng") {
-        orderTypeMatch = item.action === orderType;
-      }
-
       // Date filter
       const dateMatch = !dateString || item.date.includes(dateString);
 
@@ -126,28 +109,14 @@ const ImportProduct = () => {
         item: item.id,
         orderType,
         itemAction: item.action,
-        orderTypeMatch,
         searchMatch,
         dateMatch
       });
 
-      return searchMatch && orderTypeMatch && dateMatch;
+      return searchMatch && dateMatch;
     });
   }, [state.data, state.filters]);
 
-  // Add debugging for filter changes
-  const handleFilterClick = (type) => {
-    console.log("Previous filter:", state.filters.orderType);
-    console.log("New filter:", type);
-    
-    setState(prev => ({
-      ...prev,
-      filters: {
-        ...prev.filters,
-        orderType: type
-      }
-    }));
-  };
 
   const handleConfirmDelete = () => {
     const remainingOrders = state.data.filter(
@@ -166,6 +135,7 @@ const ImportProduct = () => {
     console.log("Navigating to import product detail with ID:", record.id);
     navigate("/import-product-detail/1");
   };
+
 
   const columns = [
     {
@@ -206,37 +176,9 @@ const ImportProduct = () => {
       key: "customer",
     },
     {
-      title: "Hình thức",
-      dataIndex: "payment",
-      key: "payment",
-    },
-    {
       title: "Tổng tiền",
       dataIndex: "total",
       key: "total",
-    },
-    {
-      title: "Xử lý",
-      dataIndex: "action",
-      key: "action",
-      width: "12%",
-      render: (status) => {
-        let color = "";
-        switch (status) {
-          case "Đang xử lý":
-            color = "orange";
-            break;
-          case "Đã giao":
-            color = "green";
-            break;
-          case "Đã hủy":
-            color = "red";
-            break;
-          default:
-            color = "blue";
-        }
-        return <Tag color={color}>{status}</Tag>;
-      },
     },
   ];
 
@@ -276,15 +218,6 @@ const ImportProduct = () => {
         {/* Filter */}
         <div className="filter-section">
           <div className="filter-button">
-            {["Tất cả phiếu mua hàng", "Đang xử lý", "Đã giao", "Đã hủy"].map((type) => (
-              <Button
-                key={type}
-                onClick={() => handleFilterClick(type)}
-                className={`filter-btn ${state.filters.orderType === type ? "active" : ""}`}
-              >
-                {type}
-              </Button>
-            ))}
           </div>
           <div className="filter-button">
             <DatePicker
