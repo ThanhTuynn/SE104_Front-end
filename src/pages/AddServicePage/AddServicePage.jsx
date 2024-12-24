@@ -23,6 +23,8 @@ const { Sider, Content } = Layout;
 const { TextArea } = Input;
 const { Search } = Input;
 const App = () => {
+  const [data, setData] = useState([]); // Move this up
+  const [selectedRows, setSelectedRows] = useState([]);
   const [isPaid, setIsPaid] = useState(null); // null: chưa chọn, true: Đã thanh toán, false: Thanh toán sau
   const { Option } = Select;  
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -34,19 +36,38 @@ const App = () => {
   const [deliveryDate, setDeliveryDate] = useState(null); // Add new state for delivery date
   const [serviceDeliveryDates, setServiceDeliveryDates] = useState({});
   const [additionalCost, setAdditionalCost] = useState(0); // Add new state for additional cost
+  const [additionalCosts, setAdditionalCosts] = useState({}); // Add new state for additional costs
 
   const handleCancel = () => {
     setIsModalVisible(false);
   };
   const columns = [
     {
+      title: "",
+      dataIndex: 'checkbox',
+      key: 'checkbox',
+      align: 'center',
+      render: (_, record) => (
+        <Checkbox 
+          style={{marginBottom: "-30px" }}
+          checked={selectedRows.includes(record.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedRows([...selectedRows, record.id]);
+            } else {
+              setSelectedRows(selectedRows.filter(id => id !== record.id));
+            }
+          }}
+        />
+      ),
+    },
+    {
       title: <span style={{ fontSize: "14px" }}>Dịch vụ</span>,
       dataIndex: "name",
       key: "name",
-      width: "15%",
       align: "left",
       render: (text, record) => (
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", marginTop: "25px" }}>
           <span className="title_1">{text}</span>
         </div>
       )      
@@ -56,9 +77,8 @@ const App = () => {
       dataIndex: 'quantity',
       key: 'quantity',
       align: 'center',
-      width: '10%',
       render: (text, record) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: "25px" }}>
           <span style={{ margin: '0 8px' }}>{record.quantity}</span>
         </div>
       )
@@ -66,38 +86,69 @@ const App = () => {
     {
       title: <span style={{ fontSize: "14px" }}>Trả trước</span>,
       key: "prepayment",
-      width: "20%",
-      render: (_, record) => (
-        <Input
-          type="number"
-          placeholder="Nhập số tiền"
-          defaultValue={record.prepaymentAmount || 0}
-          style={{ width: '100%' }}
-          onChange={(e) => {
-            const value = parseFloat(e.target.value) || 0;
-            const updatedData = data.map(item => 
-              item.id === record.id 
-                ? { ...item, prepaymentAmount: value }
-                : item
-            );
-            setData(updatedData);
-          }}
-
-        />
-      ),
+      render: (_, record) => {
+        const basePrice = record.price || 0;
+        const additionalCost = additionalCosts[record.id] || record.additionalCost || 0;
+        const quantity = record.quantity || 1;
+        const total = record.price * record.quantity + additionalCost*record.quantity;
+        const minPrepayment = total * (record.pttr || 0) / 100; // Tính số tiền trả trước tối thiểu
+        
+        return (
+          <div>
+            <div style={{ 
+              fontSize: "12px", 
+              color: "#666", 
+              marginBottom: "4px",
+              padding: "2px 4px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+              display: "inline-block"
+            }}>
+              Tối thiểu: {formatCurrency(minPrepayment)}
+            </div>
+            <Input
+              type="number"
+              placeholder="Nhập số tiền"
+              defaultValue={record.prepaymentAmount || 0}
+              style={{ width: '100%' }}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value) || 0;
+                
+                if (value < minPrepayment) {
+                  e.target.style.borderColor = '#ff4d4f';
+                } else {
+                  e.target.style.borderColor = '#d9d9d9';
+                }
+                
+                const updatedData = data.map(item => 
+                  item.id === record.id 
+                    ? { ...item, prepaymentAmount: value }
+                    : item
+                );
+                setData(updatedData);
+              }}
+            />
+          </div>
+        );
+      },
     },
     {
       title: <span style={{ fontSize: "14px" }}>Chi phí riêng</span>,
       key: "additionalCost",
-      width: "20%",
       render: (_, record) => (
         <Input
           type="number"
           placeholder="Nhập chi phí"
-          defaultValue={record.additionalCost || 0}
-          style={{ width: '100%' }}
+          value={record.additionalCost || 0}
+          style={{ width: '100%', marginTop: "25px" }}
           onChange={(e) => {
             const value = parseFloat(e.target.value) || 0;
+            // Cập nhật state additionalCosts
+            setAdditionalCosts(prev => ({
+              ...prev,
+              [record.id]: value
+            }));
+            
             const updatedData = data.map(item => 
               item.id === record.id 
                 ? { ...item, additionalCost: value }
@@ -105,7 +156,6 @@ const App = () => {
             );
             setData(updatedData);
           }}
-          onClick={e => e.stopPropagation()}
         />
       ),
     },
@@ -113,31 +163,25 @@ const App = () => {
       title: <span style={{ fontSize: "14px"}}>Thành tiền</span>,
       key: "totalAndAction",
       align: "left",
-      render: (text, record) => (
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "space-between",
-          position: "relative",  // Add relative positioning
-          width: "100%"         // Ensure full width
-        }}>
-          <span className="title_1">{record.total}</span>
-          <Button
-            type="text"
-            danger
-            onClick={() => handleDeleteService(record.id)}
-            className="delete"
-            style={{ 
-              position: "absolute",  // Position absolutely
-              right: "50px",           // Align to right edge
-              top: "50%",           // Center vertically
-              transform: "translateY(-50%)" // Perfect vertical centering
-            }}
-          >
-            Xóa
-          </Button>
-        </div>
-      ),
+      render: (text, record) => {
+        const basePrice = parseFloat(record.price) || 0;
+        const additionalCost = parseFloat(record.additionalCost) || 0;
+        const quantity = parseInt(record.quantity) || 1;
+        const total = (basePrice + additionalCost) * quantity;
+
+        return (
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "space-between",
+            position: "relative",
+            width: "100%",
+            marginTop: "25px"
+          }}>
+            <span className="title_1">{formatCurrency(total)}</span>
+          </div>
+        );
+      },
     }
   ];
   const onSearch22 = () => {
@@ -162,14 +206,16 @@ const App = () => {
   const handleConfirm = (selectedServices, totalPrepayment, deliveryDates) => {
     const updatedData = [...data, ...selectedServices.map(service => ({
       ...service,
-      total: formatCurrency(service.price * (service.quantity || 1))
+      additionalCost: 0, // Initialize additionalCost
+      total: formatCurrency((service.price) * (service.quantity || 1))
     }))];
   
     // Calculate new totals
     const newTotalAmount = updatedData.reduce((sum, item) => {
-      const price = parseFloat(item.price) || 0;
+      const basePrice = parseFloat(item.price) || 0;
+      const additionalCost = parseFloat(item.additionalCost) || 0;
       const quantity = parseInt(item.quantity) || 1;
-      return sum + (price * quantity);
+      return sum + ((basePrice + additionalCost) * quantity);
     }, 0);
   
     const newTotalQuantity = updatedData.reduce((sum, item) => 
@@ -191,14 +237,14 @@ const App = () => {
 
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
-  const [data, setData] = useState([]); // Khởi tạo state cho danh sách dịch vụ
   const discount = 50000; // Example discount
   const shippingFee = 30000; // Example shipping fee
   const totalquantity = data.reduce((sum, item) => sum + (parseInt(item.quantity) || 1), 0);
   const totalamount = data.reduce((sum, item) => {
-    const price = parseFloat(item.price) || 0;
+    const basePrice = parseFloat(item.price) || 0;
+    const additionalCost = parseFloat(item.additionalCost) || 0;
     const quantity = parseInt(item.quantity) || 1;
-    return sum + (price * quantity);
+    return sum + ((basePrice + additionalCost) * quantity);
   }, 0);
   // Tính PhanTramTraTruoc từ LOAIDICHVU
   const calculatedTraTruoc = data.reduce((sum, item) => {
@@ -257,6 +303,26 @@ const App = () => {
 
   const handleDeliveryDateChange = (date, dateString) => {
     setDeliveryDate(date);
+  };
+
+  const handleBulkDelete = () => {
+    const updatedData = data.filter(item => !selectedRows.includes(item.id));
+    setData(updatedData);
+    setSelectedRows([]); // Clear selections after delete
+    
+    // Recalculate totals
+    const newTotalAmount = updatedData.reduce((sum, item) => {
+      const price = parseFloat(item.price) || 0;
+      const quantity = parseInt(item.quantity) || 1;
+      return sum + (price * quantity);
+    }, 0);
+    
+    const newTotalQuantity = updatedData.reduce((sum, item) => 
+      sum + (parseInt(item.quantity) || 1), 0
+    );
+    
+    setTotalAmount(newTotalAmount);
+    setTotalQuantity(newTotalQuantity);
   };
 
   useEffect(() => {
@@ -325,17 +391,18 @@ const App = () => {
                   <Button
                     style={{
                       width: "200px",
-                      marginLeft: "auto", // Add this to align right
+                      marginLeft: "auto",
                       display: "block",
                       fontSize: "14px",
                       fontWeight: "500",
-                      backgroundColor: "#1890ff",
+                      backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#1890ff",
                       borderRadius: "8px",
                       boxShadow: "0 2px 6px rgba(248, 9, 9, 0.2)",
                     }}
-                    onClick={onSearch22}
+                    onClick={handleBulkDelete}
+                    disabled={selectedRows.length === 0}
                   >
-                    xóa dịch vụ
+                    Xóa dịch vụ ({selectedRows.length})
                   </Button>
                   <Table
                     dataSource={data}
