@@ -1,332 +1,251 @@
-import React, { useState, useEffect } from "react";
-import {
-  Input,
-  Button,
-  Upload,
-  message,
-  Row,
-  Col,
-  Select,
-  InputNumber,
-  Form,
-  Switch,
-} from "antd";
-import { PlusOutlined } from "@ant-design/icons";
-import Topbar from "../../components/TopbarComponent/TopbarComponent";
+import React, { useState } from "react";
+import { Input, Button, DatePicker, Form, Table } from "antd";
 import "./DetailImportProduct.css";
 import { useNavigate } from "react-router-dom";
 
-const ProductDetailForm = () => {
-  const initData = {
-    name: "Dầu gội chăm sóc lông và làm mịn da cho thú cưng",
-    description: "Đây là mô tả sản phẩm mẫu..........",
-    attributes: [
-      { type: "Màu sắc", value: "Đen", isActive: true },
-      { type: "Kích thước", value: "Lớn", isActive: true },
-    ],
+const { TextArea } = Input;
+
+const DetailImportOrder = () => {
+  const navigate = useNavigate(); // Khai báo useNavigate
+
+  // Hàm xử lý khi nhấn nút Hủy
+  const handleCancel = () => {
+    navigate(-1); // Quay lại trang trước
   };
 
-  const navigate = useNavigate();
+  // Initial predefined data
+  const supplierData = { id: 1, name: "Vân Mây", phone: "0312456789", address: "123 Đường ABC, Quận 1, TP.HCM" };
 
-  const [productDetails, setProductDetails] = useState(initData);
-  const [imageList, setImageList] = useState([]);
-  const [isModified, setIsModified] = useState(false);
-  const [isGlobalActive, setIsGlobalActive] = useState(true);
+  const initProductData = [
+    { code: "SP001", name: "Sản phẩm A", quantity: 10, price: 100, category: "Loại 1" },
+    { code: "SP002", name: "Sản phẩm B", quantity: 20, price: 200, category: "Loại 2" },
+    { code: "SP003", name: "Sản phẩm C", quantity: 5, price: 150, category: "Loại 1" },
+  ];
 
-  // Kiểm tra thay đổi dữ liệu
-  const checkIfModified = (updatedData) => {
-    setIsModified(JSON.stringify(updatedData) !== JSON.stringify(initData));
+  const initEmployeeData = { name: "Nguyễn Văn B", id: 1, position: "Nhân viên kho", department: "Kho vận" };
+
+  const [formState, setFormState] = useState({
+    supplier: supplierData.name,
+    supplierAddress: supplierData.address,
+    products: initProductData,
+    employeeName: initEmployeeData.name,
+    employeePosition: initEmployeeData.position,
+    employeeDepartment: initEmployeeData.department,
+    expectedDate: null,
+    referenceCode: "",
+    notes: "",
+    discount: 0,
+    otherCosts: 0,
+    totalQuantity: initProductData.reduce((acc, product) => acc + product.quantity, 0),
+    totalAmount: initProductData.reduce((acc, product) => acc + product.quantity * product.price, 0),
+  });
+
+  const isFormComplete = () => {
+    const { supplier, employeeName, referenceCode, expectedDate } = formState;
+    return supplier && employeeName && referenceCode && expectedDate;
   };
 
-  // Đồng bộ trạng thái biến thể với trạng thái chung
-  useEffect(() => {
-    const updatedAttributes = productDetails.attributes.map((attr) => ({
-      ...attr,
-      isActive: isGlobalActive,
-    }));
-    setProductDetails((prev) => ({ ...prev, attributes: updatedAttributes }));
-  }, [isGlobalActive]);
-
-  // Xử lý thay đổi input
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    const updatedDetails = { ...productDetails, [name]: value };
-    setProductDetails(updatedDetails);
-    checkIfModified(updatedDetails);
-  };
-
-  // Xử lý upload hình ảnh
-  const handleImageChange = (info) => {
-    const updatedImageList = info.fileList;
-    setImageList(updatedImageList);
-    setIsModified(JSON.stringify(updatedImageList) !== JSON.stringify([])); // So sánh với trạng thái ban đầu
-    if (info.file.status === "done") {
-      message.success(`${info.file.name} đã tải lên thành công.`);
-    } else if (info.file.status === "error") {
-      message.error(`${info.file.name} tải lên thất bại.`);
+  const handleSave = () => {
+    if (!isFormComplete()) {
+      alert("Vui lòng điền đầy đủ các trường bắt buộc.");
+      return;
     }
+    alert("Đơn hàng đã được lưu.");
+    navigate("list-import-product");
   };
 
-  // Thêm biến thể
-  const handleAddAttribute = () => {
-    const updatedAttributes = [
-      ...productDetails.attributes,
-      { type: "", value: "" },
-    ];
-    const updatedDetails = { ...productDetails, attributes: updatedAttributes };
-    setProductDetails(updatedDetails);
-    checkIfModified(updatedDetails);
+  const [initialFormState, setInitialFormState] = useState({
+    ...formState,
+  });
+
+  // Check if there's any change in the costs section
+  const isCostChanged = () => {
+    const { discount, otherCosts, laborCosts } = formState;
+    return (
+      discount !== initialFormState.discount ||
+      otherCosts !== initialFormState.otherCosts ||
+      laborCosts !== initialFormState.laborCosts
+    );
   };
 
-  // Xử lý thay đổi biến thể
-  const handleAttributeChange = (index, e) => {
-    const newAttributes = [...productDetails.attributes];
-    newAttributes[index][e.target.name] = e.target.value;
-    const updatedDetails = { ...productDetails, attributes: newAttributes };
-    setProductDetails(updatedDetails);
-    checkIfModified(updatedDetails);
+  // Handle purchase button click
+  const handlePurchase = () => {
+    if (!isCostChanged()) {
+      alert("Chưa có thay đổi nào về chi phí mua hàng.");
+      return;
+    }
+    alert("Đơn hàng đã được tạo thành công.");
   };
 
-  const handleAttributeActiveChange = (index, isActive) => {
-    const newAttributes = [...productDetails.attributes];
-    newAttributes[index].isActive = isActive;
-    const updatedDetails = { ...productDetails, attributes: newAttributes };
-    setProductDetails(updatedDetails);
-    checkIfModified(updatedDetails);
+  // Handle changes to input fields
+  const handleChange = (key, value) => {
+    setFormState((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleAttributeImageChange = (index, file) => {
-    const newAttributes = [...productDetails.attributes];
-    newAttributes[index].attributeImage = file.url;
-    const updatedDetails = { ...productDetails, attributes: newAttributes };
-    setProductDetails(updatedDetails);
-    checkIfModified(updatedDetails);
+  const handleFeeChange = (key, value) => {
+    const newFormState = { ...formState, [key]: value };
+
+    // Calculate the total cost whenever there's a change
+    const totalCost =
+      parseFloat(newFormState.totalAmount || 0) +
+      parseFloat(newFormState.discount || 0) +
+      parseFloat(newFormState.otherCosts || 0) +
+      parseFloat(newFormState.laborCosts || 0) -
+      parseFloat(newFormState.discount || 0);
+
+    newFormState.totalCost = totalCost;
+
+    setFormState(newFormState);
   };
 
-  // Lưu sản phẩm
-  const handleSaveProduct = () => {
-    console.log("Save Product", productDetails, imageList);
-    setIsModified(false);
-    navigate("/list-product");
-  };
-
-  // Thoát
-  const handleExit = () => {
-    navigate(-1);
-  };
+  const columns = [
+    { title: 'Mã sản phẩm', dataIndex: 'code', key: 'code' },
+    { title: 'Tên sản phẩm', dataIndex: 'name', key: 'name' },
+    { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
+    { title: 'Giá', dataIndex: 'price', key: 'price' },
+    { title: 'Loại sản phẩm', dataIndex: 'category', key: 'category' },
+  ];
 
   return (
-    <div>
-      <div style={{ marginLeft: "270px" }}>
-        <Topbar title="Chi tiết sản phẩm" />
-      </div>
+    <div className="create-import-order-container">
+      <header className="header">
+        <h2>Chi tiết phiếu mua hàng</h2>
+        <div className="header-actions">
+          <Button danger onClick={handleCancel}>
+            Thoát
+          </Button>
+        </div>
+      </header>
 
-      <div className="product-detail">
-        {/* Thông tin chung */}
-        <div className="section">
-          <div className="section-header">
-            <h3>Thông tin chung</h3>
-            <Switch
-              checked={isGlobalActive}
-              onChange={(checked) => setIsGlobalActive(checked)}
-            />
-          </div>
-          <div className="label-box-group">
-            <label>Tên sản phẩm:</label>
-            <Input
-              name="name"
-              placeholder="Tên sản phẩm"
-              value={productDetails.name}
-              onChange={handleChange}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div className="label-box-group">
-            <label>Mô tả:</label>
-            <Input.TextArea
-              name="description"
-              placeholder="Mô tả"
-              value={productDetails.description}
-              onChange={handleChange}
-              rows={4}
-            />
-          </div>
+      <div className="form-container">
+        {/* Supplier Section */}
+        <div className="form-section">
+          <h3>Nhà cung cấp</h3>
+          <p>Tên: {supplierData.name}</p>
+          <p>Số điện thoại: {supplierData.phone}</p>
+          <p>Địa chỉ: {supplierData.address}</p>
+        </div>
 
-          {/* Minh họa */}
-          <div className="section">
-            <h3>Minh họa</h3>
-            <div className="label-box-group">
-              <label>Hình ảnh sản phẩm:</label>
-              <Upload
-                action="/upload"
-                listType="picture-card"
-                fileList={imageList}
-                onChange={handleImageChange}
-              >
-                <div>
-                  <PlusOutlined />
-                </div>
-              </Upload>
-            </div>
-          </div>
+        {/* Product Section */}
+        <div className="form-section">
+          <h3>Sản phẩm</h3>
+          <Table dataSource={formState.products} columns={columns} rowKey="code" pagination={false} />
+        </div>
 
-          {/* Biến thể */}
-          <div className="section">
-            <h3>Biến thể</h3>
-            {productDetails.attributes.map((attr, index) => (
-              <Row gutter={16} key={index} align="middle">
-                <Col span={10}>
-                  <div className="label-box-group">
-                    <label>Loại biến thể:</label>
-                    <Input
-                      name="type"
-                      placeholder="Loại biến thể"
-                      value={attr.type || ""}
-                      onChange={(e) => handleAttributeChange(index, e)}
-                    />
-                  </div>
-                </Col>
-                <Col span={10}>
-                  <div className="label-box-group">
-                    <label>Tên biến thể:</label>
-                    <Input
-                      name="value"
-                      placeholder="Cụ thể"
-                      value={attr.value || ""}
-                      onChange={(e) => handleAttributeChange(index, e)}
-                    />
-                  </div>
-                </Col>
-                <Col span={1}>
-                  <div className="label-box-group">
-                    <label>Bật/Tắt:</label>
-                    <Switch
-                      checked={attr.isActive}
-                      onChange={(checked) =>
-                        handleAttributeActiveChange(index, checked)
-                      }
-                    />
-                  </div>
-                </Col>
-                <Col span={24}>
-                  <div className="label-box-group">
-                    <Form.Item name="status">
-                      <label>Trạng thái:</label>
-                      <Select
-                        value={attr.status || "Tồn kho"}
-                        onChange={(value) =>
-                          handleAttributeChange(index, {
-                            target: { name: "status", value },
-                          })
-                        }
-                      >
-                        <Select.Option value="Tồn kho">Tồn kho</Select.Option>
-                        <Select.Option value="Cần nhập">Cần nhập</Select.Option>
-                        <Select.Option value="Hết hàng">Hết hàng</Select.Option>
-                      </Select>
-                    </Form.Item>
-                  </div>
-                </Col>
+        <div className="flex-container">
+          {/* Container: Nhân viên xử lý */}
+          <div className="form-section half-width">
+            <h3>Nhân viên xử lý</h3>
+            <Form layout="vertical">
+              <Form.Item label="Họ và tên" required>
+                <Input
+                  placeholder="Nhập họ và tên"
+                  onChange={(e) => handleChange("employeeName", e.target.value)}
+                  value={formState.employeeName}
+                />
+              </Form.Item>
 
-                <Col span={12}>
-                  <div className="label-box-group">
-                    <label>Giá:</label>
-                    <InputNumber
-                      name="price"
-                      value={attr.price || 0} // Giá trị mặc định là 0 nếu không có
-                      onChange={(value) =>
-                        handleAttributeChange(index, {
-                          target: { name: "price", value },
-                        })
-                      }
-                      placeholder="Giá thuộc tính"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                </Col>
-                <Col span={6}>
-                  <label>Số lượng:</label>
-                  <InputNumber
-                    name="quantity"
-                    value={attr.quantity || 0} // Giá trị mặc định là 0 nếu không có
-                    onChange={(value) =>
-                      handleAttributeChange(index, {
-                        target: { name: "quantity", value },
-                      })
-                    }
-                    placeholder="Số lượng thuộc tính"
-                    style={{ width: "100%" }}
-                  />
-                </Col>
+              <Form.Item label="Chức vụ" required>
+                <Input
+                  placeholder="Nhập chức vụ"
+                  onChange={(e) => handleChange("employeePosition", e.target.value)}
+                  value={formState.employeePosition}
+                />
+              </Form.Item>
 
-                <Col span={4} className="delete-button">
-                  <Button
-                    type="danger"
-                    onClick={() => {
-                      const updatedAttributes =
-                        productDetails.attributes.filter((_, i) => i !== index);
-                      const updatedDetails = {
-                        ...productDetails,
-                        attributes: updatedAttributes,
-                      };
-                      setProductDetails(updatedDetails);
-                      checkIfModified(updatedDetails);
-                    }}
-                  >
-                    Xóa
-                  </Button>
-                </Col>
+              <Form.Item label="Phòng ban" required>
+                <Input
+                  placeholder="Nhập phòng ban"
+                  onChange={(e) => handleChange("employeeDepartment", e.target.value)}
+                  value={formState.employeeDepartment}
+                />
+              </Form.Item>
 
-                <Col span={8}>
-                  <div className="label-box-group">
-                    <label>Hình ảnh:</label>
-                    <Upload
-                      listType="picture-card"
-                      fileList={
-                        attr.attributeImage
-                          ? [{ url: attr.attributeImage }]
-                          : []
-                      } // Hiển thị hình ảnh nếu có
-                      onChange={(info) =>
-                        handleAttributeImageChange(index, info.file)
-                      }
-                      showUploadList={false}
-                      accept="image/*"
-                    >
-                      <PlusOutlined />
-                    </Upload>
-                  </div>
-                </Col>
-              </Row>
-            ))}
-            <Button
-              type="dashed"
-              icon={<PlusOutlined />}
-              onClick={handleAddAttribute}
-              style={{
-                backgroundColor: "#cdd1ff",
-                color: "#091057",
-                border: "none",
-              }}
-            >
-              Thêm biến thể
-            </Button>
+              <Form.Item label="Ngày nhận hàng dự kiến" required>
+                <DatePicker
+                  placeholder="Chọn ngày nhận hàng dự kiến"
+                  onChange={(date) => handleChange("expectedDate", date)}
+                  value={formState.expectedDate}
+                />
+              </Form.Item>
+
+              <Form.Item label="Mã tham chiếu" required>
+                <Input
+                  placeholder="Nhập mã tham chiếu"
+                  onChange={(e) =>
+                    handleChange("referenceCode", e.target.value)
+                  }
+                  value={formState.referenceCode}
+                />
+              </Form.Item>
+
+              <Form.Item label="Ghi chú">
+                <TextArea
+                  placeholder="Nhập ghi chú"
+                  rows={4}
+                  onChange={(e) => handleChange("notes", e.target.value)}
+                  value={formState.notes}
+                />
+              </Form.Item>
+            </Form>
           </div>
 
-          {/* Nút lưu */}
-          <div className="form-footer">
-            <Button onClick={handleExit} className="return-button">
-              Thoát
-            </Button>
+          {/* Container: Chi phí mua hàng */}
+          <div className="form-section half-width">
+            <h3>Chi phí mua hàng</h3>
+            <Form.Item label="Tổng số lượng đặt">
+              <Input
+                type="number"
+                value={formState.totalQuantity}
+                onChange={(e) =>
+                  handleFeeChange("totalQuantity", e.target.value)
+                }
+              />
+            </Form.Item>
 
-            <Button
-              type="primary"
-              onClick={handleSaveProduct}
-              className="save-button"
-              disabled={!isModified} // Nút chỉ bật khi có thay đổi
-            >
-              Lưu sản phẩm
-            </Button>
+            <Form.Item label="Tổng tiền hàng">
+              <Input
+                type="number"
+                value={formState.totalAmount}
+                onChange={(e) => handleFeeChange("totalAmount", e.target.value)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Chiết khấu">
+              <Input
+                type="number"
+                value={formState.discount}
+                onChange={(e) => handleFeeChange("discount", e.target.value)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Chi phí khác">
+              <Input
+                type="number"
+                value={formState.otherCosts}
+                onChange={(e) => handleFeeChange("otherCosts", e.target.value)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Cần trả nhà cung cấp">
+              <Input
+                type="number"
+                value={formState.amountToPay}
+                onChange={(e) => handleFeeChange("amountToPay", e.target.value)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Nhân công">
+              <Input
+                type="number"
+                value={formState.laborCosts}
+                onChange={(e) => handleFeeChange("laborCosts", e.target.value)}
+              />
+            </Form.Item>
+
+            <Form.Item label="Tổng tiền mua hàng">
+              <Input type="number" value={formState.totalCost} disabled />
+            </Form.Item>
           </div>
         </div>
       </div>
@@ -334,4 +253,4 @@ const ProductDetailForm = () => {
   );
 };
 
-export default ProductDetailForm;
+export default DetailImportOrder;
