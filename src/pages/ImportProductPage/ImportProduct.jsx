@@ -164,9 +164,8 @@ const ImportProduct = () => {
 
   const handleRowClick = (record) => {
     console.log("Navigating to import product detail with ID:", record.id);
-    navigate(`/import-product-detail/${record.id}`);
+    navigate("/import-product-detail/1");
   };
-
 
   const columns = [
     {
