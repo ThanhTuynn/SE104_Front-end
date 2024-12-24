@@ -312,7 +312,6 @@ const App = () => {
                     style={{
                       width: "200px",
                       marginBottom: "20px",
-                   
                       fontSize: "14px",
                       fontWeight: "500",
                       backgroundColor: "#1890ff",
@@ -322,6 +321,21 @@ const App = () => {
                     onClick={onSearch22}
                   >
                     Chọn dịch vụ
+                  </Button>
+                  <Button
+                    style={{
+                      width: "200px",
+                      marginLeft: "auto", // Add this to align right
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      backgroundColor: "#1890ff",
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 6px rgba(248, 9, 9, 0.2)",
+                    }}
+                    onClick={onSearch22}
+                  >
+                    xóa dịch vụ
                   </Button>
                   <Table
                     dataSource={data}
