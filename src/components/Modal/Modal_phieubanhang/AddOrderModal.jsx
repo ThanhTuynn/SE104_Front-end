@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Select, Input, Button, Space } from "antd";
+import { Select, Input, Button, Space, message } from "antd";
 import { UserOutlined, EditOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhang";
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";
 import axios from 'axios';
 import { createOrder } from '../../../services/Orderproduct'; // Thay đổi import
+import productService from '../../../services/productService';
 const { Option } = Select;
 
 const AddOrderModal = ({ isVisible, onClose, title, save }) => {
@@ -20,9 +21,12 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   
   const handleProductSelect = (product) => {
     if (!cart.some((item) => item.id === product.id)) {
-      // Add product with its quantity to cart
-      setCart(prevCart => [...prevCart, product]);
-      // Set the quantity from the modal
+      // Thêm sản phẩm vào giỏ hàng với số lượng tồn gốc
+      setCart(prevCart => [...prevCart, {
+        ...product,
+        originalStock: product.originalStock  // Sử dụng số lượng tồn ban đầu từ ProductSearchModal
+      }]);
+      
       setQuantities(prev => ({
         ...prev,
         [product.id]: product.quantity || 1
@@ -64,60 +68,72 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
     const date = new Date(dateString);
     return date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   };
+  // Thêm hàm tính tổng tiền
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => {
+      const quantity = quantities[item.id] || 1;
+      const price = parseFloat(item.rawPrice || 0);
+      return total + (quantity * price);
+    }, 0);
+  };
   // Lưu đơn hàng
   const handleSaveOrder = async () => {
     try {
-      // Validate input data
-      if (!selectedCustomer?.id) {
-        alert('Vui lòng chọn khách hàng');
+      // Validation checks...
+      if (!selectedCustomer?.id || !orderDate || cart.length === 0) {
+        message.error('Vui lòng điền đầy đủ thông tin');
         return;
       }
 
-      if (!orderDate) {
-        alert('Vui lòng chọn ngày lập phiếu');
-        return;
+      // Kiểm tra và cập nhật số lượng tồn kho cho tất cả sản phẩm
+      for (const item of cart) {
+        const requestedQuantity = quantities[item.id] || 1;
+        const newStock = item.originalStock - requestedQuantity;  // Sử dụng số lượng tồn ban đầu
+        
+        if (newStock < 0) {
+          message.error(`Sản phẩm ${item.name} không đủ số lượng trong kho`);
+          return;
+        }
+
+        try {
+          // Cập nhật số lượng tồn trong database
+          await productService.updateProduct(item.id, {
+            MaSanPham: item.MaSanPham,
+            TenSanPham: item.TenSanPham,
+            MaLoaiSanPham: item.MaLoaiSanPham,
+            DonGia: item.DonGia,
+            SoLuong: newStock,
+            HinhAnh: item.HinhAnh
+          });
+        } catch (error) {
+          message.error(`Lỗi cập nhật tồn kho cho sản phẩm ${item.name}`);
+          return;
+        }
       }
 
-      if (cart.length === 0) {
-        alert('Vui lòng thêm sản phẩm vào giỏ hàng');
-        return;
-      }
-
-      // Format invoice data
-      const invoiceData = {
-        NgayLap: orderDate,
-        MaKhachHang: selectedCustomer.id,
-        TongTien: cart.reduce((total, item) => {
-          const quantity = parseInt(quantities[item.id] || 1);
-          const price = parseFloat(item.rawPrice || 0);
-          return total + (quantity * price);
-        }, 0)
-      };
-
-      // Format details
-      const details = cart.map(item => ({
-        MaSanPham: item.id,
-        SoLuong: parseInt(quantities[item.id] || 1),
-        DonGiaBanRa: parseFloat(item.rawPrice || 0),
-        ThanhTien: parseFloat(item.rawPrice || 0) * parseInt(quantities[item.id] || 1)
-      }));
-
-      // Create final request data structure
+      // Tạo đơn hàng...
       const orderData = {
-        invoiceData,
-        details 
+        invoiceData: {
+          NgayLap: orderDate,
+          MaKhachHang: selectedCustomer.id,
+          TongTien: calculateTotal()
+        },
+        details: cart.map(item => ({
+          MaSanPham: item.id,
+          SoLuong: quantities[item.id] || 1,
+          DonGiaBanRa: parseFloat(item.rawPrice),
+          ThanhTien: parseFloat(item.rawPrice) * (quantities[item.id] || 1)
+        }))
       };
 
-      console.log('Sending data:', orderData);
-      const result = await createOrder(orderData);
-      console.log('Server response:', result);
-
-      alert('Lưu phiếu bán hàng thành công!');
-      resetModal(); // Reset all states
-      onClose();    // Close modal
+      // Lưu đơn hàng
+      await createOrder(orderData);
+      message.success('Lưu phiếu bán hàng thành công!');
+      resetModal();
+      onClose();
     } catch (error) {
       console.error('Error:', error);
-      alert(`Lỗi: ${error.response?.data?.message || 'Có lỗi xảy ra khi lưu phiếu bán hàng'}`);
+      message.error('Có lỗi xảy ra khi lưu phiếu bán hàng');
     }
   };
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
@@ -220,6 +236,7 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                   isVisible={isProductModalVisible}
                   onCancel={() => setIsProductModalVisible(false)}
                   onConfirm={handleProductSelect}
+                  isProductPage={false}  // Thêm prop này
                 />
                 {/* Hiển thị giỏ hàng */}
                 <div className="cart-container">
@@ -275,11 +292,23 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                           ) : (
                             <p>Chưa có sản phẩm trong giỏ hàng</p>
                           )}
-                          
+                          <div style={{
+                            marginTop: "16px",
+                            padding: "10px",
+                            borderTop: "1px solid #eee",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                          }}>
+                            <strong>Tổng cộng:</strong>
+                            <span style={{ fontSize: "18px", color: "#1890ff" }}>
+                              {new Intl.NumberFormat('vi-VN').format(calculateTotal())} đ
+                            </span>
+                          </div>
                         </div>
                         
                         {/* Di chuyển modal-footer vào đây */}
-                        <div className="modal-footer">
+                        <div className="modal-footer"></div>
                           <button className="cancel-btn" onClick={onClose}>
                             Hủy
                           </button>
@@ -292,7 +321,6 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                   </div>
                 </div>
               </div>
-          </div>
   );
 };
 

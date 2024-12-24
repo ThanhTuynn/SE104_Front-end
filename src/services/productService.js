@@ -148,13 +148,22 @@ const productService = {
 
     updateProduct: async (id, productData) => {
         try {
+            // Đảm bảo dữ liệu được gửi đi đầy đủ và đúng định dạng
+            const dataToUpdate = {
+                MaSanPham: productData.MaSanPham,
+                TenSanPham: productData.TenSanPham,
+                MaLoaiSanPham: productData.MaLoaiSanPham,
+                DonGia: parseFloat(productData.DonGia),
+                SoLuong: parseInt(productData.SoLuong),
+                HinhAnh: productData.HinhAnh || 'default-image.png'
+            };
+
             console.log('Sending update request:', {
                 id,
-                data: productData
+                data: dataToUpdate
             });
 
-            const response = await axiosInstance.patch(`/product/update/${id}`, productData);
-
+            const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate);
             console.log('Update response:', response.data);
             return response.data;
         } catch (error) {
