@@ -1,350 +1,301 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import "./DetailCustomer.css";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
+import { customerService } from "../../services/customerService";
 import avatar from "../../assets/customer1.jpg";
 import {
-  CopyOutlined,
-  MailOutlined,
-  EnvironmentOutlined,
-  PhoneOutlined,
-  ClockCircleOutlined,
-  MenuOutlined,
-  ShoppingOutlined,
-  ShoppingCartOutlined,
+    CopyOutlined,
+    MailOutlined,
+    EnvironmentOutlined,
+    PhoneOutlined,
+    ClockCircleOutlined,
+    MenuOutlined,
+    ShoppingOutlined,
+    ShoppingCartOutlined,
 } from "@ant-design/icons";
-import { Form, Input, Button, DatePicker } from "antd";
+import { Form, Input, Button, DatePicker, message } from "antd";
 
 const CustomerDetail = () => {
-  const [form] = Form.useForm();
+    const { id } = useParams();
+    const [form] = Form.useForm();
+    const [loading, setLoading] = useState(true);
+    const [isChanged, setIsChanged] = useState(false);
+    const [state, setState] = useState({
+        customerData: {},
+        filters: {
+            date: null,
+            dateString: "",
+        },
+        orders: [],
+        filteredOrders: [],
+        totalSpending: 0, // Add total spending state
+        totalOrders: 0 // Add total orders state
+    });
 
-  const initData = {
-    id: "ID-011221",
-    email: "lindablair@gmail.com",
-    address: "1833 Bel Meadow Drive, Fontana, California 92335, USA",
-    phone: "050 414 8778",
-    lastActive: "1 ngày trước",
-    name: "Linda Blair",
-    status: "Hoạt động",
-  };
+    useEffect(() => {
+        fetchCustomerDetails();
+    }, [id]);
 
-  const orders = [
-    {
-      id: "302002",
-      product: "Nhẫn Kim cương Vàng",
-      extra: "+3 sản phẩm khác",
-      total: "$121.00",
-      status: "Đang xử lý",
-      date: "12 Dec 2023",
-      statusClass: "processing",
-    },
-    {
-      id: "301901",
-      product: "Nhẫn Kim cương Vàng",
-      extra: "+3 sản phẩm khác",
-      total: "$590.00",
-      status: "Đang xử lý",
-      date: "1 Dec 2023",
-      statusClass: "processing",
-    },
-    {
-      id: "301900",
-      product: "Nhẫn Kim cương Vàng",
-      extra: "",
-      total: "$125.00",
-      status: "Hoàn thành",
-      date: "10 Nov 2023",
-      statusClass: "completed",
-    },
-    {
-      id: "301881",
-      product: "Nhẫn Kim cương Vàng",
-      extra: "+3 sản phẩm khác",
-      total: "$348.00",
-      status: "Hoàn thành",
-      date: "2 Nov 2023",
-      statusClass: "completed",
-    },
-    {
-      id: "301643",
-      product: "Nhẫn Kim cương Vàng",
-      extra: "",
-      total: "$607.00",
-      status: "Hoàn thành",
-      date: "7 Sep 2023",
-      statusClass: "completed",
-    },
-  ];
+    // Handle form submission
+    const handleSubmit = async (values) => {
+        try {
+            const updatedData = {
+                TenKhachHang: values.name,
+                SoDT: values.phone,
+                DiaChi: values.address,
+            };
 
-  const [state, setState] = useState({
-    customerData: initData,
-    filters: {
-      date: null,
-      dateString: "",
-    },
-    filteredOrders: orders,
-  });
+            await customerService.updateCustomer(id, updatedData);
+            message.success("Cập nhật thông tin khách hàng thành công");
+            setIsChanged(false);
+            fetchCustomerDetails(); // Refresh data
+        } catch (error) {
+            message.error("Không thể cập nhật thông tin khách hàng");
+            console.error("Update customer error:", error);
+        }
+    };
 
-  const handleChange = (key, value) => {
-    setState((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+    // Fetch customer details including total spending
+    const fetchCustomerDetails = async () => {
+        try {
+            setLoading(true);
+            const data = await customerService.getCustomerById(id);
 
-  const applyDateFilter = () => {
-    const { dateString } = state.filters;
-    const filtered = dateString
-      ? orders.filter((order) => order.date === dateString)
-      : orders;
-    handleChange("filteredOrders", filtered);
-  };
+            // Calculate total spending and get orders from sale invoices
+            const totalSpending = data.saleInvoices?.reduce((sum, invoice) => 
+                sum + (parseFloat(invoice.TongTien) || 0), 0
+            ) || 0;
 
-  // Hàm xử lý gửi thông tin
-  const handleSubmit = (values) => {
-    console.log("Updated Values:", values);
-    alert("Cập nhật thông tin khách hàng thành công.");
-  };
+            // Get total number of orders
+            const totalOrders = data.saleInvoices?.length || 0;
 
-  const [isChanged, setIsChanged] = useState(false);
-  const handleFormChange = () => {
-    setIsChanged(true); // Đánh dấu form đã thay đổi
-  };
+            // Format order history
+            const orderHistory = data.saleInvoices?.map(invoice => ({
+                id: invoice.SoPhieuBH,
+                products: invoice.chitiet?.map(detail => ({
+                    name: detail.TenSanPham,
+                    quantity: detail.SoLuong
+                })),
+                total: new Intl.NumberFormat('vi-VN', {
+                    style: 'currency',
+                    currency: 'VND'
+                }).format(invoice.TongTien),
+                date: new Date(invoice.NgayLap).toLocaleDateString('vi-VN')
+            })) || [];
 
-  return (
-    <div>
-      <div style={{ marginLeft: "270px" }}>
-        <Topbar title="Thông tin chi tiết khách hàng" />
-      </div>
+            setState(prev => ({
+                ...prev,
+                customerData: {
+                    id: data.MaKhachHang,
+                    name: data.TenKhachHang,
+                    phone: data.SoDT,
+                    address: data.DiaChi
+                },
+                totalSpending: totalSpending,
+                totalOrders: totalOrders,
+                orders: orderHistory,
+                filteredOrders: orderHistory
+            }));
 
-      <div className="customer-detail">
-        <div className="customer-info">
-          <div className="left-section">
-            <div className="avatar-placeholder">
-              <img src={avatar} alt="avatar-customer" />
+            form.setFieldsValue({
+                id: data.MaKhachHang,
+                name: data.TenKhachHang,
+                phone: data.SoDT,
+                address: data.DiaChi
+            });
+        } catch (error) {
+            message.error("Không thể tải thông tin khách hàng");
+            console.error("Fetch customer error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleChange = (key, value) => {
+        setState((prev) => ({
+            ...prev,
+            [key]: value,
+        }));
+    };
+
+    const applyDateFilter = () => {
+        const { dateString } = state.filters;
+        const filtered = dateString
+            ? state.orders.filter((order) => order.date === dateString) // Use state.orders
+            : state.orders; // Use state.orders as default
+        setState((prev) => ({
+            ...prev,
+            filteredOrders: filtered,
+        }));
+    };
+
+    const handleFormChange = () => {
+        setIsChanged(true);
+    };
+
+    return (
+        <div>
+            <div style={{ marginLeft: "270px" }}>
+                <Topbar title="Thông tin chi tiết khách hàng" />
             </div>
-            <h2 className="customer-name">{state.customerData.name}</h2>
-            <span className="status active">{state.customerData.status}</span>
 
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-              initialValues={state.customerData}
-              onValuesChange={() => setIsChanged(true)}
-            >
-              <Form.Item name="id" label="Mã khách hàng">
-                <Input prefix={<CopyOutlined />} disabled />
-              </Form.Item>
+            <div className="customer-detail">
+                <div className="customer-info">
+                    <div className="left-section">
+                        <div className="avatar-placeholder">
+                            <img src={avatar} alt="avatar-customer" />
+                        </div>
+                        <h2 className="customer-name">{state.customerData.name}</h2>
+                        <span className="status active">{state.customerData.status}</span>
 
-              <Form.Item name="email" label="E-mail">
-                <Input
-                  prefix={<MailOutlined />}
-                  value={state.customerData.email}
-                  onChange={(e) =>
-                    handleChange("customerData", {
-                      ...state.customerData,
-                      email: e.target.value,
-                    })
-                  }
-                />
-              </Form.Item>
+                        <Form
+                            form={form}
+                            layout="vertical"
+                            onFinish={handleSubmit}
+                            initialValues={state.customerData}
+                            onValuesChange={handleFormChange}
+                        >
+                            <Form.Item name="id" label="Mã khách hàng">
+                                <Input prefix={<CopyOutlined />} disabled />
+                            </Form.Item>
 
-              <Form.Item name="address" label="Địa chỉ">
-                <Input
-                  prefix={<EnvironmentOutlined />}
-                  value={state.customerData.address}
-                  onChange={(e) =>
-                    handleChange("customerData", {
-                      ...state.customerData,
-                      address: e.target.value,
-                    })
-                  }
-                />
-              </Form.Item>
+                            <Form.Item
+                                name="name"
+                                label="Tên khách hàng"
+                                rules={[{ required: true, message: "Vui lòng nhập tên khách hàng" }]}
+                            >
+                                <Input />
+                            </Form.Item>
 
-              <Form.Item name="phone" label="Số điện thoại">
-                <Input
-                  prefix={<PhoneOutlined />}
-                  value={state.customerData.phone}
-                  onChange={(e) =>
-                    handleChange("customerData", {
-                      ...state.customerData,
-                      phone: e.target.value,
-                    })
-                  }
-                />
-              </Form.Item>
+                            <Form.Item
+                                name="phone"
+                                label="Số điện thoại"
+                                rules={[{ required: true, message: "Vui lòng nhập số điện thoại" }]}
+                            >
+                                <Input prefix={<PhoneOutlined />} />
+                            </Form.Item>
 
-              <Form.Item name="lastActive" label="Hoạt động gần nhất">
-                <Input
-                  prefix={<ClockCircleOutlined />}
-                  disabled
-                  value={state.customerData.lastActive}
-                />
-              </Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                className={`save-button ${isChanged ? "" : "disabled-button"}`}
-              >
-                Cập nhật
-              </Button>
-            </Form>
-          </div>
+                            <Form.Item
+                                name="address"
+                                label="Địa chỉ"
+                                rules={[{ required: true, message: "Vui lòng nhập địa chỉ" }]}
+                            >
+                                <Input prefix={<EnvironmentOutlined />} />
+                            </Form.Item>
+
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                className={`save-button ${isChanged ? "" : "disabled-button"}`}
+                            >
+                                Cập nhật
+                            </Button>
+                        </Form>
+                    </div>
+                </div>
+
+                <div className="customer-container">
+                    {/* Right Section */}
+                    <div className="customer-stats">
+                        {/* Card 1: Chi tiêu */}
+                        <div className="stat-card">
+                            <div className="header">
+                                <div className="icon-wrapper">
+                                    <ClockCircleOutlined className="icon" />
+                                </div>
+                            </div>
+                            <div>
+                                <div className="stat-title">Chi tiêu</div>
+                                <div className="stat-value">
+                                    {new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND'
+                                    }).format(state.totalSpending)}
+                                </div>
+                            </div>
+                        </div>
+                        {/* Card 2: Tổng đơn hàng */}
+                        <div className="stat-card">
+                            <div className="header">
+                                <div className="icon-wrapper">
+                                    <ShoppingOutlined className="icon" />
+                                </div>
+                            </div>
+                            <div>
+                                <div className="stat-title">Tổng đơn hàng</div>
+                                <div className="stat-value">{state.totalOrders}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Purchase History */}
+                    <div className="purchase-history">
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
+                        >
+                            <h3>Lịch sử mua hàng</h3>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    marginBottom: "10px",
+                                }}
+                            >
+                                <DatePicker
+                                    placeholder="Chọn ngày"
+                                    style={{ width: 150, marginRight: "10px" }}
+                                    onChange={(date, dateString) =>
+                                        handleChange("filters", {
+                                            ...state.filters,
+                                            date,
+                                            dateString,
+                                        })
+                                    }
+                                />
+                                <Button
+                                    type="primary"
+                                    onClick={applyDateFilter}
+                                    icon={<MenuOutlined />}
+                                    style={{ backgroundColor: "#091057" }}
+                                />
+                            </div>
+                        </div>
+                        <table className="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã đơn hàng</th>
+                                    <th>Sản phẩm</th>
+                                    <th>Tổng tiền</th>
+                                    <th>Ngày đặt hàng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {state.filteredOrders.map((order, index) => (
+                                    <tr key={index}>
+                                        <td>{order.id}</td>
+                                        <td>
+                                            {order.products?.map((p, i) => (
+                                                <div key={i}>
+                                                    {p.name} x{p.quantity}
+                                                </div>
+                                            ))}
+                                        </td>
+                                        <td>{order.total}</td>
+                                        <td>{order.date}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div className="customer-container">
-          {/* Right Section */}
-          <div className="customer-stats">
-            {/* Card 1: Chi tiêu */}
-            <div className="stat-card">
-              <div className="header">
-                <div className="icon-wrapper">
-                  <ClockCircleOutlined className="icon" />
-                </div>
-              </div>
-              <div>
-                <div className="stat-title">Chi tiêu</div>
-                <div className="stat-value">120.000.000 đồng</div>
-              </div>
-            </div>
-
-            {/* Card 2: Điểm */}
-            <div className="stat-card">
-              <div className="header">
-                <div className="icon-wrapper">
-                  <ShoppingCartOutlined className="icon" />
-                </div>
-              </div>
-              <div>
-                <div className="stat-title">Điểm thưởng</div>
-                <div className="stat-value">12.000</div>
-              </div>
-            </div>
-
-            {/* Card 3: Tổng đơn hàng */}
-            <div className="stat-card">
-              <div className="header">
-                <div className="icon-wrapper">
-                  <ShoppingOutlined className="icon" />
-                </div>
-              </div>
-              <div className="stat-summary">
-                <div className="summary-item">
-                  <strong>10</strong>
-                  <span>Tổng đơn hàng</span>
-                </div>
-                <div className="summary-item">
-                  <strong>2</strong>
-                  <span>Đang xử lý</span>
-                </div>
-                <div className="summary-item">
-                  <strong>8</strong>
-                  <span>Hoàn thành</span>
-                </div>
-                <div className="summary-item">
-                  <strong>0</strong>
-                  <span>Đơn hủy</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Đơn hủy và lỗi */}
-            <div className="stat-card">
-              <div className="header">
-                <div className="icon-wrapper">
-                  <ShoppingOutlined className="icon" />
-                </div>
-              </div>
-              <div className="stat-summary">
-                <div className="summary-item">
-                  <strong>0</strong>
-                  <span>Số đơn hủy</span>
-                </div>
-                <div className="summary-item">
-                  <strong>0</strong>
-                  <span>Hoàn hàng</span>
-                </div>
-                <div className="summary-item">
-                  <strong>0</strong>
-                  <span>Hư hại</span>
-                </div>
-                <div className="summary-item">
-                  <strong>0</strong>
-                  <span>Báo cáo</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Purchase History */}
-          <div className="purchase-history">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h3>Lịch sử mua hàng</h3>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "10px",
-                }}
-              >
-                <DatePicker
-                  placeholder="Chọn ngày"
-                  style={{ width: 150, marginRight: "10px" }}
-                  onChange={(date, dateString) =>
-                    handleChange("filters", {
-                      ...state.filters,
-                      date,
-                      dateString,
-                    })
-                  }
-                />
-                <Button
-                  type="primary"
-                  onClick={applyDateFilter}
-                  icon={<MenuOutlined />}
-                  style={{ backgroundColor: "#091057" }}
-                />
-              </div>
-            </div>
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Mã đơn hàng</th>
-                  <th>Sản phẩm</th>
-                  <th>Tổng tiền</th>
-                  <th>Tình trạng</th>
-                  <th>Ngày đặt hàng</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.filteredOrders.map((order, index) => (
-                  <tr key={index}>
-                    <td className="order-id">{order.id}</td>
-                    <td>
-                      {order.product}{" "}
-                      <span className="extra">{order.extra}</span>
-                    </td>
-                    <td>{order.total}</td>
-                    <td className={`status ${order.statusClass}`}>
-                      {order.status}
-                    </td>
-                    <td>{order.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default CustomerDetail;

@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { Input, Button, Upload, DatePicker, Form, Modal, List } from "antd";
+import { Input, Button, Form, Modal, Select, Upload, message, Table, Checkbox } from "antd";
+import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import "./CreateImportProduct.css";
 import { useNavigate } from "react-router-dom";
-
-const { TextArea } = Input;
 
 const CreateImportOrder = () => {
   const navigate = useNavigate(); // Khai báo useNavigate
@@ -15,32 +14,31 @@ const CreateImportOrder = () => {
 
   // Initial predefined data
   const initSupplierData = [
-    { id: 1, name: "Vân Mây", phone: "0312456789" },
-    { id: 2, name: "Nguyễn Văn A", phone: "0918273845" },
-    { id: 3, name: "Trần Thị Ngọc B", phone: "091726354" },
-    { id: 4, name: "Vân Mây", phone: "0328435671" },
-    { id: 5, name: "Nguyễn Văn A", phone: "0321654879" },
+    { id: "NCC001", name: "Vân Mây", address: "123 Đường A", phone: "0312456789" },
+    { id: "NCC002", name: "Nguyễn Văn A", address: "456 Đường B", phone: "0918273845" },
+    { id: "NCC003", name: "Trần Thị Ngọc B", address: "789 Đường C", phone: "091726354" },
+    { id: "NCC004", name: "Lê Văn C", address: "101 Đường D", phone: "0328435671" },
+    { id: "NCC005", name: "Nguyễn Văn D", address: "102 Đường E", phone: "0321654879"},
   ];
 
   const initProductData = [
-    { code: "SP001", name: "Sản phẩm A", quantity: 10, category: "Loại 1" },
-    { code: "SP002", name: "Sản phẩm B", quantity: 20, category: "Loại 2" },
-    { code: "SP003", name: "Sản phẩm C", quantity: 5, category: "Loại 1" },
+    { code: "SP001", name: "Sản phẩm A", category: "Loại 1" },
+    { code: "SP002", name: "Sản phẩm B", category: "Loại 2" },
+    { code: "SP003", name: "Sản phẩm C", category: "Loại 1" },
   ];
 
-  const [formState, setFormState] = useState({
+  const productCategories = [
+    "Vàng 24k", "Bạc cao cấp", "Kim cương", "Đá quý", "Vàng 18k", "Nhẫn vàng", "Nhẫn bạc", "Vòng tay", "Dây chuyền", "Lắc chân",
+  ];
+
+  const [setFormState] = useState({
     supplier: "",
     products: [],
-    employeeName: "",
-    expectedDate: null,
-    referenceCode: "",
-    notes: "",
-    discount: 0,
-    otherCosts: 0,
   });
 
   const [showNewSupplierModal, setShowNewSupplierModal] = useState(false);
   const [newSupplier, setNewSupplier] = useState({
+    id: "",
     name: "",
     address: "",
     phone: "",
@@ -50,122 +48,89 @@ const CreateImportOrder = () => {
   const [newProduct, setNewProduct] = useState({
     code: "",
     name: "",
-    quantity: 0,
     category: "",
+    image: null,
   });
 
-  const isFormComplete = () => {
-    const { supplier, employeeName, referenceCode, expectedDate } = formState;
-    return supplier && employeeName && referenceCode && expectedDate;
-  };
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSuppliers, setSelectedSuppliers] = useState([]);
+
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState([]);
+
 
   const handleSave = () => {
     if (!isFormComplete()) {
       alert("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
-    alert("Đơn hàng đã được lưu.");
-    navigate("list-import-product");
+    alert("Phiếu mua hàng đã được lưu.");
+    navigate("/list-import-product"); // Navigate to the list-import-product page
   };
 
-  const [initialFormState, setInitialFormState] = useState({
-    ...formState,
-  });
-  // Check if there's any change in the costs section
-  const isCostChanged = () => {
-    const { discount, otherCosts, laborCosts } = formState;
-    return (
-      discount !== initialFormState.discount ||
-      otherCosts !== initialFormState.otherCosts ||
-      laborCosts !== initialFormState.laborCosts
+  const handleSelectSupplier = (supplier) => {
+    setSelectedSuppliers((prev) => {
+      if (prev.some((item) => item.id === supplier.id)) {
+        return prev.filter((item) => item.id !== supplier.id);
+      } else {
+        return [...prev, supplier];
+      }
+    });
+  };
+
+  const handleRemoveSupplier = (supplierId) => {
+    setSelectedSuppliers((prev) =>
+      prev.filter((supplier) => supplier.id !== supplierId)
     );
   };
-  // Handle purchase button click
-  const handlePurchase = () => {
-    if (!isCostChanged()) {
-      alert("Chưa có thay đổi nào về chi phí mua hàng.");
-      return;
-    }
-    alert("Đơn hàng đã được tạo thành công.");
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
   };
 
-  const [filteredSuppliers, setFilteredSuppliers] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  const filteredSuppliers = initSupplierData.filter(
+    (supplier) =>
+      supplier.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      supplier.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Handle changes to input fields
-  const handleChange = (key, value) => {
-    setFormState((prev) => ({ ...prev, [key]: value }));
-    if (key === "supplier" && value) {
-      const filtered = initSupplierData.filter((supplier) =>
-        supplier.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredSuppliers(filtered);
-    } else if (key === "products" && value) {
-      const filtered = initProductData.filter((product) =>
-        product.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredProducts(filtered);
-    } else {
-      setFilteredSuppliers([]);
-      setFilteredProducts([]);
-    }
-  };
-
-  // Handle selecting a supplier
-  const handleSelectSupplier = (supplier) => {
-    setFormState((prev) => ({ ...prev, supplier: supplier.name }));
-    setFilteredSuppliers([]);
-  };
-
-  // Handle selecting a product
-  const handleSelectProduct = (product) => {
-    setFormState((prev) => ({
-      ...prev,
-      products: [...prev.products, product],
-    }));
-    setFilteredProducts([]);
-  };
-
-  // Handle new supplier form fields
   const handleNewSupplierChange = (key, value) => {
     setNewSupplier((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Handle new product form fields
   const handleNewProductChange = (key, value) => {
     setNewProduct((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!isFormComplete()) {
-      alert("Vui lòng điền đầy đủ các trường bắt buộc.");
-      return;
-    }
-
-    alert("Đơn hàng đã được tạo thành công.");
+  const handleImageUpload = (file) => {
+    setNewProduct((prev) => ({ ...prev, image: file }));
+    message.success(`${file.name} đã được tải lên.`);
+    return false; // Prevent default upload behavior
   };
 
-  // Open modal for adding a new supplier
   const openNewSupplierModal = () => {
     setShowNewSupplierModal(true);
   };
 
-  // Close modal for new supplier
   const closeNewSupplierModal = () => {
     setShowNewSupplierModal(false);
   };
 
-  // Save new supplier
   const saveNewSupplier = () => {
-    if (!newSupplier.name || !newSupplier.address || !newSupplier.phone) {
+    if (
+      !newSupplier.id ||
+      !newSupplier.name ||
+      !newSupplier.address ||
+      !newSupplier.phone
+    ) {
       alert("Vui lòng điền đầy đủ thông tin nhà cung cấp.");
       return;
     }
 
     initSupplierData.push({
-      id: initSupplierData.length + 1,
+      id: newSupplier.id,
       name: newSupplier.name,
+      address: newSupplier.address,
       phone: newSupplier.phone,
     });
 
@@ -174,76 +139,241 @@ const CreateImportOrder = () => {
     alert("Nhà cung cấp đã được thêm thành công.");
   };
 
-  // Open modal for adding a new product
   const openNewProductModal = () => {
     setShowNewProductModal(true);
   };
 
-  // Close modal for new product
   const closeNewProductModal = () => {
     setShowNewProductModal(false);
+    setNewProduct({ code: "", name: "", category: "", image: null });
   };
 
-  // Save new product
   const saveNewProduct = () => {
-    if (
-      !newProduct.code ||
-      !newProduct.name ||
-      !newProduct.quantity ||
-      !newProduct.category
-    ) {
+    if (!newProduct.code || !newProduct.name || !newProduct.category) {
       alert("Vui lòng điền đầy đủ thông tin sản phẩm.");
       return;
     }
-
-    initProductData.push({
+    const newProductWithImage = {
       ...newProduct,
-    });
+      image: newProduct.image?.name,
+    };
+    initProductData.push(newProductWithImage);
 
     setFormState((prev) => ({
       ...prev,
-      products: [...prev.products, newProduct],
+      products: [...prev.products, newProductWithImage],
     }));
 
     closeNewProductModal();
     alert("Sản phẩm đã được thêm thành công.");
   };
 
-  const handleFeeChange = (key, value) => {
-    const newFormState = { ...formState, [key]: value };
+  const handleProductSearch = (e) => {
+    setProductSearchTerm(e.target.value);
+  };
 
-    // Calculate the total cost whenever there's a change
-    const totalCost =
-      parseFloat(newFormState.totalAmount || 0) +
-      parseFloat(newFormState.discount || 0) +
-      parseFloat(newFormState.otherCosts || 0) +
-      parseFloat(newFormState.laborCosts || 0) -
-      parseFloat(newFormState.discount || 0);
+  const handleSelectProduct = (product) => {
+    setSelectedProducts((prev) => {
+      if (prev.some((item) => item.code === product.code)) {
+        return prev.filter((item) => item.code !== product.code);
+      } else {
+        return [...prev, product];
+      }
+    });
+  };
 
-    newFormState.totalCost = totalCost;
+  const handleRemoveProduct = (productCode) => {
+    setSelectedProducts((prev) =>
+      prev.filter((product) => product.code !== productCode)
+    );
+  };
 
-    setFormState(newFormState);
+  const handleProductInfoChange = (productCode, key, value) => {
+    setSelectedProducts((prev) =>
+      prev.map((product) =>
+        product.code === productCode ? { ...product, [key]: value } : product
+      )
+    );
+  };
+
+  const filteredProducts = initProductData.filter(
+    (product) =>
+      product.code.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      product.name.toLowerCase().includes(productSearchTerm.toLowerCase())
+  );
+
+  const supplierColumns = [
+    {
+      title: (
+        <Checkbox
+          indeterminate={
+            selectedSuppliers.length > 0 &&
+            selectedSuppliers.length < initSupplierData.length
+          }
+          checked={selectedSuppliers.length === initSupplierData.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedSuppliers(initSupplierData);
+            } else {
+              setSelectedSuppliers([]);
+            }
+          }}
+        />
+      ),
+      key: "select",
+      render: (text, supplier) => (
+        <Checkbox
+          checked={selectedSuppliers.some((item) => item.id === supplier.id)}
+          onChange={() => handleSelectSupplier(supplier)}
+        />
+      ),
+    },
+    { title: "Mã nhà cung cấp", dataIndex: "id", key: "id" },
+    { title: "Tên nhà cung cấp", dataIndex: "name", key: "name" },
+    { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
+    { title: "Địa chỉ", dataIndex: "address", key: "address" },
+  ];
+
+  const selectedSupplierColumns = [
+    {
+      title: (
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => setSelectedSuppliers([])}
+        />
+      ),
+      key: "action",
+      render: (text, supplier) => (
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveSupplier(supplier.id)}
+        />
+      ),
+    },
+    { title: "Mã nhà cung cấp", dataIndex: "id", key: "id" },
+    { title: "Tên nhà cung cấp", dataIndex: "name", key: "name" },
+    { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
+    { title: "Địa chỉ", dataIndex: "address", key: "address" },
+  ];
+
+  const productColumns = [
+    {
+      title: (
+        <Checkbox
+          indeterminate={
+            selectedProducts.length > 0 &&
+            selectedProducts.length < initProductData.length
+          }
+          checked={selectedProducts.length === initProductData.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedProducts(initProductData);
+            } else {
+              setSelectedProducts([]);
+            }
+          }}
+        />
+      ),
+      key: "select",
+      render: (text, product) => (
+        <Checkbox
+          checked={selectedProducts.some((item) => item.code === product.code)}
+          onChange={() => handleSelectProduct(product)}
+        />
+      ),
+    },
+    { title: "Mã sản phẩm", dataIndex: "code", key: "code" },
+    {
+      title: "Hình ảnh",
+      dataIndex: "image",
+      key: "image",
+      render: (text) => (
+        <a href={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} target="_blank" rel="noopener noreferrer">
+          <img src={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} alt="Product" style={{ width: 50, height: 50 }} />
+        </a>
+      ),
+    },
+    { title: "Tên sản phẩm", dataIndex: "name", key: "name" },
+    { title: "Loại sản phẩm", dataIndex: "category", key: "category" },
+  ];
+
+  const selectedProductColumns = [
+    {
+      title: (
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => setSelectedProducts([])}
+        />
+      ),
+      key: "action",
+      render: (text, product) => (
+        <Button
+          type="link"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleRemoveProduct(product.code)}
+        />
+      ),
+    },
+    { title: "Mã sản phẩm", dataIndex: "code", key: "code" },
+    {
+      title: "Hình ảnh",
+      dataIndex: "image",
+      key: "image",
+      render: (text) => (
+        <a href={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} target="_blank" rel="noopener noreferrer">
+          <img src={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} alt="Product" style={{ width: 50, height: 50 }} />
+        </a>
+      ),
+    },
+    { title: "Tên sản phẩm", dataIndex: "name", key: "name" },
+    { title: "Loại sản phẩm", dataIndex: "category", key: "category" },
+    {
+      title: "Số lượng",
+      key: "quantity",
+      render: (text, product) => (
+        <Input
+          type="number"
+          min="1"
+          value={product.quantity || ""}
+          onChange={(e) =>
+            handleProductInfoChange(product.code, "quantity", e.target.value)
+          }
+          placeholder="Nhập số lượng"
+        />
+      ),
+    },
+    {
+      title: "Đơn giá",
+      key: "unitPrice",
+      render: (text, product) => (
+        <Input
+          type="number"
+          min="0"
+          value={product.unitPrice || ""}
+          onChange={(e) =>
+            handleProductInfoChange(product.code, "unitPrice", e.target.value)
+          }
+          placeholder="Nhập đơn giá"
+        />
+      ),
+    },
+  ];
+
+  const isFormComplete = () => {
+    return selectedSuppliers.length > 0 && selectedProducts.length > 0;
   };
 
   return (
     <div className="create-import-order-container">
       <header className="header">
         <h2>Tạo phiếu mua hàng</h2>
-        <div className="header-actions">
-          <Button danger onClick={handleCancel}>
-            Hủy
-          </Button>
-          <Button
-            type="primary"
-            disabled={!isFormComplete()} // Disable if form is not complete
-            onClick={handleSave}
-            style={{
-              backgroundColor: isFormComplete() ? "#1890ff" : "#d9d9d9",
-            }}
-          >
-            Lưu tạo mới
-          </Button>
-        </div>
       </header>
 
       <div className="form-container">
@@ -251,31 +381,33 @@ const CreateImportOrder = () => {
         <div className="form-section">
           <h3>Nhà cung cấp</h3>
           <div style={{ display: "flex", alignItems: "center" }}>
-            <Input
-              placeholder="Tìm kiếm nhà cung cấp"
-              onChange={(e) => handleChange("supplier", e.target.value)}
-              value={formState.supplier}
-              style={{ flex: 1, marginRight: 8, marginBottom: "0px" }}
-            />
-            <Button>Tìm kiếm</Button>
-          </div>
-          <div>
-            <List
+          <Input
+            placeholder="Tìm kiếm nhà cung cấp theo mã hoặc tên"
+            value={searchTerm}
+            onChange={handleSearch}
+          />
+            <Button type="link" onClick={openNewSupplierModal}>
+              Thêm nhà cung cấp mới
+            </Button>
+            </div>
+          {searchTerm && (
+            <Table
+              bordered
               dataSource={filteredSuppliers}
-              renderItem={(supplier) => (
-                <List.Item
-                  key={supplier.id}
-                  onClick={() => handleSelectSupplier(supplier)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {supplier.name} - Số điện thoại: {supplier.phone}
-                </List.Item>
-              )}
+              columns={supplierColumns}
+              rowKey="id"
+              style={{ marginTop: "16px" }}
+            />
+          )}
+          <div style={{ marginTop: "16px" }}>
+            <h4>Nhà cung cấp đã chọn:</h4>
+            <Table
+              bordered
+              dataSource={selectedSuppliers}
+              columns={selectedSupplierColumns}
+              rowKey="id"
             />
           </div>
-          <Button type="link" onClick={openNewSupplierModal}>
-            Thêm nhà cung cấp mới
-          </Button>
         </div>
 
         {/* Modal for adding new supplier */}
@@ -288,6 +420,13 @@ const CreateImportOrder = () => {
           okText="Tạo mới"
         >
           <Form layout="vertical">
+            <Form.Item label="Mã nhà cung cấp" required>
+              <Input
+                value={newSupplier.id}
+                onChange={(e) => handleNewSupplierChange("id", e.target.value)}
+                placeholder="Nhập mã nhà cung cấp"
+              />
+            </Form.Item>
             <Form.Item label="Tên nhà cung cấp" required>
               <Input
                 value={newSupplier.name}
@@ -323,32 +462,31 @@ const CreateImportOrder = () => {
           <h3>Sản phẩm</h3>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Input
-              placeholder="Tìm kiếm sản phẩm"
-              onChange={(e) => handleChange("products", e.target.value)}
-              style={{ flex: 1, marginRight: 8, marginBottom: "0px" }}
+              placeholder="Tìm kiếm sản phẩm theo mã hoặc tên"
+              value={productSearchTerm}
+              onChange={handleProductSearch}
             />
-            <Button>Tìm kiếm</Button>
+            <Button type="link" onClick={openNewProductModal}>
+              Thêm sản phẩm mới
+            </Button>
           </div>
-          <div>
-            <List
+          {productSearchTerm && (
+            <Table
+              bordered
               dataSource={filteredProducts}
-              renderItem={(product) => (
-                <List.Item
-                  key={product.code}
-                  onClick={() => handleSelectProduct(product)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {product.name} - Mã sản phẩm: {product.code}
-                </List.Item>
-              )}
+              columns={productColumns}
+              rowKey="code"
+            />
+          )}
+          <div style={{ marginTop: "16px" }}>
+            <h4>Sản phẩm đã chọn:</h4>
+            <Table
+              bordered
+              dataSource={selectedProducts}
+              columns={selectedProductColumns}
+              rowKey="code"
             />
           </div>
-          <Button type="link" onClick={openNewProductModal}>
-            Thêm sản phẩm mới
-          </Button>
-          <Upload>
-            <Button>Tải file danh sách</Button>
-          </Upload>
         </div>
 
         {/* Modal for adding new product */}
@@ -364,152 +502,62 @@ const CreateImportOrder = () => {
             <Form.Item label="Mã sản phẩm" required>
               <Input
                 value={newProduct.code}
-                onChange={(e) => handleNewProductChange("code", e.target.value)}
+                onChange={(e) =>
+                  handleNewProductChange("code", e.target.value)
+                }
                 placeholder="Nhập mã sản phẩm"
               />
             </Form.Item>
             <Form.Item label="Tên sản phẩm" required>
               <Input
                 value={newProduct.name}
-                onChange={(e) => handleNewProductChange("name", e.target.value)}
+                onChange={(e) =>
+                  handleNewProductChange("name", e.target.value)
+                }
                 placeholder="Nhập tên sản phẩm"
               />
             </Form.Item>
-            <Form.Item label="Số lượng" required>
-              <Input
-                type="number"
-                value={newProduct.quantity}
-                onChange={(e) =>
-                  handleNewProductChange("quantity", e.target.value)
-                }
-                placeholder="Nhập số lượng"
-              />
-            </Form.Item>
             <Form.Item label="Loại sản phẩm" required>
-              <Input
+              <Select
                 value={newProduct.category}
-                onChange={(e) =>
-                  handleNewProductChange("category", e.target.value)
+                onChange={(value) =>
+                  handleNewProductChange("category", value)
                 }
-                placeholder="Nhập loại sản phẩm"
-              />
+                placeholder="Chọn loại sản phẩm"
+              >
+                {productCategories.map((category) => (
+                  <Select.Option key={category} value={category}>
+                    {category}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item label="Tải hình ảnh">
+              <Upload
+                beforeUpload={handleImageUpload}
+                showUploadList={false}
+                accept="image/*"
+              >
+                <Button icon={<UploadOutlined />}>Tải ảnh lên</Button>
+              </Upload>
             </Form.Item>
           </Form>
         </Modal>
 
-        <div className="flex-container">
-          {/* Container: Nhân viên xử lý */}
-          <div className="form-section half-width">
-            <h3>Nhân viên xử lý</h3>
-            <Form layout="vertical">
-              <Form.Item label="Họ và tên" required>
-                <Input
-                  placeholder="Nhập họ và tên"
-                  onChange={(e) => handleChange("employeeName", e.target.value)}
-                  value={formState.employeeName}
-                />
-              </Form.Item>
-
-              <Form.Item label="Ngày nhận hàng dự kiến" required>
-                <DatePicker
-                  placeholder="Chọn ngày nhận hàng dự kiến"
-                  onChange={(date) => handleChange("expectedDate", date)}
-                  value={formState.expectedDate}
-                />
-              </Form.Item>
-
-              <Form.Item label="Mã tham chiếu" required>
-                <Input
-                  placeholder="Nhập mã tham chiếu"
-                  onChange={(e) =>
-                    handleChange("referenceCode", e.target.value)
-                  }
-                  value={formState.referenceCode}
-                />
-              </Form.Item>
-
-              <Form.Item label="Ghi chú">
-                <TextArea
-                  placeholder="Nhập ghi chú"
-                  rows={4}
-                  onChange={(e) => handleChange("notes", e.target.value)}
-                  value={formState.notes}
-                />
-              </Form.Item>
-            </Form>
-          </div>
-
-          {/* Container: Chi phí mua hàng */}
-          <div className="form-section half-width">
-            <h3>Chi phí mua hàng</h3>
-            <Form.Item label="Tổng số lượng đặt">
-              <Input
-                type="number"
-                value={formState.totalQuantity}
-                onChange={(e) =>
-                  handleFeeChange("totalQuantity", e.target.value)
-                }
-              />
-            </Form.Item>
-
-            <Form.Item label="Tổng tiền hàng">
-              <Input
-                type="number"
-                value={formState.totalAmount}
-                onChange={(e) => handleFeeChange("totalAmount", e.target.value)}
-              />
-            </Form.Item>
-
-            <Form.Item label="Chiết khấu">
-              <Input
-                type="number"
-                value={formState.discount}
-                onChange={(e) => handleFeeChange("discount", e.target.value)}
-              />
-            </Form.Item>
-
-            <Form.Item label="Chi phí khác">
-              <Input
-                type="number"
-                value={formState.otherCosts}
-                onChange={(e) => handleFeeChange("otherCosts", e.target.value)}
-              />
-            </Form.Item>
-
-            <Form.Item label="Cần trả nhà cung cấp">
-              <Input
-                type="number"
-                value={formState.amountToPay}
-                onChange={(e) => handleFeeChange("amountToPay", e.target.value)}
-              />
-            </Form.Item>
-
-            <Form.Item label="Nhân công">
-              <Input
-                type="number"
-                value={formState.laborCosts}
-                onChange={(e) => handleFeeChange("laborCosts", e.target.value)}
-              />
-            </Form.Item>
-
-            <Form.Item label="Tổng tiền mua hàng">
-              <Input type="number" value={formState.totalCost} disabled />
-            </Form.Item>
-            {/* Nút Mua hàng */}
-            <Button
-              type="primary"
-              disabled={!isCostChanged()} // Disable if costs have not changed
-              onClick={handlePurchase}
-              className={
-                isCostChanged() ? "submit-button" : "submit-button-disabled"
-              } // Thêm className khi có sự thay đổi
-              style={{
-                marginLeft: 10,
-              }}
-            >
-              Mua hàng
-            </Button>
-          </div>
+        <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+          <Button danger onClick={handleCancel}>
+            Hủy
+          </Button>
+          <Button
+            type="primary"
+            disabled={!isFormComplete()}
+            onClick={handleSave}
+            style={{
+              backgroundColor: isFormComplete() ? "#1890ff" : "#d9d9d9",
+            }}
+          >
+            Lưu tạo mới
+          </Button>
         </div>
       </div>
     </div>

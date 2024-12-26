@@ -64,8 +64,7 @@ const serviceService = {
                         style: 'decimal',
                         maximumFractionDigits: 0
                     }).format(ticket.TongTien || 0),
-                    customer: customerMap[ticket.MaKhachHang] || 'Không tìm thấy khách hàng',
-                    statuss: ticket.TinhTrang || 'Chưa giao hàng'
+                    customer: customerMap[ticket.MaKhachHang] || 'Không tìm thấy khách hàng'
                 };
             });
 

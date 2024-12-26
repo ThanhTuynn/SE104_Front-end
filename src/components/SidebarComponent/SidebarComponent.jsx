@@ -103,7 +103,7 @@ const SidebarComponent = () => {
             </div>
           </li>
           <li>
-            <div onClick={handleLogout} className="nav-link" style={{ cursor: 'pointer' }}>
+            <div onClick={handleLogout} className="nav-link" style={{ cursor: 'pointer', color: 'red' }}>
               <LogoutOutlined />
               <span>Đăng xuất</span>
             </div>

@@ -43,7 +43,7 @@ const routes = [
         protected: true,
     },
     {
-        path: 'customer-detail/1',
+        path: 'customer-detail/:id',
         page: DetailCustomer,
         isShowHeader: true,
         protected: true,
