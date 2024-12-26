@@ -44,8 +44,14 @@ const App = () => {
     productName: '',
     categoryId: '',
     productCode: '',
-    price: ''
+    price: '',
+    stock: '',        // Add stock field
+    image: '',        // Add image field
+    unit: ''         // Add unit field
   });
+
+  // Thêm state để lưu trữ thông tin đơn vị tính
+  const [categoryUnitMap, setCategoryUnitMap] = useState({});
 
   // Hàm thêm thuộc tính mới
   const addAttribute = () => {
@@ -56,64 +62,77 @@ const App = () => {
     ]);
   };
 
-  // Thêm useEffect để lấy danh sách loại sản phẩm
+  // Cập nhật lại useEffect để fetch và xử lý categories với đơn vị tính
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchCategoriesAndProduct = async () => {
       try {
         const categoriesData = await productService.getCategories();
-        console.log('Categories fetched:', categoriesData); // Debug log
         setCategories(categoriesData);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        message.error('Không thể tải danh sách phân loại');
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  // Add new useEffect to fetch product details
-  useEffect(() => {
-    const fetchProductDetails = async () => {
-      try {
+        
         if (location.state?.productData) {
           const product = location.state.productData;
-          console.log("Setting product data:", product);
+          const selectedCategory = categoriesData.find(
+            cat => cat.MaLoaiSanPham === product.categoryId
+          );
+          // Đảm bảo giá không bao giờ rỗng
+          const priceValue = (product.price === 0 || !product.price) ? "Chưa có giá" : 
+                           String(product.price).replace(/[^\d]/g, '') || "Chưa có giá";
+
           setFormData({
             productName: product.productName,
             categoryId: product.categoryId,
             productCode: product.productCode,
-            price: String(product.price).replace(/[^\d]/g, '') // Remove currency formatting
+            price: priceValue,        // Luôn có giá trị
+            stock: String(product.stock),
+            image: product.image || '',
+            dvt: selectedCategory?.TenDVTinh || 'Chưa có đơn vị'
           });
-        } else {
-          // Fallback to API call if no state data
-          const products = await productService.getAllProducts();
-          const product = products.find(p => p.key === id);
-          if (product) {
-            setFormData({
-              productName: product.productName,
-              categoryId: product.categoryId,
-              productCode: product.productCode,
-              price: String(product.price).replace(/[^\d]/g, '')
-            });
-          }
         }
       } catch (error) {
-        console.error('Error loading product:', error);
+        console.error('Error loading data:', error);
         message.error('Không thể tải thông tin sản phẩm');
       }
     };
 
-    fetchProductDetails();
-  }, [id, location]);
+    fetchCategoriesAndProduct();
+  }, [location.state]);
+
+  // Thêm effect để cập nhật đơn vị tính khi thay đổi category
+  useEffect(() => {
+    if (formData.categoryId && categories.length > 0) {
+      const selectedCategory = categories.find(
+        cat => cat.MaLoaiSanPham === formData.categoryId
+      );
+      if (selectedCategory) {
+        setFormData(prev => ({
+          ...prev,
+          dvt: selectedCategory?.unit.TenDVTinh || 'Chưa có đơn vị'
+        }));
+      }
+    }
+  }, [formData.categoryId, categories]);
 
   console.log('Current categories:', categories); // Debug log
 
+  // Cập nhật hàm handleInputChange để xử lý thay đổi category
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    if (field === 'categoryId') {
+      const selectedCategory = categories.find(cat => cat.MaLoaiSanPham === value);
+      setFormData(prev => ({
+        ...prev,
+        [field]: value,
+        dvt: selectedCategory?.unit.TenDVTinh || 'Chưa có đơn vị'
+      }));
+      
+      // Debug log
+      console.log('Selected new category:', selectedCategory);
+      console.log('New unit name:', selectedCategory?.unit.TenDVTinh);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -131,7 +150,8 @@ const App = () => {
         MaLoaiSanPham: formData.categoryId,
         MaSanPham: formData.productCode,
         DonGia: parseFloat(formData.price),
-        SoLuong: currentProduct.stock // Thêm số lượng từ sản phẩm hiện tại
+        SoLuong: currentProduct.stock, // Thêm số lượng từ sản phẩm hiện tại
+        HinhAnh: formData.image
       };
 
       console.log('Updating product:', {
@@ -201,6 +221,20 @@ const App = () => {
               <h2>Thông tin chung</h2>
               <Row gutter={16}>
                 <Col span={24}>
+                  <label>Mã sản phẩm</label>
+                  <Input 
+                    placeholder="Nhập mã sản phẩm"
+                    value={formData.productCode}
+                    disabled={true} // Disable input mã sản phẩm
+                    style={{ 
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed'
+                    }}
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={24}>
                   <label>Tên sản phẩm</label>
                   <Input 
                     placeholder="Nhập tên sản phẩm" 
@@ -231,11 +265,11 @@ const App = () => {
               </Row>
               <Row gutter={16}>
                 <Col span={24}>
-                  <label>Mã sản phẩm</label>
-                  <Input 
-                    placeholder="Nhập mã sản phẩm"
-                    value={formData.productCode}
-                    disabled={true} // Disable input mã sản phẩm
+                  <label>Đơn vị tính</label>
+                  <Input
+                    placeholder="Đơn vị tính"
+                    value={formData.dvt}
+                    disabled={true}
                     style={{ 
                       backgroundColor: '#f5f5f5',
                       cursor: 'not-allowed'
@@ -243,14 +277,65 @@ const App = () => {
                   />
                 </Col>
               </Row>
-              <label>Giá sản phẩm</label>
               <Row gutter={16}>
                 <Col span={24}>
+                  <label>Giá sản phẩm</label>
                   <Input
                     placeholder="Nhập giá gốc"
                     value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    style={{ width: "100%" }}
+                    disabled={true} // Disable input giá sản phẩm
+                    style={{ 
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed',
+                      color: formData.price === "Chưa có giá" ? '#ff4d4f' : 'inherit',
+                      fontWeight: formData.price === "Chưa có giá" ? 'bold' : 'normal'
+                    }}
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <label>Lượng tồn</label>
+                  <Input
+                    placeholder="Lượng tồn kho"
+                    value={formData.stock}
+                    disabled={true}
+                    style={{ 
+                      backgroundColor: '#f5f5f5',
+                      cursor: 'not-allowed',
+                      color: formData.stock === "0" ? '#ff4d4f' : 'inherit',
+                      fontWeight: formData.stock === "0" ? 'bold' : 'normal'
+                    }}
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <label>Hình ảnh sản phẩm</label>
+                  <div style={{ marginTop: '8px' }}>
+                    {formData.image && (
+                      <img
+                        src={formData.image}
+                        alt="Product"
+                        style={{
+                          maxWidth: '200px',
+                          maxHeight: '200px',
+                          objectFit: 'contain',
+                          border: '1px solid #d9d9d9',
+                          borderRadius: '4px'
+                        }}
+                      />
+                    )}
+                  </div>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <label>Link hình ảnh</label>
+                  <Input
+                    placeholder="Nhập link hình ảnh"
+                    value={formData.image}
+                    onChange={(e) => handleInputChange('image', e.target.value)}
                   />
                 </Col>
               </Row>

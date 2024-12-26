@@ -119,11 +119,68 @@ const productService = {
 
     getCategories: async () => {
         try {
-            const response = await axiosInstance.get('/category/get-all');
-            console.log('Raw categories response:', response.data); // Debug log
-            return response.data; // Return raw data from API
+            console.log('Bắt đầu lấy danh sách loại sản phẩm...');
+            const categoriesRes = await axiosInstance.get('/category/get-all');
+            console.log('Đã nhận được danh sách loại sản phẩm:', categoriesRes.data);
+
+            const categories = categoriesRes.data;
+            
+            // Thêm logs để theo dõi quá trình xử lý
+            console.log('Đang xử lý từng loại sản phẩm để lấy đơn vị tính...');
+            const categoriesWithUnits = await Promise.all(
+                categories.map(async (category) => {
+                    try {
+                        console.log(`Đang lấy thông tin đơn vị tính cho loại sản phẩm ${category.TenLoaiSanPham}...`);
+                        console.log('MaDVTinh của loại sản phẩm:', category.MaDVTinh);
+                        console.log('MaDVTinh của loại sản phẩm:', category.PhanTramLoiNhuan);
+                        const unitResponse = await axiosInstance.get(`/unit/get-details/${category.MaDVTinh}`);
+                        console.log('Đã nhận được thông tin đơn vị tính:', unitResponse.data);
+
+                        const result = {
+                            ...category,
+                            text: category.TenLoaiSanPham,
+                            value: category.MaLoaiSanPham,
+                            MaDVTinh: category.MaDVTinh,
+                            PhanTramLoiNhuan: category.PhanTramLoiNhuan,
+                            TenDVTinh: unitResponse.data.TenDVTinh
+                            
+                        };
+                        
+                        console.log('Đã map thành công:', {
+                            CategoryName: result.TenLoaiSanPham,
+                            UnitName: result.TenDVTinh,
+                            PhanTramLoiNhuan: result.PhanTramLoiNhuan
+                        });
+                        
+                        return result;
+                    } catch (error) {
+                        console.error(`Lỗi khi lấy đơn vị tính cho ${category.TenLoaiSanPham}:`, error);
+                        return {
+                            ...category,
+                            text: category.TenLoaiSanPham,
+                            value: category.MaLoaiSanPham,
+                            MaDVTinh: category.MaDVTinh,
+                            PhanTramLoiNhuan: category.PhanTramLoiNhuan,
+                            TenDVTinh: 'Chưa có đơn vị'
+                        };
+                    }
+                })
+            );
+
+            console.log('Hoàn thành xử lý tất cả loại sản phẩm với đơn vị tính:', categoriesWithUnits);
+            return categoriesWithUnits;
         } catch (error) {
-            console.error('Get categories error:', error);
+            console.error('Lỗi khi lấy danh sách loại sản phẩm:', error);
+            throw error;
+        }
+    },
+
+    getAllUnits: async () => {
+        try {
+            const response = await axiosInstance.get('/unit/get-all');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching units:', error);
             throw error;
         }
     },

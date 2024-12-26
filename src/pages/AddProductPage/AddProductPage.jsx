@@ -42,7 +42,7 @@ const App = () => {
     productName: '',
     categoryId: '',
     productCode: '',
-    price: ''
+    image:'',
   });
 
   // Hàm thêm thuộc tính mới
@@ -81,7 +81,7 @@ const App = () => {
 
   const handleSaveProduct = async () => {
     try {
-      if (!formData.productName || !formData.categoryId || !formData.productCode || !formData.price) {
+      if (!formData.productName || !formData.categoryId || !formData.productCode) {
         message.error('Vui lòng điền đầy đủ thông tin sản phẩm');
         return;
       }
@@ -91,8 +91,8 @@ const App = () => {
         TenSanPham: formData.productName,
         MaLoaiSanPham: formData.categoryId,
         MaSanPham: formData.productCode,
-        DonGia: parseFloat(formData.price),
-        SoLuong: 0 // Thêm mới với số lượng 0
+        SoLuong: 0, // Thêm mới với số lượng 0
+        HinhAnh: formData.image,
       });
 
       message.success('Thêm sản phẩm thành công');
@@ -152,7 +152,16 @@ const App = () => {
               border: "1px solid #e6e9f0",
               marginBottom: "20px"
             }}>
-              <h2>Thông tin chung</h2>
+              <Row gutter={16}>
+                <Col span={24}>
+                  <label>Mã sản phẩm</label>
+                  <Input 
+                    placeholder="Nhập mã sản phẩm"
+                    value={formData.productCode}
+                    onChange={(e) => handleInputChange('productCode', e.target.value)}
+                  />
+                </Col>
+              </Row>
               <Row gutter={16}>
                 <Col span={24}>
                   <label>Tên sản phẩm</label>
@@ -185,22 +194,10 @@ const App = () => {
               </Row>
               <Row gutter={16}>
                 <Col span={24}>
-                  <label>Mã sản phẩm</label>
+                  <label>Thêm hình ảnh</label>
                   <Input 
-                    placeholder="Nhập mã sản phẩm"
-                    value={formData.productCode}
-                    onChange={(e) => handleInputChange('productCode', e.target.value)}
-                  />
-                </Col>
-              </Row>
-              <label>Giá sản phẩm</label>
-              <Row gutter={16}>
-                <Col span={24}>
-                  <Input
-                    placeholder="Nhập giá gốc"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange('price', e.target.value)}
-                    style={{ width: "100%" }}
+                    placeholder="Nhập link ảnh sản phẩm" 
+                    onChange={(e) => handleInputChange('image', e.target.value)}
                   />
                 </Col>
               </Row>

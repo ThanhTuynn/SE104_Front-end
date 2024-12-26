@@ -9,6 +9,7 @@ import {
   UserOutlined,
   DollarOutlined,
   LogoutOutlined,
+  TagOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import logo from '../../assets/logo.png'
@@ -87,6 +88,12 @@ const SidebarComponent = () => {
               <span>Quản lý nhân viên</span>
             </div>
           </li>
+          <li>
+              <a onClick={() => navigate('/unit-type')} className="nav-link">
+                <TagOutlined />
+                <span>Quản lý đơn vị tính</span>
+              </a>
+            </li>
         </ul>
         <ul className="nav-list secondary-nav">
           <li>

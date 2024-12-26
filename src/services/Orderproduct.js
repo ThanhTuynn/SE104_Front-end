@@ -59,7 +59,7 @@ export const getOrderById = async (id) => {
         // Get both order and customer data
         const [orderResponse, customersResponse] = await Promise.all([
             axiosInstance.get(`/sale/get-by-id/${id}`),
-            axiosInstance.get('/customers/get-all')
+            axiosInstance.get('/customers/get-all'),
         ]);
 
         // Find customer info from customer data

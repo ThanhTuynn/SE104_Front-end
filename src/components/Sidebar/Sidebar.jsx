@@ -9,10 +9,14 @@ import {
   UserOutlined,
   DollarOutlined,
   LogoutOutlined,
+  TagOutlined, // Add this import for unit type icon
 } from "@ant-design/icons";
+import { useNavigate } from 'react-router-dom'; // Add this import
 import "./Sidebar.css";
 
 const Sidebar = () => {
+  const navigate = useNavigate(); // Add this hook
+
   return (
     <aside className="sidebar">
         <header className="sidebar-header">
@@ -62,6 +66,12 @@ const Sidebar = () => {
               <a href="#" className="nav-link">
                 <DollarOutlined />
                 <span>Quản lý doanh thu</span>
+              </a>
+            </li>
+            <li>
+              <a onClick={() => navigate('/unit-type')} className="nav-link">
+                <TagOutlined />
+                <span>Quản lý đơn vị tính</span>
               </a>
             </li>
           </ul>

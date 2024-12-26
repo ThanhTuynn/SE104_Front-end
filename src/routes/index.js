@@ -21,6 +21,7 @@ import SignUpDetails from '../pages/SignUp/SignUp_next'; // Import SignUpDetails
 import Dashboard from '../pages/DashboardPage/Dashboard'
 import Personal from '../pages/PersonalInfoPage/Personal'
 import PersonalInfoPage from '../pages/PersonalInfoPage/Personal'; // Import PersonalInfoPage
+import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import Unittypeproduct
 
 const routes = [
     {
@@ -153,6 +154,12 @@ const routes = [
     {
         path: 'personalinfopage',
         page: PersonalInfoPage,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: 'unit-type',
+        page: Unittypeproduct,
         isShowHeader: true,
         protected: true,
     },
