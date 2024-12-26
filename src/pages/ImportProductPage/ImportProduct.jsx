@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
-import { Table, Button, Input, DatePicker, Modal} from "antd";
+import React, { useState, useMemo, useEffect } from "react";
+import { Table, Button, Input, DatePicker, Modal, message } from "antd";
 import { ExportOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import "./ImportProduct.css";
+import importProduct from "../../services/importProduct";
 
 const initData = () => [
   {
@@ -78,6 +79,31 @@ const ImportProduct = () => {
     isModalVisible: false,
     isAddModalVisible: false, // Thêm trạng thái cho modal "Thêm sản phẩm"
   });
+  const [loading, setLoading] = useState(false);
+  const [purchaseData, setPurchaseData] = useState([]);
+
+  const fetchAllPurchases = async () => {
+    try {
+      setLoading(true);
+      const data = await importProduct.getAllPurchases();
+      const formattedPurchases = data.map((purchase) => ({
+        id: purchase.SoPhieu,
+        date: new Date(purchase.NgayLap).toLocaleDateString(),
+        provider: purchase.MaNCC,
+        total: purchase.TongTien,
+      }));
+      setPurchaseData(formattedPurchases);
+    } catch (error) {
+      message.error("Không thể tải danh sách phiếu mua hàng");
+      console.error("Fetch purchases error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllPurchases();
+  }, []);
 
   const handleChange = (key, value) => {
     setState((prev) => {
@@ -92,43 +118,44 @@ const ImportProduct = () => {
   };
 
   const filteredData = useMemo(() => {
-    const { orderType, dateString, searchQuery } = state.filters;
-    
-    return state.data.filter((item) => {
-      // Search filter
-      const searchMatch = 
-        searchQuery === "" || 
-        item.products.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.customer.toLowerCase().includes(searchQuery.toLowerCase());
+    const { date, searchQuery } = state.filters;
+    let dataToFilter = purchaseData;
 
-      // Date filter
-      const dateMatch = !dateString || item.date.includes(dateString);
+    // Date filter
+    if (date) {
+      dataToFilter = dataToFilter.filter((item) => new Date(item.date).toLocaleDateString() === date.format("DD/MM/YYYY"));
+    }
 
-      // For debugging
-      console.log({
-        item: item.id,
-        orderType,
-        itemAction: item.action,
-        searchMatch,
-        dateMatch
+    // Search filter
+    if (searchQuery) {
+      const lowerSearchQuery = searchQuery.toLowerCase();
+      dataToFilter = dataToFilter.filter((item) => {
+        return item.id.toLowerCase().includes(lowerSearchQuery) ||
+               item.provider.toLowerCase().includes(lowerSearchQuery);
       });
+    }
 
-      return searchMatch && dateMatch;
-    });
-  }, [state.data, state.filters]);
+    return dataToFilter;
+  }, [purchaseData, state.filters]);
 
+  const handleDeletePurchase = async (purchaseId) => {
+    try {
+      await importProduct.deletePurchase(purchaseId);
+      message.success("Xóa phiếu mua hàng thành công");
+      fetchAllPurchases();
+    } catch (error) {
+      message.error("Lỗi khi xóa phiếu mua hàng");
+      console.error("Delete purchase error:", error);
+    }
+  };
 
   const handleConfirmDelete = () => {
-    const remainingOrders = state.data.filter(
-      (order) => !state.selectedOrders.includes(order.id)
-    );
+    state.selectedOrders.forEach((orderId) => handleDeletePurchase(orderId));
     setState((prev) => ({
       ...prev,
-      data: remainingOrders,
       selectedOrders: [],
       isModalVisible: false,
     }));
-    alert("Đã xóa phiếu mua hàng đã chọn.");
   };
 
   const handleRowClick = (record) => {
@@ -145,35 +172,14 @@ const ImportProduct = () => {
       width: 100,
     },
     {
-      title: "Sản phẩm",
-      dataIndex: "products",
-      key: "products",
-      width: 300, 
-      render: (products) => {
-        const { name, otherProducts } = products;
-        const remainingCount = otherProducts.length;
-
-        return (
-          <div>
-            <span>{name}</span>
-            {remainingCount > 0 && (
-              <span style={{ color: "#888", marginLeft: 8 }}>
-                +{remainingCount} sản phẩm khác
-              </span>
-            )}
-          </div>
-        );
-      },
-    },
-    {
       title: "Ngày",
       dataIndex: "date",
       key: "date",
     },
     {
       title: "Nhà cung cấp",
-      dataIndex: "customer",
-      key: "customer",
+      dataIndex: "provider",
+      key: "provider",
     },
     {
       title: "Tổng tiền",
@@ -242,6 +248,7 @@ const ImportProduct = () => {
         </div>
 
         <Table
+          loading={loading}
           columns={columns}
           dataSource={filteredData}
           rowKey="id"

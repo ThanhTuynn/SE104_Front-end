@@ -1,8 +1,19 @@
-import React, { useState } from "react";
-import { Input, Button, Form, Modal, Select, Upload, message, Table, Checkbox } from "antd";
+import React, { useState, useEffect} from "react";
+import {
+  Input,
+  Button,
+  Form,
+  Modal,
+  Select,
+  Upload,
+  message,
+  Table,
+  Checkbox,
+} from "antd";
 import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import "./CreateImportProduct.css";
 import { useNavigate } from "react-router-dom";
+import createImportProduct from "../../services/createImportProduct";
 
 const CreateImportOrder = () => {
   const navigate = useNavigate(); // Khai báo useNavigate
@@ -11,30 +22,6 @@ const CreateImportOrder = () => {
   const handleCancel = () => {
     navigate(-1); // Quay lại trang trước
   };
-
-  // Initial predefined data
-  const initSupplierData = [
-    { id: "NCC001", name: "Vân Mây", address: "123 Đường A", phone: "0312456789" },
-    { id: "NCC002", name: "Nguyễn Văn A", address: "456 Đường B", phone: "0918273845" },
-    { id: "NCC003", name: "Trần Thị Ngọc B", address: "789 Đường C", phone: "091726354" },
-    { id: "NCC004", name: "Lê Văn C", address: "101 Đường D", phone: "0328435671" },
-    { id: "NCC005", name: "Nguyễn Văn D", address: "102 Đường E", phone: "0321654879"},
-  ];
-
-  const initProductData = [
-    { code: "SP001", name: "Sản phẩm A", category: "Loại 1" },
-    { code: "SP002", name: "Sản phẩm B", category: "Loại 2" },
-    { code: "SP003", name: "Sản phẩm C", category: "Loại 1" },
-  ];
-
-  const productCategories = [
-    "Vàng 24k", "Bạc cao cấp", "Kim cương", "Đá quý", "Vàng 18k", "Nhẫn vàng", "Nhẫn bạc", "Vòng tay", "Dây chuyền", "Lắc chân",
-  ];
-
-  const [setFormState] = useState({
-    supplier: "",
-    products: [],
-  });
 
   const [showNewSupplierModal, setShowNewSupplierModal] = useState(false);
   const [newSupplier, setNewSupplier] = useState({
@@ -50,6 +37,8 @@ const CreateImportOrder = () => {
     name: "",
     category: "",
     image: null,
+    quantity: "",
+    unitPrice: "",
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,15 +46,98 @@ const CreateImportOrder = () => {
 
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState([]);
+  const [supplierData, setSupplierData] = useState([]);
+  const [productData, setProductData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [productCategories, setProductCategories] = useState([]);
 
+  useEffect(() => {
+    fetchProducts();
+    fetchProviders();
+  }, []);
 
-  const handleSave = () => {
+  const fetchProviders = async () => {
+    try {
+      setLoading(true);
+      const data = await createImportProduct.getAllProvider();
+      const formattedProviders = data.map((provider) => ({
+        id: provider.MaNCC,
+        name: provider.TenNCC,
+        phone: provider.SoDienThoai,
+        address: provider.DiaChi,
+      }));
+      setSupplierData(formattedProviders);
+    } catch (error) {
+      message.error("Không thể tải danh sách nhà cung cấp");
+      console.error("Fetch providers error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const data = await createImportProduct.getAllProducts();
+      const formattedProducts = data.map((product) => ({
+        code: product.MaSanPham,
+        image: product.HinhAnh,
+        name: product.TenSanPham,
+        category: product.category.TenLoaiSanPham,
+      }));
+      setProductData(formattedProducts);
+
+      // Extract unique categories from the fetched products
+      const categories = [...new Set(data.map(product => product.category.TenLoaiSanPham))];
+      setProductCategories(categories);
+    } catch (error) {
+      message.error("Không thể tải danh sách sản phẩm");
+      console.error("Fetch products error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateOrderId = () => {
+    return `ORD-${Date.now()}`;
+  };
+
+  const handleSave = async () => {
     if (!isFormComplete()) {
       alert("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
-    alert("Phiếu mua hàng đã được lưu.");
-    navigate("/list-import-product"); // Navigate to the list-import-product page
+
+    const orderId = generateOrderId();
+    const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+
+    const orderData = {
+      orderId,
+      date: currentDate,
+      supplierId: selectedSuppliers[0].id, // Assuming only one supplier is selected
+      products: selectedProducts.map(product => ({
+        productId: product.code,
+        quantity: product.quantity,
+        unitPrice: product.unitPrice,
+      })),
+    };
+
+    try {
+      await createImportProduct.createOrder(orderData);
+      message.success("Phiếu mua hàng đã được lưu.");
+      console.log("Order Data:", orderData);
+      console.log("Order Properties:", Object.keys(orderData));
+      alert(`Thông tin phiếu mua hàng:
+        Mã phiếu: ${orderData.orderId}
+        Ngày: ${orderData.date}
+        Nhà cung cấp: ${selectedSuppliers[0].name}
+        Sản phẩm: ${orderData.products.map(p => `\n  - Mã: ${p.productId}, Số lượng: ${p.quantity}, Đơn giá: ${p.unitPrice}`).join('')}
+      `);
+      navigate("/list-import-product"); // Navigate to the list-import-product page
+    } catch (error) {
+      message.error("Lỗi khi lưu phiếu mua hàng");
+      console.error("Save order error:", error.response ? error.response.data : error.message);
+    }
   };
 
   const handleSelectSupplier = (supplier) => {
@@ -88,10 +160,12 @@ const CreateImportOrder = () => {
     setSearchTerm(e.target.value);
   };
 
-  const filteredSuppliers = initSupplierData.filter(
+  const filteredSuppliers = supplierData.filter(
     (supplier) =>
-      supplier.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (supplier.id &&
+        supplier.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (supplier.name &&
+        supplier.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleNewSupplierChange = (key, value) => {
@@ -102,9 +176,31 @@ const CreateImportOrder = () => {
     setNewProduct((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageUpload = (file) => {
-    setNewProduct((prev) => ({ ...prev, image: file }));
-    message.success(`${file.name} đã được tải lên.`);
+  const handleImageUpload = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      // Use the provided API for image upload
+      const response = await fetch('http://localhost:3000/api/product/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload image');
+      }
+
+      const data = await response.json();
+      const imageUrl = data.url; // Get the URL from the response
+
+      setNewProduct((prev) => ({ ...prev, HinhAnh: imageUrl }));
+      message.success(`${file.name} đã được tải lên.`);
+    } catch (error) {
+      message.error(`Lỗi khi tải ảnh lên: ${error.message}`);
+      console.error("Image upload error:", error);
+    }
     return false; // Prevent default upload behavior
   };
 
@@ -114,6 +210,28 @@ const CreateImportOrder = () => {
 
   const closeNewSupplierModal = () => {
     setShowNewSupplierModal(false);
+  };
+
+  const handleAddProvider = async () => {
+    try {
+      const providerData = {
+        MaNCC: newSupplier.id,
+        TenNCC: newSupplier.name,
+        SoDienThoai: newSupplier.phone,
+        DiaChi: newSupplier.address,
+      };
+
+      console.log('Adding provider with data:', providerData);
+      const response = await createImportProduct.createProvider(providerData);
+      console.log('Provider added successfully:', response);
+      message.success("Thêm nhà cung cấp thành công");
+      setShowNewSupplierModal(false);
+      setNewSupplier({ id: "", name: "", address: "", phone: "" });
+      fetchProviders();
+    } catch (error) {
+      message.error("Lỗi khi thêm nhà cung cấp");
+      console.error("Add provider error:", error.response ? error.response.data : error.message);
+    }
   };
 
   const saveNewSupplier = () => {
@@ -127,45 +245,49 @@ const CreateImportOrder = () => {
       return;
     }
 
-    initSupplierData.push({
-      id: newSupplier.id,
-      name: newSupplier.name,
-      address: newSupplier.address,
-      phone: newSupplier.phone,
-    });
-
-    setFormState((prev) => ({ ...prev, supplier: newSupplier.name }));
-    closeNewSupplierModal();
-    alert("Nhà cung cấp đã được thêm thành công.");
+    handleAddProvider();
   };
 
-  const openNewProductModal = () => {
+  const openNewProductModal = async () => {
     setShowNewProductModal(true);
   };
 
   const closeNewProductModal = () => {
     setShowNewProductModal(false);
-    setNewProduct({ code: "", name: "", category: "", image: null });
+    setNewProduct({ code: "", name: "", category: "", image: null, quantity: "", unitPrice: "" });
+  };
+
+  const handleAddProduct = async () => {
+    try {
+      const productData = {
+        MaSanPham: newProduct.code,
+        TenSanPham: newProduct.name,
+        MaLoaiSanPham: newProduct.category,
+        DonGia: newProduct.unitPrice,
+        SoLuong: newProduct.quantity,
+        HinhAnh: newProduct.HinhAnh,
+      };
+
+      console.log('Adding product with data:', productData);
+      const response = await createImportProduct.createProduct(productData);
+      console.log('Product added successfully:', response);
+      message.success("Thêm sản phẩm thành công");
+      setShowNewProductModal(false);
+      setNewProduct({ code: "", name: "", category: "", HinhAnh: null, quantity: "", unitPrice: "" });
+      fetchProducts();
+    } catch (error) {
+      message.error("Lỗi khi thêm sản phẩm");
+      console.error("Add product error:", error.response ? error.response.data : error.message);
+    }
   };
 
   const saveNewProduct = () => {
-    if (!newProduct.code || !newProduct.name || !newProduct.category) {
+    if (!newProduct.code || !newProduct.name || !newProduct.category || !newProduct.quantity || !newProduct.unitPrice) {
       alert("Vui lòng điền đầy đủ thông tin sản phẩm.");
       return;
     }
-    const newProductWithImage = {
-      ...newProduct,
-      image: newProduct.image?.name,
-    };
-    initProductData.push(newProductWithImage);
 
-    setFormState((prev) => ({
-      ...prev,
-      products: [...prev.products, newProductWithImage],
-    }));
-
-    closeNewProductModal();
-    alert("Sản phẩm đã được thêm thành công.");
+    handleAddProduct();
   };
 
   const handleProductSearch = (e) => {
@@ -196,7 +318,7 @@ const CreateImportOrder = () => {
     );
   };
 
-  const filteredProducts = initProductData.filter(
+  const filteredProducts = productData.filter(
     (product) =>
       product.code.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
       product.name.toLowerCase().includes(productSearchTerm.toLowerCase())
@@ -208,12 +330,12 @@ const CreateImportOrder = () => {
         <Checkbox
           indeterminate={
             selectedSuppliers.length > 0 &&
-            selectedSuppliers.length < initSupplierData.length
+            selectedSuppliers.length < supplierData.length
           }
-          checked={selectedSuppliers.length === initSupplierData.length}
+          checked={selectedSuppliers.length === supplierData.length}
           onChange={(e) => {
             if (e.target.checked) {
-              setSelectedSuppliers(initSupplierData);
+              setSelectedSuppliers(supplierData);
             } else {
               setSelectedSuppliers([]);
             }
@@ -266,12 +388,12 @@ const CreateImportOrder = () => {
         <Checkbox
           indeterminate={
             selectedProducts.length > 0 &&
-            selectedProducts.length < initProductData.length
+            selectedProducts.length < productData.length
           }
-          checked={selectedProducts.length === initProductData.length}
+          checked={selectedProducts.length === productData.length}
           onChange={(e) => {
             if (e.target.checked) {
-              setSelectedProducts(initProductData);
+              setSelectedProducts(productData);
             } else {
               setSelectedProducts([]);
             }
@@ -292,8 +414,21 @@ const CreateImportOrder = () => {
       dataIndex: "image",
       key: "image",
       render: (text) => (
-        <a href={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} target="_blank" rel="noopener noreferrer">
-          <img src={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} alt="Product" style={{ width: 50, height: 50 }} />
+        <a
+          href={
+            text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src={
+              text ||
+              "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"
+            }
+            alt="Product"
+            style={{ width: 50, height: 50 }}
+          />
         </a>
       ),
     },
@@ -327,8 +462,20 @@ const CreateImportOrder = () => {
       dataIndex: "image",
       key: "image",
       render: (text) => (
-        <a href={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} target="_blank" rel="noopener noreferrer">
-          <img src={text || "https://cf.shopee.vn/file/ee4a29902c4a53dd211e6563a1b66d8d"} alt="Product" style={{ width: 50, height: 50 }} />
+        <a
+          href={
+            text
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src={
+              text
+            }
+            alt="Product"
+            style={{ width: 50, height: 50 }}
+          />
         </a>
       ),
     },
@@ -367,7 +514,16 @@ const CreateImportOrder = () => {
   ];
 
   const isFormComplete = () => {
-    return selectedSuppliers.length > 0 && selectedProducts.length > 0;
+    return selectedSuppliers.length > 0;
+    // return selectedSuppliers.length > 0 && selectedProducts.length > 0;
+  };
+
+  const calculateTotalPrice = () => {
+    return selectedProducts.reduce((total, product) => {
+      const quantity = product.quantity || 0;
+      const unitPrice = product.unitPrice || 0;
+      return total + (quantity * unitPrice);
+    }, 0);
   };
 
   return (
@@ -381,17 +537,18 @@ const CreateImportOrder = () => {
         <div className="form-section">
           <h3>Nhà cung cấp</h3>
           <div style={{ display: "flex", alignItems: "center" }}>
-          <Input
-            placeholder="Tìm kiếm nhà cung cấp theo mã hoặc tên"
-            value={searchTerm}
-            onChange={handleSearch}
-          />
+            <Input
+              placeholder="Tìm kiếm nhà cung cấp theo mã hoặc tên"
+              value={searchTerm}
+              onChange={handleSearch}
+            />
             <Button type="link" onClick={openNewSupplierModal}>
               Thêm nhà cung cấp mới
             </Button>
-            </div>
+          </div>
           {searchTerm && (
             <Table
+              loading={loading}
               bordered
               dataSource={filteredSuppliers}
               columns={supplierColumns}
@@ -487,6 +644,9 @@ const CreateImportOrder = () => {
               rowKey="code"
             />
           </div>
+          <div style={{ marginTop: "16px", textAlign: "right" }}>
+            <h4>Tổng đơn giá: {calculateTotalPrice().toLocaleString()} VND</h4>
+          </div>
         </div>
 
         {/* Modal for adding new product */}
@@ -502,27 +662,20 @@ const CreateImportOrder = () => {
             <Form.Item label="Mã sản phẩm" required>
               <Input
                 value={newProduct.code}
-                onChange={(e) =>
-                  handleNewProductChange("code", e.target.value)
-                }
+                onChange={(e) => handleNewProductChange("code", e.target.value)}
                 placeholder="Nhập mã sản phẩm"
               />
             </Form.Item>
             <Form.Item label="Tên sản phẩm" required>
               <Input
                 value={newProduct.name}
-                onChange={(e) =>
-                  handleNewProductChange("name", e.target.value)
-                }
+                onChange={(e) => handleNewProductChange("name", e.target.value)}
                 placeholder="Nhập tên sản phẩm"
               />
             </Form.Item>
             <Form.Item label="Loại sản phẩm" required>
               <Select
-                value={newProduct.category}
-                onChange={(value) =>
-                  handleNewProductChange("category", value)
-                }
+                onChange={(value) => handleNewProductChange("category", value)}
                 placeholder="Chọn loại sản phẩm"
               >
                 {productCategories.map((category) => (
@@ -532,6 +685,7 @@ const CreateImportOrder = () => {
                 ))}
               </Select>
             </Form.Item>
+
             <Form.Item label="Tải hình ảnh">
               <Upload
                 beforeUpload={handleImageUpload}
@@ -544,7 +698,10 @@ const CreateImportOrder = () => {
           </Form>
         </Modal>
 
-        <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+        <div
+          className="form-actions"
+          style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}
+        >
           <Button danger onClick={handleCancel}>
             Hủy
           </Button>
@@ -565,3 +722,4 @@ const CreateImportOrder = () => {
 };
 
 export default CreateImportOrder;
+
