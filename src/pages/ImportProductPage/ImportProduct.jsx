@@ -88,9 +88,12 @@ const ImportProduct = () => {
       const data = await importProduct.getAllPurchases();
       const formattedPurchases = data.map((purchase) => ({
         id: purchase.SoPhieu,
-        date: new Date(purchase.NgayLap).toLocaleDateString(),
-        provider: purchase.MaNCC,
-        total: purchase.TongTien,
+        date: new Date(purchase.NgayLap).toLocaleDateString('vi-VN'),
+        provider: purchase.TenNCC || purchase.MaNCC, // Use provider name if available, fallback to ID
+        total: new Intl.NumberFormat('vi-VN', { 
+          style: 'currency', 
+          currency: 'VND' 
+        }).format(purchase.TongTien)
       }));
       setPurchaseData(formattedPurchases);
     } catch (error) {
@@ -160,19 +163,18 @@ const ImportProduct = () => {
 
   const handleRowClick = (record) => {
     console.log("Navigating to import product detail with ID:", record.id);
-    navigate("/import-product-detail/1");
+    navigate(`/import-product-detail/${record.id}`); // Changed to use template literal and record.id
   };
 
 
   const columns = [
     {
-      title: "Mã đơn",
+      title: "Mã phiếu",
       dataIndex: "id",
       key: "id",
-      width: 100,
     },
     {
-      title: "Ngày",
+      title: "Ngày lập",
       dataIndex: "date",
       key: "date",
     },
@@ -185,6 +187,7 @@ const ImportProduct = () => {
       title: "Tổng tiền",
       dataIndex: "total",
       key: "total",
+      align: 'right',
     },
   ];
 
