@@ -46,24 +46,30 @@ const productService = {
                 axiosInstance.get('/product/get-all'),
                 axiosInstance.get('/category/get-all')
             ]);
-
+    
             const categoryMap = {};
             categoriesRes.data.forEach(cat => {
                 categoryMap[cat.MaLoaiSanPham] = cat.TenLoaiSanPham;
             });
-
-            // Cập nhật đầy đủ thông tin sản phẩm theo cấu trúc bảng SANPHAM
-            return productsRes.data.map(product => ({
+    
+            // Sort products by createdAt in descending order
+            const sortedProducts = productsRes.data.sort((a, b) => {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+    
+            // Map the sorted products
+            return sortedProducts.map(product => ({
                 key: product.MaSanPham,
-                MaSanPham: product.MaSanPham,        // Mã sản phẩm
-                TenSanPham: product.TenSanPham,      // Tên sản phẩm
-                MaLoaiSanPham: product.MaLoaiSanPham,// Mã loại sản phẩm
-                TenLoaiSanPham: categoryMap[product.MaLoaiSanPham] || 'Chưa phân loại', // Tên loại
-                DonGia: product.DonGia || 0,         // Đơn giá
-                SoLuong: product.SoLuong || 0,       // Số lượng tồn kho
-                HinhAnh: product.HinhAnh || 'default-image.png', // Hình ảnh
-
-                // Các trường bổ sung cho giao diện
+                MaSanPham: product.MaSanPham,
+                TenSanPham: product.TenSanPham,
+                MaLoaiSanPham: product.MaLoaiSanPham,
+                TenLoaiSanPham: categoryMap[product.MaLoaiSanPham] || 'Chưa phân loại',
+                DonGia: product.DonGia || 0,
+                SoLuong: product.SoLuong || 0,
+                HinhAnh: product.HinhAnh || 'default-image.png',
+                createdAt: product.createdAt,
+    
+                // Additional fields for UI
                 productName: product.TenSanPham,
                 productCode: product.MaSanPham,
                 categoryId: product.MaLoaiSanPham,
@@ -249,7 +255,12 @@ const productService = {
 
     updateProduct: async (id, dataToUpdate) => {
         try {
-            const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate);
+            const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            
             console.log('Update response:', response.data);
             return response.data;
         } catch (error) {
