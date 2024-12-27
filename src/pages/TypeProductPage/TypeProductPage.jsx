@@ -119,36 +119,36 @@ const TypeProductPage = () => {
       title: "Mã loại sản phẩm",
       dataIndex: "MaLoaiSanPham",
       key: "MaLoaiSanPham",
-      width: "15%",
-      align: "center"
+      align: "left",
+      className: "text-left"
     },
     {
       title: "Tên loại sản phẩm",
       dataIndex: "TenLoaiSanPham",
       key: "TenLoaiSanPham",
-      width: "25%",
-      align: "center"
+      align: "left",
+      className: "text-left"
     },
     {
       title: "Mã đơn vị tính",
       dataIndex: "MaDVTinh",
       key: "MaDVTinh",
-      width: "15%",
-      align: "center"
+      align: "left",
+      className: "text-left"
     },
     {
       title: "Đơn vị tính",
       dataIndex: "TenDVTinh",
       key: "TenDVTinh",
-      width: "25%",
-      align: "center"
+      align: "left",
+      className: "text-left"
     },
     {
       title: "Phần trăm lợi nhuận",
       dataIndex: "PhanTramLoiNhuan",
       key: "PhanTramLoiNhuan",
-      width: "20%",
-      align: "center",
+      align: "left",
+      className: "text-left",
       render: (value) => `${value}%`
     }
   ];
@@ -165,22 +165,25 @@ const TypeProductPage = () => {
               placeholder="Tìm kiếm loại sản phẩm..."
               value={params.search}
               onChange={(e) => handleChange("search", e.target.value)}
+              className="search-box"
             />
-            <Button
-              type="primary"
-              icon={<ExportOutlined />}
-              className="export-button"
-            >
-              Xuất file
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              className="add-type-button"
-              onClick={() => setIsAddModalVisible(true)}
-            >
-              Thêm loại sản phẩm
-            </Button>
+            <div className="right-buttons">
+              <Button
+                type="primary"
+                icon={<ExportOutlined />}
+                className="export-button"
+              >
+                Xuất file
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                className="add-type-button"
+                onClick={() => setIsAddModalVisible(true)}
+              >
+                Thêm loại sản phẩm
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -208,7 +211,7 @@ const TypeProductPage = () => {
           columns={columns}
           dataSource={filteredTypes}
           rowKey="MaLoaiSanPham"
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 5 }}
           style={{ marginTop: 20 }}
         />
 
