@@ -3,7 +3,7 @@ import { Modal, Input, Table, Button, message } from "antd";
 import axios from 'axios';
 import "./ProductSearchModal.css";
 import productService from '../../../services/productService';
-
+import { getUnitById } from "../../../services/UnitTypeService";
 const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [quantities, setQuantities] = useState({});
@@ -19,30 +19,64 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
 
   const fetchProducts = async () => {
     try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/product/get-all');
-      const formattedProducts = response.data.map(product => ({
-        id: product.MaSanPham,
-        MaSanPham: product.MaSanPham,
-        TenSanPham: product.TenSanPham,
-        MaLoaiSanPham: product.MaLoaiSanPham,
-        DonGia: product.DonGia,
-        SoLuong: product.SoLuong || 0,
-        // Các trường hiển thị
-        name: product.TenSanPham,
-        price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
-        quantity: product.SoLuong || 0,
-        stock: product.SoLuong || 0,
-        image: product.HinhAnh || 'default-image.png',
-        rawPrice: product.DonGia
-      }));
-      setProducts(formattedProducts);
+        setLoading(true);
+        // Lấy song song sản phẩm và categories
+        const [productsResponse, categoriesResponse] = await Promise.all([
+            axios.get('http://localhost:3000/api/product/get-all'),
+            axios.get('http://localhost:3000/api/category/get-all')
+        ]);
+
+        console.log('API Response - Products:', productsResponse.data);
+        console.log('API Response - Categories:', categoriesResponse.data);
+
+        // Tạo map cho loại sản phẩm
+        const categoryMap = {};
+        categoriesResponse.data.forEach(cat => {
+            categoryMap[cat.MaLoaiSanPham] = {
+                TenLoaiSanPham: cat.TenLoaiSanPham,
+                PhanTramLoiNhuan: cat.PhanTramLoiNhuan, // Lấy trực tiếp từ LOAISANPHAM
+                MaDVTinh: cat.MaDVTinh,
+                TenDVTinh: cat.TenDVTinh // Thêm trường này
+            };
+        });
+
+        // Format lại products với thông tin từ category
+        const formattedProducts = productsResponse.data.map(product => {
+            const category = categoryMap[product.MaLoaiSanPham];
+            console.log('Mapping product:', {
+                productId: product.MaSanPham,
+                categoryInfo: category,
+                ptln: category?.PhanTramLoiNhuan
+            });
+
+            return {
+                id: product.MaSanPham,
+                MaSanPham: product.MaSanPham,
+                TenSanPham: product.TenSanPham,
+                name: product.TenSanPham,
+                MaLoaiSanPham: product.MaLoaiSanPham,
+                DonGia: product.DonGia,
+                SoLuong: product.SoLuong || 0,
+                stock: product.SoLuong || 0,
+                price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
+                rawPrice: product.DonGia,
+                image: product.HinhAnh || 'default-image.png',
+                // Lấy PhanTramLoiNhuan từ category map
+                PhanTramLoiNhuan: parseFloat(category?.PhanTramLoiNhuan || 0),
+                categoryName: category?.TenLoaiSanPham || 'Chưa phân loại',
+                TenDVTinh: category?.TenDVTinh || 'N/A' // Ánh xạ đơn vị tính
+            };
+        });
+
+        console.log('Formatted Products with PTLN:', formattedProducts);
+        setProducts(formattedProducts);
     } catch (error) {
-      console.error('Error fetching products:', error);
+        console.error('Error fetching data:', error);
+        message.error('Không thể tải dữ liệu sản phẩm');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -68,28 +102,39 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
 
   const handleProductConfirm = (product) => {
     try {
-      const selectedQuantity = quantities[product.id] || 1;
-      
-      if (selectedQuantity > product.stock) {
-        message.error('Số lượng vượt quá tồn kho hiện có!');
-        return;
-      }
+        const selectedQuantity = quantities[product.id] || 1;
+        
+        if (selectedQuantity > product.stock) {
+            message.error('Số lượng vượt quá tồn kho hiện có!');
+            return;
+        }
 
-      // Chỉ gửi thông tin sản phẩm và số lượng yêu cầu, không gọi API
-      onConfirm({
-        ...product,
-        quantity: selectedQuantity,
-        originalStock: product.stock,
-        requestedQuantity: selectedQuantity
-      });
+        // Log chi tiết trước khi gửi đi
+        console.log('Selected product details:', {
+            id: product.id,
+            MaSanPham: product.MaSanPham,
+            name: product.name,
+            price: product.price,
+            rawPrice: product.rawPrice,
+            PhanTramLoiNhuan: product.PhanTramLoiNhuan,
+            stock: product.stock,
+            selectedQuantity
+        });
 
-      onCancel();
-      message.success(`Đã thêm ${selectedQuantity} sản phẩm vào giỏ hàng`);
+        onConfirm({
+            ...product,
+            quantity: selectedQuantity,
+            originalStock: product.stock,
+            requestedQuantity: selectedQuantity
+        });
+
+        onCancel();
+        message.success(`Đã thêm ${selectedQuantity} sản phẩm vào giỏ hàng`);
     } catch (error) {
-      console.error('Error selecting product:', error);
-      message.error('Không thể thêm sản phẩm');
+        console.error('Error confirming product:', error);
+        message.error('Không thể thêm sản phẩm');
     }
-  };
+};
 
   return (
     <div className="modal-for-product1">
@@ -110,8 +155,8 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
         loading={loading}
         columns={[
           {
-            title: 'Mã SP',
-            dataIndex: 'id',
+            title: 'Hình ảnh',
+            dataIndex: 'image',
             width: '100px',
           },
           {

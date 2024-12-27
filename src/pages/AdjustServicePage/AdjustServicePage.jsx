@@ -207,7 +207,7 @@ const handleDeleteService = (id) => {
     setIsConfirmModalVisible(false);
   };
   return (
-    <Layout className="app-layout">
+    <Layout className="app-layout-ser">
       <div className="bod">
         <Layout>
           <Content className="app-content">

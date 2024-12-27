@@ -1,11 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
 
 
-.customer-pagee {
+.unit{
   margin-left: 270px;
   padding: 20px;
   background-color: #f9f9f9;
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
 
   /* Table container */
   .ant-table-wrapper {
@@ -15,9 +17,6 @@
   }
   .table-containerr {
     width: 100%;
-  }
-  .detail{
-    margin-left: 60px;
   }
   /* Add this to ensure proper table layout */
   .ant-table {
@@ -37,7 +36,7 @@
   }
 
   /* Header styling */
-  .customer-header {
+  .order-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -52,35 +51,30 @@
     }
   }
 
-  /* Filter section styling */
   .filter-section {
     display: flex;
-    justify-content: flex-end;
+    justify-content: flex-end;  /* Changed from space-between to flex-end */
     margin-bottom: 20px;
 
     .filter-button {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-  
-    .delete-all-button {
-      margin-left: auto;
-      margin-bottom: -20px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
     }
 
     .filter-btn {
-      margin-right: 8px;
-      &.active {
-        background-color: #e6f7ff;
-        border-color: #91d5ff;
-        color: #1890ff;
-      }
+        margin-right: 8px;
+        &.active {
+            background-color: #e6f7ff;
+            border-color: #91d5ff;
+            color: #1890ff;
+        }
     }
-  }
+}
 
   /* Button styling */
   .export-button {
+    
     background-color: #cdd1ff;
     color: #091057;
     border: none;
@@ -99,4 +93,25 @@
       color: #091057;
     }
   }
+}
+
+.ant-modal {
+  z-index: 1001 !important; /* Increase z-index */
+}
+
+.ant-modal-mask {
+  z-index: 1000 !important;
+}
+
+.ant-modal-wrap {
+  z-index: 1001 !important;
+}
+
+body .ant-modal-root {
+  z-index: 1001 !important;
+}
+
+.unit {
+  position: relative;
+  z-index: 1;
 }

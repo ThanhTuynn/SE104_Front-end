@@ -146,7 +146,7 @@ const CustomerList = () => {
       <div style={{ marginLeft: "270px" }}>
         <Topbar title="Danh sách khách hàng" />
       </div>
-      <div className="customer-page">
+      <div className="customer-pagee">
         {/* Header */}
         <header className="customer-header">
           <div className="header-actions">
@@ -225,7 +225,7 @@ const CustomerList = () => {
           columns={columns}
           dataSource={filteredCustomers}
           rowKey="id"
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 5 }}
           style={{ marginTop: 20 }}
           onRow={(record) => ({
             onClick: () => navigate(`/customer-detail/${record.id}`),

@@ -4,6 +4,7 @@ import { UserOutlined } from '@ant-design/icons';
 import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhang";
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";
+import axios from 'axios';
 // Change this import
 import { getOrderById, updateOrder } from '../../../services/Orderproduct';  // Update import to include updateOrder
 const { Option } = Select;
@@ -24,36 +25,57 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
     const fetchOrderData = async () => {
         if (initialData && isVisible) {
             try {
-                const response = await getOrderById(initialData.SoPhieuBH);
-                console.log('Order data received:', response);
+                // Lấy song song order, products và categories
+                const [orderResponse, productsRes, categoriesRes] = await Promise.all([
+                    getOrderById(initialData.SoPhieuBH),
+                    axios.get('http://localhost:3000/api/product/get-all'),
+                    axios.get('http://localhost:3000/api/category/get-all')
+                ]);
 
-                if (response) {
-                    setOrderDate(new Date(response.NgayLap).toISOString().split('T')[0]);
+                // Tạo map cho categories để lưu PhanTramLoiNhuan
+                const categoryMap = {};
+                categoriesRes.data.forEach(cat => {
+                    categoryMap[cat.MaLoaiSanPham] = cat.PhanTramLoiNhuan;
+                });
 
-                    // Set customer info from enriched data
+                // Map products với PhanTramLoiNhuan
+                const productMap = {};
+                productsRes.data.forEach(product => {
+                    productMap[product.MaSanPham] = {
+                        ...product,
+                        PhanTramLoiNhuan: parseFloat(categoryMap[product.MaLoaiSanPham] || 0)
+                    };
+                });
+
+                if (orderResponse) {
+                    setOrderDate(new Date(orderResponse.NgayLap).toISOString().split('T')[0]);
                     setSelectedCustomer({
-                        id: response.MaKhachHang,
-                        name: response.customer.TenKhachHang,
-                        phone: response.customer.SoDT,
-                        address: response.customer.DiaChi
+                        id: orderResponse.MaKhachHang,
+                        name: orderResponse.customer.TenKhachHang,
+                        phone: orderResponse.customer.SoDT,
+                        address: orderResponse.customer.DiaChi
                     });
 
-                    if (Array.isArray(response.details)) {
-                        const cartItems = response.details.map(detail => ({
-                            id: detail.MaSanPham,
-                            name: detail.product?.TenSanPham || `Sản phẩm ${detail.MaSanPham}`,
-                            price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
-                            rawPrice: detail.DonGiaBanRa,
-                            image: detail.product?.HinhAnh || 'default-image.png',
-                            quantity: detail.SoLuong,
-                            MaChiTietBH: detail.MaChiTietBH
-                        }));
+                    if (Array.isArray(orderResponse.details)) {
+                        const cartItems = orderResponse.details.map(detail => {
+                            const product = productMap[detail.MaSanPham];
+                            return {
+                                id: detail.MaSanPham,
+                                name: product?.TenSanPham || `Sản phẩm ${detail.MaSanPham}`,
+                                price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
+                                rawPrice: detail.DonGiaBanRa,
+                                PhanTramLoiNhuan: product?.PhanTramLoiNhuan || 0,
+                                image: product?.HinhAnh || 'default-image.png',
+                                quantity: detail.SoLuong,
+                                MaChiTietBH: detail.MaChiTietBH
+                            };
+                        });
 
                         console.log('Processed cart items:', cartItems);
                         setCart(cartItems);
 
                         const initQuantities = {};
-                        response.details.forEach(detail => {
+                        orderResponse.details.forEach(detail => {
                             initQuantities[detail.MaSanPham] = detail.SoLuong;
                         });
                         setQuantities(initQuantities);
@@ -79,18 +101,27 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
     }
   }, [isVisible]);
 
-  const handleProductSelect = (product) => {
-    if (!cart.some((item) => item.id === product.id)) {
-      // Add product with its quantity to cart
-      setCart(prevCart => [...prevCart, product]);
-      // Set the quantity from the modal
-      setQuantities(prev => ({
-        ...prev,
-        [product.id]: product.quantity || 1
-      }));
-    }
-    setIsProductModalVisible(false);
-  };
+// Sửa handleProductSelect để lưu PhanTramLoiNhuan
+const handleProductSelect = (product) => {
+  if (cart.some((item) => item.id === product.id)) {
+    setQuantities(prev => ({
+      ...prev,
+      [product.id]: (prev[product.id] || 1) + (product.quantity || 1)
+    }));
+  } else {
+    const productWithPTLN = {
+      ...product,
+      PhanTramLoiNhuan: product.PhanTramLoiNhuan
+    };
+    setCart(prevCart => [...prevCart, productWithPTLN]);
+    setQuantities(prev => ({
+      ...prev,
+      [product.id]: product.quantity || 1
+    }));
+  }
+  setIsProductModalVisible(false);
+};
+
   // Thêm sản phẩm vào giỏ hàng
   const addToCart = (product) => {
     if (!cart.some((item) => item.id === product.id)) {
@@ -116,59 +147,67 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
     const date = new Date(dateString);
     return date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   };
-  // Lưu đơn hàng
-  const handleUpdateOrder = async () => {
-    try {
-      // Validate input data
-      if (!selectedCustomer?.id) {
-        alert('Vui lòng chọn khách hàng');
-        return;
-      }
 
-      if (!orderDate) {
-        alert('Vui lòng chọn ngày lập phiếu');
-        return;
-      }
-
-      if (cart.length === 0) {
-        alert('Vui lòng thêm sản phẩm vào giỏ hàng');
-        return;
-      }
-
-      // Format data theo đúng cấu trúc backend yêu cầu
-      const updateData = {
-        invoiceData: {
-          NgayLap: orderDate,
-          MaKhachHang: selectedCustomer.id,
-          TongTien: calculateTotal()
-        },
-        details: cart.map(item => ({
-          MaChiTietBH: item.MaChiTietBH || `CTBH${Date.now()}_${item.id}`,
-          SoPhieuBH: initialData.SoPhieuBH,
-          MaSanPham: item.id,
-          SoLuong: quantities[item.id] || 1,
-          DonGiaBanRa: parseFloat(item.rawPrice),
-          ThanhTien: (quantities[item.id] || 1) * parseFloat(item.rawPrice)
-        }))
-      };
-
-      // Log để debug
-      console.log('Updating invoice:', initialData.SoPhieuBH);
-      console.log('Update data:', JSON.stringify(updateData, null, 2));
-
-      // Gọi API update using updateOrder from Orderproduct service
-      const result = await updateOrder(initialData.SoPhieuBH, updateData);
-      console.log('Update response:', result);
-
-      alert('Cập nhật phiếu bán hàng thành công!');
-      onSave();
-      onClose();
-    } catch (error) {
-      console.error('Error updating:', error);
-      console.error('Error response:', error.response?.data);
-      alert(`Lỗi: ${error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng'}`);
-    }
+  // Add function to calculate selling price with profit margin
+  const calculateSellingPrice = (basePrice, profitMargin) => {
+    console.log('Calculating price with:', { basePrice, profitMargin });
+    const margin = (profitMargin || 0) / 100;
+    const finalPrice = basePrice * (1 + margin);
+    console.log('Final price:', finalPrice);
+    return finalPrice;
   };
+
+// Sửa handleUpdateOrder
+const handleUpdateOrder = async () => {
+    try {
+        // Validate input data
+        if (!selectedCustomer?.id) {
+            alert('Vui lòng chọn khách hàng');
+            return;
+        }
+
+        if (!orderDate) {
+            alert('Vui lòng chọn ngày lập phiếu');
+            return;
+        }
+
+        if (cart.length === 0) {
+            alert('Vui lòng thêm sản phẩm vào giỏ hàng');
+            return;
+        }
+
+        // Format data theo đúng cấu trúc backend yêu cầu
+        const updateData = {
+            invoiceData: {
+                NgayLap: orderDate,
+                MaKhachHang: selectedCustomer.id,
+                TongTien: calculateTotal()
+            },
+            details: cart.map(item => ({
+                MaChiTietBH: item.MaChiTietBH || `CTBH${Date.now()}_${item.id}`,
+                SoPhieuBH: initialData.SoPhieuBH,
+                MaSanPham: item.id,
+                SoLuong: quantities[item.id] || 1,
+                DonGiaBanRa: calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan),
+                ThanhTien: (quantities[item.id] || 1) * calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan)
+            }))
+        };
+
+        console.log('Updating with profit margins:', updateData);
+        // Gọi API update using updateOrder from Orderproduct service
+        const result = await updateOrder(initialData.SoPhieuBH, updateData);
+        console.log('Update response:', result);
+
+        alert('Cập nhật phiếu bán hàng thành công!');
+        onSave();
+        onClose();
+    } catch (error) {
+        console.error('Error updating:', error);
+        console.error('Error response:', error.response?.data);
+        alert(`Lỗi: ${error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng'}`);
+    }
+};
+
   if (!isVisible) return null;
   const handleCustomerSelect = (customer) => {
     setSelectedCustomer({
@@ -183,7 +222,8 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
       const quantity = quantities[item.id] || 1;
-      return total + (quantity * item.rawPrice);
+      const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
+      return total + (quantity * sellingPrice);
     }, 0);
   };
   
@@ -246,7 +286,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                   <label>Ngày tháng năm đặt hàng</label>
                   <br />
                   <div className="days" style={{ display: "flex", gap: "16px" }}>
-                    <input
+                    <Input
                       type="date"
                       value={orderDate}
                       onChange={(e) => setOrderDate(e.target.value)}
@@ -254,7 +294,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                         border: "1px solid #ccc",
                         borderRadius: "8px",
                         width: "100%",
-                        height: "30px",
+                        height: "40px",
                       }}
                     />
                   </div>
@@ -268,7 +308,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                 <Button
                   type="primary"
                   onClick={() => setIsProductModalVisible(true)}
-                  style={{ width: "100%", marginBottom: 16, borderRadius: '8px' }}
+                  style={{ width: "100%", marginTop: "-5px", borderRadius: '8px',height: '40px' }}
                 >
                   Chọn sản phẩm
                 </Button>
@@ -312,10 +352,15 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                           <div style={{ flex: 1 }}>
                             <strong>{item.name}</strong>
                             <div style={{ color: "gray" }}>
-                              Đơn giá: {item.price}
+                              Đơn giá gốc: {item.price}
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Lợi nhuận: {item.PhanTramLoiNhuan}%
                             </div>
                             <div style={{ color: "blue" }}>
-                              Thành tiền: {new Intl.NumberFormat('vi-VN').format(item.rawPrice * (quantities[item.id] || 1))} đ
+                              Thành tiền: {new Intl.NumberFormat('vi-VN').format(
+                                calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
+                              )} đ
                             </div>
                           </div>
                           <div style={{ 
@@ -378,5 +423,6 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
           </div>
   );
 };
+
 
 export default EditOrderModal;

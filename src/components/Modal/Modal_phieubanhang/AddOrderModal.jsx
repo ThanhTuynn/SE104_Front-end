@@ -20,13 +20,16 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   // Remove handleSearch function and productList since we don't need them anymore
   
   const handleProductSelect = (product) => {
-    if (!cart.some((item) => item.id === product.id)) {
-      // Thêm sản phẩm vào giỏ hàng với số lượng tồn gốc
+    if (cart.some((item) => item.id === product.id)) {
+      setQuantities(prev => ({
+        ...prev,
+        [product.id]: (prev[product.id] || 1) + (product.quantity || 1)
+      }));
+    } else {
       setCart(prevCart => [...prevCart, {
         ...product,
-        originalStock: product.originalStock  // Sử dụng số lượng tồn ban đầu từ ProductSearchModal
+        originalStock: product.originalStock
       }]);
-      
       setQuantities(prev => ({
         ...prev,
         [product.id]: product.quantity || 1
@@ -68,28 +71,49 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
     const date = new Date(dateString);
     return date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
   };
+  // Add function to calculate selling price with profit margin
+  const calculateSellingPrice = (basePrice, profitMargin) => {
+    console.log('Calculating selling price:', { basePrice, profitMargin });
+    const margin = (profitMargin || 0) / 100;
+    const finalPrice = basePrice * (1 + margin);
+    console.log('Final price:', finalPrice);
+    return finalPrice;
+  };
   // Thêm hàm tính tổng tiền
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
       const quantity = quantities[item.id] || 1;
-      const price = parseFloat(item.rawPrice || 0);
-      return total + (quantity * price);
+      const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
+      return total + (quantity * sellingPrice);
     }, 0);
   };
   // Lưu đơn hàng
   const handleSaveOrder = async () => {
     try {
-      // Validation checks...
       if (!selectedCustomer?.id || !orderDate || cart.length === 0) {
         message.error('Vui lòng điền đầy đủ thông tin');
         return;
       }
 
+      // Log thông tin đầy đủ trước khi cập nhật
+      console.log('=== DATA BEFORE UPDATE ===');
+      console.log('Cart items:', cart);
+      console.log('Quantities:', quantities);
+      console.log('Selected Customer:', selectedCustomer);
+
       // Kiểm tra và cập nhật số lượng tồn kho cho tất cả sản phẩm
       for (const item of cart) {
         const requestedQuantity = quantities[item.id] || 1;
         const newStock = item.originalStock - requestedQuantity;  // Sử dụng số lượng tồn ban đầu
-        
+
+        console.log('Product Update Info:', {
+          productId: item.id,
+          name: item.name,
+          currentStock: item.originalStock,
+          newStock,
+          price: item.rawPrice,
+        });
+
         if (newStock < 0) {
           message.error(`Sản phẩm ${item.name} không đủ số lượng trong kho`);
           return;
@@ -98,41 +122,58 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         try {
           // Cập nhật số lượng tồn trong database
           await productService.updateProduct(item.id, {
-            MaSanPham: item.MaSanPham,
-            TenSanPham: item.TenSanPham,
+            MaSanPham: item.id,
+            TenSanPham: item.name,
             MaLoaiSanPham: item.MaLoaiSanPham,
             DonGia: item.DonGia,
             SoLuong: newStock,
             HinhAnh: item.HinhAnh
           });
+          console.log(`Updated stock for product ${item.name}: ${newStock}`);
         } catch (error) {
+          console.error('Stock update error:', error);
           message.error(`Lỗi cập nhật tồn kho cho sản phẩm ${item.name}`);
           return;
         }
       }
 
-      // Tạo đơn hàng...
+      // Tạo đơn hàng với thông tin đã được tính toán
       const orderData = {
         invoiceData: {
           NgayLap: orderDate,
           MaKhachHang: selectedCustomer.id,
           TongTien: calculateTotal()
         },
-        details: cart.map(item => ({
-          MaSanPham: item.id,
-          SoLuong: quantities[item.id] || 1,
-          DonGiaBanRa: parseFloat(item.rawPrice),
-          ThanhTien: parseFloat(item.rawPrice) * (quantities[item.id] || 1)
-        }))
+        details: cart.map(item => {
+          const quantity = quantities[item.id] || 1;
+          const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
+          const lineTotal = quantity * sellingPrice;
+
+          console.log('Order Detail:', {
+            productId: item.id,
+            quantity,
+            originalPrice: item.rawPrice,
+            profitMargin: item.PhanTramLoiNhuan,
+            sellingPrice,
+            lineTotal
+          });
+          return {
+            MaSanPham: item.id,
+            SoLuong: quantity,
+            DonGiaBanRa: sellingPrice,
+            ThanhTien: lineTotal
+          };
+        })
       };
 
+      console.log('Final order data:', orderData);
       // Lưu đơn hàng
       await createOrder(orderData);
       message.success('Lưu phiếu bán hàng thành công!');
       resetModal();
       onClose();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Save order error:', error);
       message.error('Có lỗi xảy ra khi lưu phiếu bán hàng');
     }
   };
@@ -228,7 +269,7 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                 <Button
                   type="primary"
                   onClick={() => setIsProductModalVisible(true)}
-                  style={{ width: "100%", marginBottom: 16, borderRadius: '8px' }}
+                  style={{ width: "100%", marginTop: "-5px", borderRadius: '8px', height: '40px' }}
                 >
                   Chọn sản phẩm
                 </Button>
@@ -236,91 +277,118 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                   isVisible={isProductModalVisible}
                   onCancel={() => setIsProductModalVisible(false)}
                   onConfirm={handleProductSelect}
-                  isProductPage={false}  // Thêm prop này
                 />
                 {/* Hiển thị giỏ hàng */}
-                <div className="cart-container">
+                <div className="cart-container" style={{
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  paddingRight: '10px',
+                  marginBottom: '20px'
+                }}>
                   <h3>Giỏ hàng</h3>
                   {cart.length > 0 ? (
-                            cart.map((item) => (
-                              <div
-                                key={item.id}
-                                className="cart-item"
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  marginBottom: 10,
-                                }}
-                              >
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  style={{
-                                    width: "40px",
-                                    height: "40px",
-                                    marginRight: "10px",
-                                  }}
-                                />
-                                <div style={{ flex: 1 }}>
-                                  <strong>{item.name}</strong>
-                                  <div style={{ color: "gray" }}>{item.price}</div>
-                                </div>
-                                <div style={{ 
-                                  marginRight: '15px',
-                                  padding: '4px 8px',
-                                  backgroundColor: '#f5f5f5',
-                                  borderRadius: '4px',
-                                  fontSize: '14px'
-                                }}>
-                                  Số lượng: {quantities[item.id] || 1}
-                                </div>
-                                <button
-                                  onClick={() => removeFromCart(item.id)}
-                                  style={{
-                                    backgroundColor: "#ff4d4f",
-                                    color: "#fff",
-                                    border: "none",
-                                    padding: "5px 10px",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Xóa
-                                </button>
-                              </div>
-                            ))
-                          ) : (
-                            <p>Chưa có sản phẩm trong giỏ hàng</p>
-                          )}
-                          <div style={{
-                            marginTop: "16px",
-                            padding: "10px",
-                            borderTop: "1px solid #eee",
+                    <>
+                      {cart.map((item) => (
+                        <div
+                          key={item.id}
+                          className="cart-item"
+                          style={{
                             display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center"
-                          }}>
-                            <strong>Tổng cộng:</strong>
-                            <span style={{ fontSize: "18px", color: "#1890ff" }}>
-                              {new Intl.NumberFormat('vi-VN').format(calculateTotal())} đ
-                            </span>
+                            alignItems: "center",
+                            marginBottom: 10,
+                            padding: "10px",
+                            backgroundColor: "#f8f9ff",
+                            borderRadius: "8px"
+                          }}
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              marginRight: "10px",
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <strong>{item.name}</strong>
+                              <div style={{ color: "gray", marginLeft: "10px", textAlign: "right" }}>
+                                {item.TenDVTinh}
+                              </div>
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Đơn giá gốc: {item.price}
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Lợi nhuận: {item.PhanTramLoiNhuan}%
+                            </div>
+                            <div style={{ color: "blue" }}>
+                              Thành tiền: {new Intl.NumberFormat('vi-VN').format(
+                                calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
+                              )} đ
+                            </div>
                           </div>
-                        </div>
-                        
-                        {/* Di chuyển modal-footer vào đây */}
-                        <div className="modal-footer"></div>
-                          <button className="cancel-btn" onClick={onClose}>
-                            Hủy
+                          <div style={{ 
+                            marginRight: '15px',
+                            padding: '4px 8px',
+                            backgroundColor: '#e6f7ff',
+                            borderRadius: '4px',
+                            fontSize: '14px'
+                          }}>
+                            Số lượng: {quantities[item.id] || 1}
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            style={{
+                              backgroundColor: "#ff4d4f",
+                              color: "#fff",
+                              border: "none",
+                              padding: "5px 10px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Xóa
                           </button>
-                          <button className="submit-btn" onClick={handleSaveOrder}>
-                            {save}
-                          </button>
                         </div>
+                      ))}
+
+                      {/* Tổng cộng */}
+                      <div style={{
+                        marginTop: "16px",
+                        padding: "10px",
+                        borderTop: "1px solid #eee",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <strong>Tổng cộng:</strong>
+                        <span style={{ fontSize: "18px", color: "#1890ff" }}>
+                          {new Intl.NumberFormat('vi-VN').format(calculateTotal())} đ
+                        </span>
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <p>Chưa có sản phẩm trong giỏ hàng</p>
+                  )}
+                </div>
+
+                {/* Footer buttons */}
+                <div className="modal-footer">
+                  <button className="cancel-btn" onClick={onClose}>
+                    Hủy
+                  </button>
+                  <button className="submit-btn" onClick={handleSaveOrder}>
+                    {save}
+                  </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

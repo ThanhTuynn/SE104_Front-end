@@ -41,6 +41,12 @@ const App1 = () => {
 
   const [data, setData] = useState([]);
   const [totalPrepayment, setTotalPrepayment] = useState(0);
+  const [searchValue, setSearchValue] = useState("");
+
+  const onSearch = (value) => {
+    setSearchValue(value);
+  };
+
   useEffect(() => {
     const fetchServiceTickets = async () => {
       try {
@@ -152,15 +158,6 @@ const App1 = () => {
   const handleCancel = () => {
     setIsModalVisible(false); // Đóng modal
   };
-  const onSearch = (value) => {
-    setState(prev => ({
-      ...prev,
-      filters: {
-        ...prev.filters,
-        searchQuery: value
-      }
-    }));
-  };
 
   const handleTabClick = (tab) => {
     setActiveTab(tab);
@@ -191,23 +188,15 @@ const App1 = () => {
     });
   };
   const filteredData = useMemo(() => {
-    const { orderType, dateString, searchQuery } = state.filters;
-
-    return data.filter((item) => {
-      const matchesSearchQuery = 
-        searchQuery === "" || 
-        item.productCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.customer.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesOrderType = 
-        orderType === "Tất cả" || 
-        item.statuss === orderType;
-
-      const matchesDate = !dateString || item.postedDate.includes(dateString);
-
-      return matchesSearchQuery && matchesOrderType && matchesDate;
-    });
-  }, [data, state.filters]);
+    const lowerCaseSearch = searchValue.toLowerCase();
+    return data.filter((item) =>
+      item.productCode.toLowerCase().includes(lowerCaseSearch) ||
+      item.postedDate.toLowerCase().includes(lowerCaseSearch) ||
+      item.customer.toLowerCase().includes(lowerCaseSearch) ||
+      item["price-repay"]?.toString().includes(searchValue) ||
+      item.price?.toString().includes(searchValue)
+    );
+  }, [data, searchValue]);
 
   const handleDeleteConfirm = async () => {
     try {
@@ -293,8 +282,8 @@ const App1 = () => {
         <header className="order-header">
           <div className="header-actions">
             <Input.Search
-              placeholder="Tìm kiếm phiếu dịch vụ..."
-              onSearch={onSearch}
+              placeholder="Tìm kiếm sản phẩm..."
+                          onChange={(e) => setSearchValue(e.target.value)}
             />
             <Button
               type="primary"

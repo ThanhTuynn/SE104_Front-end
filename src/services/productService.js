@@ -119,50 +119,136 @@ const productService = {
 
     getCategories: async () => {
         try {
-            const response = await axiosInstance.get('/category/get-all');
-            console.log('Raw categories response:', response.data); // Debug log
-            return response.data; // Return raw data from API
+            console.log('Bắt đầu lấy danh sách loại sản phẩm...');
+            const categoriesRes = await axiosInstance.get('/category/get-all');
+            console.log('Đã nhận được danh sách loại sản phẩm:', categoriesRes.data);
+
+            const categories = categoriesRes.data;
+            
+            // Thêm logs để theo dõi quá trình xử lý
+            console.log('Đang xử lý từng loại sản phẩm để lấy đơn vị tính...');
+            const categoriesWithUnits = await Promise.all(
+                categories.map(async (category) => {
+                    try {
+                        console.log(`Đang lấy thông tin đơn vị tính cho loại sản phẩm ${category.TenLoaiSanPham}...`);
+                        console.log('MaDVTinh của loại sản phẩm:', category.MaDVTinh);
+                        console.log('MaDVTinh của loại sản phẩm:', category.PhanTramLoiNhuan);
+                        const unitResponse = await axiosInstance.get(`/unit/get-details/${category.MaDVTinh}`);
+                        console.log('Đã nhận được thông tin đơn vị tính:', unitResponse.data);
+
+                        const result = {
+                            ...category,
+                            text: category.TenLoaiSanPham,
+                            value: category.MaLoaiSanPham,
+                            MaDVTinh: category.MaDVTinh,
+                            PhanTramLoiNhuan: category.PhanTramLoiNhuan,
+                            TenDVTinh: unitResponse.data.TenDVTinh
+                            
+                        };
+                        
+                        console.log('Đã map thành công:', {
+                            CategoryName: result.TenLoaiSanPham,
+                            UnitName: result.TenDVTinh,
+                            PhanTramLoiNhuan: result.PhanTramLoiNhuan
+                        });
+                        
+                        return result;
+                    } catch (error) {
+                        console.error(`Lỗi khi lấy đơn vị tính cho ${category.TenLoaiSanPham}:`, error);
+                        return {
+                            ...category,
+                            text: category.TenLoaiSanPham,
+                            value: category.MaLoaiSanPham,
+                            MaDVTinh: category.MaDVTinh,
+                            PhanTramLoiNhuan: category.PhanTramLoiNhuan,
+                            TenDVTinh: 'Chưa có đơn vị'
+                        };
+                    }
+                })
+            );
+
+            console.log('Hoàn thành xử lý tất cả loại sản phẩm với đơn vị tính:', categoriesWithUnits);
+            return categoriesWithUnits;
         } catch (error) {
-            console.error('Get categories error:', error);
+            console.error('Lỗi khi lấy danh sách loại sản phẩm:', error);
             throw error;
         }
     },
 
-    addProduct: async (productData) => {
+    getAllUnits: async () => {
         try {
-            console.log('Sending product data:', productData);
-            const response = await axiosInstance.post('/product/create', {
-                MaSanPham: productData.MaSanPham,
-                TenSanPham: productData.TenSanPham,
-                MaLoaiSanPham: productData.MaLoaiSanPham,
-                DonGia: parseFloat(productData.DonGia),
-                SoLuong: parseInt(productData.SoLuong) || 0,
-                HinhAnh: productData.HinhAnh || 'default-image.png'
-            });
+            const response = await axiosInstance.get('/unit/get-all');
             return response.data;
         } catch (error) {
-            console.error('Error adding product:', error.response?.data || error);
-            throw new Error(error.response?.data?.message || 'Không thể thêm sản phẩm');
+            console.error('Error fetching units:', error);
+            throw error;
+        }
+    },
+    
+    createProduct: async (productData, imageFile) => {
+        try {
+            const formData = new FormData();
+            
+            // Debug logs for product data
+            console.log('Product Data before FormData:', {
+                rawData: productData,
+                imageFile: imageFile ? {
+                    name: imageFile.name,
+                    type: imageFile.type,
+                    size: imageFile.size
+                } : 'No image'
+            });
+            
+            // Append all product data fields
+            for (let key in productData) {
+                formData.append(key, productData[key]);
+                console.log(`Adding to FormData - ${key}:`, productData[key]);
+            }
+            
+            // Append image file with specific field name
+            if (imageFile) {
+                formData.append('imageFile', imageFile, imageFile.name);
+                console.log('Image file added to FormData:', {
+                    fileName: imageFile.name,
+                    fileType: imageFile.type,
+                    fileSize: imageFile.size
+                });
+            }
+
+            // Log final FormData contents
+            console.log('Final FormData contents:');
+            for (let pair of formData.entries()) {
+                console.log(`${pair[0]}: ${pair[1] instanceof File ? 'File object' : pair[1]}`);
+            }
+
+            const response = await axiosInstance.post('/product/create', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            
+            console.log('Create product success:', {
+                status: response.status,
+                data: response.data
+            });
+            
+            return response.data;
+        } catch (error) {
+            console.error('Create product error full details:', {
+                message: error.message,
+                status: error.response?.status,
+                responseData: error.response?.data,
+                requestData: {
+                    productData,
+                    hasImage: !!imageFile
+                }
+            });
+            throw new Error(error.response?.data?.error || 'Không thể tạo sản phẩm');
         }
     },
 
-    updateProduct: async (id, productData) => {
+    updateProduct: async (id, dataToUpdate) => {
         try {
-            // Đảm bảo dữ liệu được gửi đi đầy đủ và đúng định dạng
-            const dataToUpdate = {
-                MaSanPham: productData.MaSanPham,
-                TenSanPham: productData.TenSanPham,
-                MaLoaiSanPham: productData.MaLoaiSanPham,
-                DonGia: parseFloat(productData.DonGia),
-                SoLuong: parseInt(productData.SoLuong),
-                HinhAnh: productData.HinhAnh || 'default-image.png'
-            };
-
-            console.log('Sending update request:', {
-                id,
-                data: dataToUpdate
-            });
-
             const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate);
             console.log('Update response:', response.data);
             return response.data;

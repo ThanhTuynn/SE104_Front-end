@@ -527,6 +527,7 @@ const CreateImportOrder = () => {
   };
 
   return (
+    <div className="create-import-order-container1">
     <div className="create-import-order-container">
       <header className="header">
         <h2>Tạo phiếu mua hàng</h2>
@@ -717,6 +718,7 @@ const CreateImportOrder = () => {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

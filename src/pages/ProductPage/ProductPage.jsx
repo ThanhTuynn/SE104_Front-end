@@ -122,10 +122,14 @@ const ProductPage = () => {
       
       const formattedData = products.map(product => ({
         ...product,
-        price: new Intl.NumberFormat('vi-VN', { 
-          style: 'currency', 
-          currency: 'VND' 
-        }).format(product.price)
+        stockDisplay: product.stock === 0 && product.price === 0 ? "Chưa có hàng" : 
+                     product.stock === 0 ? "Hết hàng" : 
+                     product.stock,
+        price: product.price === 0 ? "Chưa có giá" : 
+               new Intl.NumberFormat('vi-VN', { 
+                 style: 'currency', 
+                 currency: 'VND' 
+               }).format(product.price)
       }));
       
       setData(formattedData);
@@ -229,7 +233,7 @@ const ProductPage = () => {
             style={{ width: 40, height: 40, objectFit: "cover" }}
           />
           <div>
-            <strong>{text}</strong>
+            {text}
           </div>
         </div>
       ),
@@ -257,15 +261,22 @@ const ProductPage = () => {
     },
     {
       title: "Lượng tồn",
-      dataIndex: "stock",
+      dataIndex: "stockDisplay",
       key: "stock",
-      sorter: (a, b) => a.stock - b.stock,
-      render: (stock) => (
+      sorter: (a, b) => {
+        if (typeof a.stock === 'number' && typeof b.stock === 'number') {
+          return a.stock - b.stock;
+        }
+        return 0;
+      },
+      render: (stockDisplay, record) => (
         <span style={{ 
-            color: stock <= 5 ? '#ff4d4f' : stock <= 10 ? '#faad14' : '#52c41a',
-            fontWeight: 'bold'
+          color: record.stock === 0 || stockDisplay === "Chưa có hàng" ? '#ff4d4f' : 
+                 record.stock <= 5 ? '#ff4d4f' : 
+                 record.stock <= 10 ? '#faad14' : '#52c41a',
+          fontWeight: 'bold'
         }}>
-            {stock} {/* Hiển thị SoLuong từ database */}
+          {stockDisplay}
         </span>
       )
     },
@@ -273,6 +284,21 @@ const ProductPage = () => {
       title: "Giá",
       dataIndex: "price",
       key: "price",
+      sorter: (a, b) => {
+        // Chuyển đổi giá trị "Chưa có giá" thành 0 để so sánh
+        const priceA = a.price === "Chưa có giá" ? 0 : parseFloat(a.price.replace(/[^\d]/g, ''));
+        const priceB = b.price === "Chưa có giá" ? 0 : parseFloat(b.price.replace(/[^\d]/g, ''));
+        return priceA - priceB;
+      },
+      sortDirections: ['ascend', 'descend'],
+      render: (price) => (
+        <span style={{
+          color: price === "Chưa có giá" ? '#ff4d4f' : 'inherit',
+          fontWeight: price === "Chưa có giá" ? 'bold' : 'normal'
+        }}>
+          {price}
+        </span>
+      )
     }
   ];
 

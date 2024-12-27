@@ -77,7 +77,7 @@ const Personal = () => {
         <Topbar title="Thông tin cá nhân" />
       </div>
       
-
+    <div className='personal-infoo'>
     <div className='store-info'>
       {/* CONTENT */}
       <section id="content">
@@ -217,6 +217,7 @@ const Personal = () => {
       </section>
 
 
+    </div>
     </div>
     </div>
   );
