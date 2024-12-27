@@ -78,11 +78,20 @@ export const createImportProduct = {
   },
   createOrder: async (orderData) => {
     try {
-      const response = await axiosInstance.post('/purchase/create', orderData);
-      console.log('Create order response:', response.data)
+      const response = await axiosInstance.post('/purchase/create', {
+        soPhieu: orderData.orderId,
+        ngayLap: orderData.date,
+        nhaCungCap: orderData.supplierId,
+        chiTietSanPham: orderData.products.map(product => ({
+          maSanPham: product.code,
+          soLuong: parseInt(product.quantity),
+          donGia: parseFloat(product.unitPrice),
+          thanhTien: parseInt(product.quantity) * parseFloat(product.unitPrice)
+        }))
+      });
       return response.data;
     } catch (error) {
-      console.error('Creating order error', error);
+      console.error('Create purchase order error:', error);
       throw error;
     }
   },

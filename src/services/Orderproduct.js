@@ -87,40 +87,96 @@ export const getOrderById = async (id) => {
 
 export const createOrder = async (orderData) => {
     try {
-        const response = await axiosInstance.post('/sale/create', orderData);
+        // Format ngày tháng theo YYYY-MM-DD
+        const formatDate = (dateString) => {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        // Format dữ liệu theo yêu cầu của backend
+        const formattedData = {
+            soPhieu: orderData.invoiceData.SoPhieuBH,
+            ngayLap: formatDate(orderData.invoiceData.NgayLap),
+            khachHang: orderData.invoiceData.MaKhachHang,
+            chiTietSanPham: orderData.details.map(detail => ({
+                maSanPham: detail.MaSanPham,
+                soLuong: parseInt(detail.SoLuong),
+                donGia: parseFloat(detail.DonGiaBanRa),
+                thanhTien: parseFloat(detail.ThanhTien)
+            }))
+        };
+
+        // Log dữ liệu trước khi gửi
+        console.log('=== CREATE ORDER DATA ===');
+        console.log(JSON.stringify(formattedData, null, 2));
+
+        const response = await axiosInstance.post('/sale/create', formattedData);
         return response.data;
     } catch (error) {
+        console.error('Error in createOrder:', error);
+        if (error.response) {
+            console.error('Error Response:', error.response.data);
+            console.error('Error Status:', error.response.status);
+        }
         throw error;
     }
 };
 
 export const updateOrder = async (id, orderData) => {
     try {
-        // Format data to match backend expectations
+        // Log dữ liệu nhận được từ EditOrderModal
+        console.log('=== RECEIVED DATA FROM MODAL ===');
+        console.log('Order ID:', id);
+        console.log('Order Data:', orderData);
+        console.log('Update Details:', orderData.updateDetails);
+        console.log('Add Details:', orderData.addDetails);
+        console.log('Delete Details:', orderData.deleteDetails);
+
+        // Format data theo yêu cầu của backend
         const formattedData = {
-            updateDetails: {
-                NgayLap: orderData.invoiceData.NgayLap,
-                MaKhachHang: orderData.invoiceData.MaKhachHang,
-                TongTien: parseFloat(orderData.invoiceData.TongTien)
-            },
-            addDetails: orderData.details.map(detail => ({
+            updateDetails: [
+                {
+                    NgayLap: orderData.updateDetails[0].NgayLap,
+                    MaKH: orderData.updateDetails[0].MaKH
+                }
+            ],
+            addDetails: orderData.addDetails.map(detail => ({
                 MaSanPham: detail.MaSanPham,
                 SoLuong: parseInt(detail.SoLuong),
                 DonGiaBanRa: parseFloat(detail.DonGiaBanRa),
                 ThanhTien: parseFloat(detail.ThanhTien)
             })),
-            deleteDetails: orderData.deleteDetails.map(detail => ({
+            deleteDetails: orderData.deleteDetails?.map(detail => ({
                 MaChiTietBH: detail.MaChiTietBH,
                 MaSanPham: detail.MaSanPham,
                 SoLuong: parseInt(detail.SoLuong)
-            }))
+            })) || []
         };
 
-        console.log('Formatted update data:', formattedData);
+        // Log dữ liệu đã format trước khi gửi
+        console.log('=== FORMATTED DATA TO SEND ===');
+        console.log('Formatted Data:', JSON.stringify(formattedData, null, 2));
+        console.log('Update Details:', formattedData.updateDetails);
+        console.log('Add Details:', formattedData.addDetails);
+        console.log('Delete Details:', formattedData.deleteDetails);
+
         const response = await axiosInstance.put(`/sale/update/${id}`, formattedData);
+        
+        // Log response từ server
+        console.log('=== SERVER RESPONSE ===');
+        console.log('Response:', response.data);
+
         return response.data;
     } catch (error) {
-        console.error('Update order error:', error);
+        console.error('=== ERROR IN UPDATE ORDER ===');
+        console.error('Error:', error);
+        if (error.response) {
+            console.error('Error Response:', error.response.data);
+            console.error('Error Status:', error.response.status);
+        }
         throw error;
     }
 };

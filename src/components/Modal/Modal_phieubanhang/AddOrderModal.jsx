@@ -29,30 +29,80 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
 
   const fetchProducts = async () => {
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      // 1. Fetch products and categories first
+      const [productsRes, categoriesRes, unitsRes] = await Promise.all([
         axios.get('http://localhost:3000/api/product/get-all'),
-        axios.get('http://localhost:3000/api/category/get-all')
+        axios.get('http://localhost:3000/api/category/get-all'),
+        axios.get('http://localhost:3000/api/unit/get-all') // Lấy tất cả đơn vị tính
       ]);
 
-      const categoryMap = {};
-      categoriesRes.data.forEach(cat => {
-        categoryMap[cat.MaLoaiSanPham] = {
-          PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
-          TenLoaiSanPham: cat.TenLoaiSanPham
-        };
+      // 2. Create units mapping first - handle potential array structure
+      const unitsMap = {};
+      console.log('Units response:', unitsRes.data); // Debug log
+
+      // Ensure we're working with an array of units
+      const unitsArray = Array.isArray(unitsRes.data) ? unitsRes.data : 
+                        (unitsRes.data.data ? unitsRes.data.data : []);
+
+      unitsArray.forEach(unit => {
+        if (unit && unit.MaDVTinh) {
+          unitsMap[unit.MaDVTinh] = unit.TenDVTinh;
+          console.log('Processing unit:', {
+            MaDVTinh: unit.MaDVTinh,
+            TenDVTinh: unit.TenDVTinh
+          });
+        }
       });
 
-      const productsWithStock = productsRes.data.map(product => ({
-        ...product,
-        currentStock: product.SoLuong,
-        originalStock: product.SoLuong,
-        PhanTramLoiNhuan: categoryMap[product.MaLoaiSanPham]?.PhanTramLoiNhuan || 0
-      }));
+      // Rest of your existing code...
+      const categoryMap = {};
+      categoriesRes.data.forEach(cat => {
+        if (cat.MaDVTinh) {
+          categoryMap[cat.MaLoaiSanPham] = {
+            TenLoaiSanPham: cat.TenLoaiSanPham,
+            PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
+            MaDVTinh: cat.MaDVTinh
+          };
+        }
+      });
 
-      setProducts(productsWithStock);
+      // Rest of the mapping code remains the same...
+      const productsWithDetails = productsRes.data
+        .filter(product => !product.isDelete)
+        .map(product => {
+          const category = categoryMap[product.MaLoaiSanPham] || {};
+          const tenDVTinh = unitsMap[category.MaDVTinh] || 'N/A';
+
+          console.log('Mapping product:', {
+            MaSanPham: product.MaSanPham,
+            TenSanPham: product.TenSanPham,
+            MaDVTinh: category.MaDVTinh,
+            TenDVTinh: tenDVTinh
+          });
+
+          return {
+            id: product.MaSanPham,
+            name: product.TenSanPham,
+            price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
+            rawPrice: product.DonGia,
+            image: product.HinhAnh || 'default-image.png',
+            MaLoaiSanPham: product.MaLoaiSanPham,
+            TenLoaiSanPham: category.TenLoaiSanPham,
+            DonGia: product.DonGia,
+            stock: product.SoLuong || 0,
+            PhanTramLoiNhuan: category?.PhanTramLoiNhuan || 0,
+            MaDVTinh: category.MaDVTinh,
+            TenDVTinh: tenDVTinh,
+            categoryName: category.TenLoaiSanPham || 'Chưa phân loại'
+          };
+      });
+
+      console.log('Final Products with Details:', productsWithDetails);
+      setProducts(productsWithDetails);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      message.error('Không thể tải danh sách sản phẩm');
+      console.error('Error in fetchProducts:', error);
+      console.error('Units Response:', error.response?.data); // Additional error logging
+      message.error('Không thể tải dữ liệu sản phẩm');
     }
   };
 
@@ -91,27 +141,27 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   };
 
   const handleQuantityChange = (productId, change) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
+    const cartItem = cart.find(item => item.id === productId);
+    if (!cartItem) return;
+  
     setQuantities(prev => {
-        const currentQty = prev[productId] || 1;
-        const newQty = currentQty + change;
-        
-        if (newQty < 1) return prev;
-        
-        const cartItem = cart.find(item => item.id === productId);
-        const originalQty = cartItem ? cartItem.quantity : 0;
-        const availableStock = product.originalStock - (newQty - originalQty);
-        
-        if (availableStock < 0) {
-            message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${product.originalStock})`);
-            return prev;
-        }
-        
-        return { ...prev, [productId]: newQty };
+      const currentQty = prev[productId] || 1;
+      const newQty = currentQty + change;
+  
+      // Kiểm tra số lượng tối thiểu
+      if (newQty < 1) return prev;
+  
+      // Kiểm tra số lượng tồn kho
+      if (newQty > cartItem.stock) {
+        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${cartItem.stock})`);
+        return prev;
+      }
+  
+      // Cập nhật số lượng mới
+      return { ...prev, [productId]: newQty };
     });
-};
+  };
+  
   const resetModal = () => {
     setSearchTerm("");
     setFilteredProducts([]);
@@ -388,9 +438,21 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                             }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <strong>{item.name}</strong>
-                              <div style={{ color: "gray", marginLeft: "10px", textAlign: "right" }}>
+                            <div style={{ 
+                              display: "flex", 
+                              justifyContent: "space-between", 
+                              alignItems: "center",
+                              marginBottom: "4px"
+                            }}>
+                              <strong style={{ flex: 1 }}>{item.name}</strong>
+                              <div style={{ 
+                                color: "gray", 
+                                marginLeft: "10px",
+                                backgroundColor: "#f0f0f0",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "0.9em"
+                              }}>
                                 {item.TenDVTinh}
                               </div>
                             </div>
@@ -405,15 +467,34 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                                 calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
                               )} đ
                             </div>
+                            <div style={{ color: item.stock > 0 ? "green" : "red", marginTop: "4px" }}>
+                              Tồn kho: {item.stock}
+                            </div>
                           </div>
-                          <div style={{ 
-                            marginRight: '15px',
-                            padding: '4px 8px',
-                            backgroundColor: '#e6f7ff',
-                            borderRadius: '4px',
-                            fontSize: '14px'
-                          }}>
-                            Số lượng: {quantities[item.id] || 1}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '15px' }}>
+                            <Button 
+                              size="small"
+                              onClick={() => handleQuantityChange(item.id, -1)}
+                              disabled={quantities[item.id] <= 1}
+                            >
+                              -
+                            </Button>
+                            <span style={{ 
+                              padding: '4px 8px',
+                              backgroundColor: '#e6f7ff',
+                              borderRadius: '4px',
+                              minWidth: '40px',
+                              textAlign: 'center'
+                            }}>
+                              {quantities[item.id] || 1}
+                            </span>
+                            <Button
+                              size="small"
+                              onClick={() => handleQuantityChange(item.id, 1)}
+                              disabled={quantities[item.id] >= item.stock}
+                            >
+                              +
+                            </Button>
                           </div>
                           <button
                             onClick={() => removeFromCart(item.id)}

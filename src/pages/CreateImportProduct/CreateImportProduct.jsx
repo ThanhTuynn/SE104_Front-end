@@ -104,39 +104,60 @@ const CreateImportOrder = () => {
 
   const handleSave = async () => {
     if (!isFormComplete()) {
-      alert("Vui lòng điền đầy đủ các trường bắt buộc.");
+      message.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
     }
 
-    const orderId = generateOrderId();
-    const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+    // Kiểm tra thông tin sản phẩm
+    const invalidProducts = selectedProducts.filter(
+      product => !product.quantity || !product.unitPrice
+    );
+    
+    if (invalidProducts.length > 0) {
+      message.error("Vui lòng nhập đầy đủ số lượng và đơn giá cho tất cả sản phẩm");
+      return;
+    }
+
+    // Format mã phiếu mua hàng theo yêu cầu (PMH + số)
+    const orderId = `PMH${Date.now().toString().slice(-6)}`;
+    const currentDate = new Date().toISOString().split('T')[0];
 
     const orderData = {
-      orderId,
-      date: currentDate,
-      supplierId: selectedSuppliers[0].id, // Assuming only one supplier is selected
+      orderId, // soPhieu
+      date: currentDate, // ngayLap
+      supplierId: selectedSuppliers[0].id, // nhaCungCap
       products: selectedProducts.map(product => ({
-        productId: product.code,
-        quantity: product.quantity,
-        unitPrice: product.unitPrice,
-      })),
+        code: product.code, // maSanPham
+        quantity: parseInt(product.quantity), // soLuong
+        unitPrice: parseFloat(product.unitPrice), // donGia
+      }))
     };
 
     try {
       await createImportProduct.createOrder(orderData);
-      message.success("Phiếu mua hàng đã được lưu.");
-      console.log("Order Data:", orderData);
-      console.log("Order Properties:", Object.keys(orderData));
-      alert(`Thông tin phiếu mua hàng:
-        Mã phiếu: ${orderData.orderId}
-        Ngày: ${orderData.date}
-        Nhà cung cấp: ${selectedSuppliers[0].name}
-        Sản phẩm: ${orderData.products.map(p => `\n  - Mã: ${p.productId}, Số lượng: ${p.quantity}, Đơn giá: ${p.unitPrice}`).join('')}
-      `);
-      navigate("/list-import-product"); // Navigate to the list-import-product page
+      message.success("Phiếu mua hàng đã được lưu thành công");
+      
+      // Cập nhật số lượng sản phẩm trong kho
+      for (const product of selectedProducts) {
+        try {
+          const formData = new FormData();
+          formData.append('MaSanPham', product.code);
+          formData.append('TenSanPham', product.name);
+          formData.append('MaLoaiSanPham', product.category);
+          formData.append('DonGia', product.unitPrice);
+          formData.append('SoLuong', parseInt(product.quantity));
+          formData.append('HinhAnh', product.image);
+
+          await createImportProduct.updateProduct(product.code, formData);
+        } catch (error) {
+          console.error(`Error updating product ${product.code}:`, error);
+        }
+      }
+
+      navigate("/list-import-product");
     } catch (error) {
-      message.error("Lỗi khi lưu phiếu mua hàng");
-      console.error("Save order error:", error.response ? error.response.data : error.message);
+      message.error("Lỗi khi lưu phiếu mua hàng: " + (error.response?.data?.message || error.message));
+      console.error("Save order error:", error);
     }
   };
 
@@ -514,8 +535,20 @@ const CreateImportOrder = () => {
   ];
 
   const isFormComplete = () => {
-    return selectedSuppliers.length > 0;
-    // return selectedSuppliers.length > 0 && selectedProducts.length > 0;
+    if (selectedSuppliers.length === 0) {
+      return false;
+    }
+
+    if (selectedProducts.length === 0) {
+      return false;
+    }
+
+    // Kiểm tra xem tất cả sản phẩm đã có số lượng và đơn giá chưa
+    const allProductsComplete = selectedProducts.every(
+      product => product.quantity && product.unitPrice
+    );
+
+    return allProductsComplete;
   };
 
   const calculateTotalPrice = () => {
@@ -620,7 +653,7 @@ const CreateImportOrder = () => {
           <h3>Sản phẩm</h3>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Input
-              placeholder="Tìm kiếm sản phẩm theo mã hoặc tên"
+              placeholder="Tìm ki���m sản phẩm theo mã hoặc tên"
               value={productSearchTerm}
               onChange={handleProductSearch}
             />

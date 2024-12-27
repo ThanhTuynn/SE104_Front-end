@@ -35,7 +35,6 @@ const typeProductService = {
           MaLoaiSanPham: type.MaLoaiSanPham,
           TenLoaiSanPham: type.TenLoaiSanPham,
           MaDVTinh: type.MaDVTinh,
-          TenDVTinh: type.unit?.TenDVTinh,
           PhanTramLoiNhuan: type.PhanTramLoiNhuan
         }))
       };
@@ -66,6 +65,17 @@ const typeProductService = {
       return response.data;
     } catch (error) {
       console.error('Create type error:', error);
+      throw error;
+    }
+  },
+
+  // Fix the updateType method with correct endpoint
+  updateType: async (id, data) => {
+    try {
+      const response = await axiosInstance.put(`/category/update/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error in updateType:', error.response?.data || error.message);
       throw error;
     }
   }
