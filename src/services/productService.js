@@ -52,13 +52,7 @@ const productService = {
                 categoryMap[cat.MaLoaiSanPham] = cat.TenLoaiSanPham;
             });
     
-            // Sort products by createdAt in descending order
-            const sortedProducts = productsRes.data.sort((a, b) => {
-                return new Date(b.createdAt) - new Date(a.createdAt);
-            });
-    
-            // Map the sorted products
-            return sortedProducts.map(product => ({
+            return productsRes.data.map(product => ({
                 key: product.MaSanPham,
                 MaSanPham: product.MaSanPham,
                 TenSanPham: product.TenSanPham,
@@ -67,7 +61,8 @@ const productService = {
                 DonGia: product.DonGia || 0,
                 SoLuong: product.SoLuong || 0,
                 HinhAnh: product.HinhAnh || 'default-image.png',
-                createdAt: product.createdAt,
+                isDelete: product.isDelete || false,
+                status: product.isDelete ? 'Không hoạt động' : 'Đang hoạt động',
     
                 // Additional fields for UI
                 productName: product.TenSanPham,
@@ -84,7 +79,7 @@ const productService = {
             throw error;
         }
     },
-
+    
     getAllCategories: async () => {
         try {
             const response = await axiosInstance.get('/category/get-all');
@@ -101,25 +96,97 @@ const productService = {
 
     deleteProduct: async (id) => {
         try {
-            const response = await axiosInstance.delete(`/product/delete/${id}`);
-            console.log('Delete response:', response.data);
+            const response = await axiosInstance.patch(`/product/soft-delete/${id}`, {
+                isDelete: true
+            });
             return response.data;
         } catch (error) {
-            console.error('Delete product error:', error);
+            console.error('Soft delete product error:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             throw new Error(error.response?.data?.message || 'Không thể xóa sản phẩm');
         }
     },
-
+    
     deleteMultipleProducts: async (ids) => {
         try {
-            // Sử dụng Promise.all để xóa nhiều sản phẩm cùng lúc
-            await Promise.all(ids.map(id => 
-                axiosInstance.delete(`/product/delete/${id}`)
-            ));
-            return { success: true, message: 'Đã xóa thành công các sản phẩm' };
+            // Validate input
+            if (!Array.isArray(ids) || ids.length === 0) {
+                throw new Error('Danh sách sản phẩm không hợp lệ');
+            }
+
+            console.log('Attempting to delete products with IDs:', ids);
+
+            // Process deletions with detailed logging
+            const results = await Promise.allSettled(
+                ids.map(async (id) => {
+                    try {
+                        const response = await axiosInstance.patch(`/product/soft-delete/${id}`, {
+                            isDelete: true
+                        });
+                        return {
+                            id,
+                            success: true,
+                            message: response.data.message
+                        };
+                    } catch (error) {
+                        console.error(`Error deleting product ${id}:`, error);
+                        return {
+                            id,
+                            success: false,
+                            error: error.response?.data?.message || 'Lỗi khi xóa sản phẩm'
+                        };
+                    }
+                })
+            );
+
+            // Check results
+            const failures = results.filter(result => 
+                result.status === 'rejected' || 
+                (result.status === 'fulfilled' && !result.value.success)
+            );
+
+            if (failures.length > 0) {
+                console.error('Some products failed to delete:', failures);
+                throw new Error('Một số sản phẩm không thể xóa. Vui lòng thử lại.');
+            }
+
+            const successfulIds = results
+                .filter(result => result.status === 'fulfilled' && result.value.success)
+                .map(result => result.value.id);
+
+            return {
+                success: true,
+                message: 'Đã xóa thành công các sản phẩm',
+                deletedIds: successfulIds
+            };
+
         } catch (error) {
-            console.error('Delete multiple products error:', error);
-            throw new Error('Không thể xóa một số sản phẩm');
+            console.error('Soft delete multiple products error:', {
+                message: error.message,
+                originalError: error
+            });
+            throw new Error(error.message || 'Không thể xóa một số sản phẩm');
+        }
+    },
+
+    restoreProduct: async (id) => {
+        try {
+            console.log('Attempting to restore product:', id);
+            const response = await axiosInstance.patch(`/product/restore/${id}`, {
+                isDelete: false,
+                MaSanPham: id
+            });
+            console.log('Restore response:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('Restore product error:', error);
+            throw new Error(
+                error.response?.data?.message || 
+                'Không thể khôi phục sản phẩm'
+            );
         }
     },
 
@@ -279,6 +346,19 @@ const productService = {
         } catch (error) {
             console.error('Error fetching product:', error);
             throw error;
+        }
+    },
+
+    softDeleteProduct: async (id) => {
+        try {
+            const response = await axiosInstance.patch(`/product/soft-delete/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error('Soft delete product error:', error);
+            throw new Error(
+                error.response?.data?.message || 
+                'Không thể xóa sản phẩm'
+            );
         }
     }
 };

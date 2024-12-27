@@ -137,3 +137,18 @@
   padding: 4px 8px;
   border-radius: 4px;
 }
+
+.ant-table-row.deleted-product {
+    opacity: 0.6;
+    background-color: #f5f5f5;
+}
+
+.ant-table-row.deleted-product:hover {
+    opacity: 0.8;
+}
+
+.ant-btn.ant-btn-primary:hover {
+    background: #1890ff !important;
+    color: white !important;
+    border-color: #1890ff !important;
+}
