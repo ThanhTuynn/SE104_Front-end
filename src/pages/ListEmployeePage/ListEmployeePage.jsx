@@ -1,64 +1,19 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Input, Button, Tag, Table, message, Modal, Form, Select } from "antd";
-import {
-  ExportOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { ExportOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import "./ListEmployeePage.css";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
-
-// Hàm khởi tạo dữ liệu mẫu cho nhân viên
-const initData = () => [
-  {
-    id: 1,
-    employeeCode: "EMP001",
-    name: "John Bushmill",
-    username: "john_bushmill",
-    email: "john.bushmill@example.com",
-    phone: "0123456789",
-    role: "Quản lý",
-    password: "password123", // Added password field
-  },
-  {
-    id: 2,
-    employeeCode: "EMP002",
-    name: "Laura Prichett",
-    username: "laura_prichett",
-    email: "laura.prichett@example.com",
-    phone: "0987654321",
-    role: "Nhân viên",
-    password: "password123", // Added password field
-  },
-  {
-    id: 3,
-    employeeCode: "EMP003",
-    name: "Mohammad Karim",
-    username: "mohammad_karim",
-    email: "mohammad.karim@example.com",
-    phone: "0933456789",
-    role: "Nhân viên",
-    password: "password123", // Added password field
-  },
-  {
-    id: 4,
-    employeeCode: "EMP004",
-    name: "Sarah Connor",
-    username: "sarah_connor",
-    email: "sarah.connor@example.com",
-    phone: "0912345678",
-    role: "Quản lý",
-    password: "password123", // Added password field
-  },
-];
+import employeeService from "../../services/listEmployee";
 
 const EmployeeList = () => {
   const navigate = useNavigate();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("Tất cả chức vụ"); // Add this line
 
-  // Quản lý trạng thái trong đối tượng params
   const [params, setParams] = useState({
-    employees: initData(),
+    employees: [],
     selectedRowKeys: [],
     filters: "Tất cả chức vụ",
     isModalVisible: false,
@@ -66,76 +21,82 @@ const EmployeeList = () => {
     search: "",
   });
 
-  const [form] = Form.useForm();
-  const [activeTab, setActiveTab] = useState("Tất cả chức vụ");
-
+  // Add this function
   const handleTabClick = (tabName) => {
     setActiveTab(tabName);
     handleChange("filters", tabName);
   };
 
-  // Hàm handleChange dùng để cập nhật trạng thái
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const data = await employeeService.getAllEmployees();
+      handleChange("employees", data);
+    } catch (error) {
+      message.error("Không thể tải danh sách nhân viên");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
   const handleChange = (key, value) => {
-    setParams((prev) => ({ ...prev, [key]: value }));
+    setParams(prev => ({ ...prev, [key]: value }));
   };
 
-  const filteredEmployees = useMemo(() => {
-    const { employees, filters, search } = params;
-    let result = employees;
-
-    if (filters !== "Tất cả chức vụ") {
-      result = result.filter((employee) => employee.role === filters);
+  const handleAddEmployee = async (values) => {
+    try {
+      setLoading(true);
+      await employeeService.createEmployee({
+        username: values.username,
+        password: values.password,
+        role: values.role,
+        permissions: values.permissions // Add permissions
+      });
+      
+      message.success("Thêm nhân viên thành công");
+      form.resetFields();
+      handleChange("isModalVisible", false);
+      fetchEmployees();
+    } catch (error) {
+      message.error(error.message || "Lỗi khi thêm nhân viên");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (search) {
-      result = result.filter(
-        (employee) =>
-          employee.name.toLowerCase().includes(search.toLowerCase()) ||
-          employee.email.toLowerCase().includes(search.toLowerCase())
+  const handleConfirmDelete = async () => {
+    try {
+      setLoading(true);
+      const deletePromises = params.selectedRowKeys.map(id => 
+        employeeService.deleteEmployee(id)
       );
+      await Promise.all(deletePromises);
+      message.success("Xóa nhân viên thành công");
+      handleChange("selectedRowKeys", []);
+      handleChange("isDeleteModalVisible", false);
+      fetchEmployees();
+    } catch (error) {
+      message.error("Lỗi khi xóa nhân viên");
+    } finally {
+      setLoading(false);
     }
-
-    return result;
-  }, [params]);
-
-  // Xử lý thêm nhân viên mới
-  const handleAddEmployee = (values) => {
-    const { password, confirmPassword, ...rest } = values;
-
-    if (password !== confirmPassword) {
-      message.error("Mật khẩu và xác nhận mật khẩu không khớp.");
-      return;
-    }
-
-    const newEmployee = {
-      id: params.employees.length + 1,
-      employeeCode: `EMP00${params.employees.length + 1}`,
-      ...rest,
-      password,
-    };
-
-    handleChange("employees", [...params.employees, newEmployee]);
-    message.success("Đã thêm nhân viên mới.");
-    handleChange("isModalVisible", false);
   };
 
-  // Xử lý xóa nhân viên đã chọn
-  const handleConfirmDelete = () => {
-    const remainingEmployees = params.employees.filter(
-      (employee) => !params.selectedRowKeys.includes(employee.id)
-    );
-    handleChange("employees", remainingEmployees);
-    handleChange("selectedRowKeys", []);
-    handleChange("isDeleteModalVisible", false);
-    message.success("Đã xóa nhân viên đã chọn.");
-  };
+  const filteredEmployees = params.employees.filter(employee => {
+    const matchesFilter = params.filters === "Tất cả chức vụ" || employee.role === params.filters;
+    const matchesSearch = !params.search || 
+      employee.username.toLowerCase().includes(params.search.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const columns = [
     { title: "Mã nhân viên", dataIndex: "employeeCode", key: "employeeCode" },
-    { title: "Họ tên", dataIndex: "name", key: "name" },
+    
     { title: "Username", dataIndex: "username", key: "username" },
-    { title: "Email", dataIndex: "email", key: "email" },
-    { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
     {
       title: "Chức vụ",
       dataIndex: "role",
@@ -155,6 +116,13 @@ const EmployeeList = () => {
         return <Tag color={color}>{role}</Tag>;
       },
     },
+  ];
+
+  // Update role options to match database roles
+  const roleOptions = [
+    { label: "Quản lý", value: "Quản lý" },
+    { label: "Nhân viên bán hàng", value: "Nhân viên bán hàng" },
+    { label: "Nhân viên kho", value: "Nhân viên kho" }
   ];
 
   return (
@@ -225,13 +193,7 @@ const EmployeeList = () => {
           centered
         >
           <Form form={form} layout="vertical" onFinish={handleAddEmployee}>
-            <Form.Item
-              label="Họ tên"
-              name="name"
-              rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}
-            >
-              <Input placeholder="Nhập họ tên..." />
-            </Form.Item>
+            
             <Form.Item
               label="Username"
               name="username"
@@ -239,22 +201,7 @@ const EmployeeList = () => {
             >
               <Input placeholder="Nhập username..." />
             </Form.Item>
-            <Form.Item
-              label="Email"
-              name="email"
-              rules={[{ required: true, message: "Vui lòng nhập email" }]}
-            >
-              <Input placeholder="Nhập email..." />
-            </Form.Item>
-            <Form.Item
-              label="Số điện thoại"
-              name="phone"
-              rules={[
-                { required: true, message: "Vui lòng nhập số điện thoại" },
-              ]}
-            >
-              <Input placeholder="Nhập số điện thoại..." />
-            </Form.Item>
+           
             <Form.Item
               label="Chức vụ"
               name="role"
@@ -262,10 +209,7 @@ const EmployeeList = () => {
             >
               <Select
                 placeholder="Chọn chức vụ"
-                options={[
-                  { label: "Quản lý", value: "Quản lý" },
-                  { label: "Nhân viên", value: "Nhân viên" },
-                ]}
+                options={roleOptions}
               />
             </Form.Item>
             <Form.Item

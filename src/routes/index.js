@@ -22,6 +22,7 @@ import Dashboard from '../pages/DashboardPage/Dashboard'
 import Personal from '../pages/PersonalInfoPage/Personal'
 import PersonalInfoPage from '../pages/PersonalInfoPage/Personal'; // Import PersonalInfoPage
 import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import Unittypeproduct
+import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
 
 const routes = [
     {
@@ -135,6 +136,12 @@ const routes = [
     {
         path: 'add-service',
         page: AddServicePage,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: 'type-product',
+        page: TypeProductPage,
         isShowHeader: true,
         protected: true,
     },

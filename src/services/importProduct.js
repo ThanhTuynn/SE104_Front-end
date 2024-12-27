@@ -25,58 +25,25 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-
-
-// Hàm lấy danh sách tất cả phiếu mua hàng
-export const getAllPurchases = async () => {
-  try {
-    const response = await axiosInstance.get('/purchase/get-all');
-    return response.data;
-  } catch (error) {
-    console.error('Getting all purchase orders failed:', error);
-    throw error;
+export const importProduct = {
+  getAllPurchases: async () => {
+    try {
+      const response = await axiosInstance.get('/purchase/get-all');
+      return response.data;
+    } catch (error) {
+      console.error('Get all purchases error', error);
+      throw error;
+    }
+  },
+  deletePurchase: async (purchaseId) => {
+    try {
+      const response = await axiosInstance.delete(`/purchase/delete/${purchaseId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete purchase error', error);
+      throw error;
+    }
   }
 };
 
-// Hàm lấy chi tiết phiếu mua hàng theo số phiếu
-export const getPurchaseDetails = async (soPhieu) => {
-  try {
-    const response = await axiosInstance.get(`/purchase/get-detail/${soPhieu}`);
-    return response.data;
-  } catch (error) {
-    console.error('Getting purchase order details failed:', error);
-    throw error;
-  }
-};
-
-// Hàm tạo phiếu mua hàng mới
-export const createPurchase = async (purchaseData) => {
-  try {
-    const response = await axiosInstance.post('/purchase/create', purchaseData);
-    return response.data;
-  } catch (error) {
-    console.error('Creating purchase failed:', error);
-    throw error;
-  }
-};
-
-// Hàm cập nhật phiếu mua hàng
-export const updatePurchase = async (soPhieu, purchaseData) => {
-  try {
-    const response = await axiosInstance.put(`/purchase/update/${soPhieu}`, purchaseData);
-    return response.data;
-  } catch (error) {
-    console.error('Updating purchase order failed:', error);
-    throw error;
-  }
-};
-
-// Hàm xóa phiếu mua hàng
-export const deletePurchase = async (soPhieu) => {
-  try {
-    await axiosInstance.delete(`/purchase/delete/${soPhieu}`);
-  } catch (error) {
-    console.error('Deleting purchase order failed:', error);
-    throw error;
-  }
-};
+export default importProduct;
