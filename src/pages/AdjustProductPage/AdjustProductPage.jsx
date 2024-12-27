@@ -14,6 +14,7 @@ import {
   Col,
   Tag,
   Breadcrumb, // Thêm import Breadcrumb
+  Upload // Add Upload component
 } from "antd";
 import {
   DashboardOutlined,
@@ -25,6 +26,7 @@ import {
   UserOutlined,
   DollarOutlined,
   LogoutOutlined,
+  UploadOutlined // Add UploadOutlined icon
 } from "@ant-design/icons";
 import "./AdjustProductPage.css";
 
@@ -137,36 +139,89 @@ const App = () => {
 
   const handleSaveProduct = async () => {
     try {
-      const currentProduct = location.state?.productData;
-      
-      if (!currentProduct) {
-        message.error('Không tìm thấy thông tin sản phẩm');
-        return;
-      }
+        const currentProduct = location.state?.productData;
+        if (!currentProduct) {
+            message.error('Không tìm thấy thông tin sản phẩm');
+            return;
+        }
 
-      // Format dữ liệu theo đúng yêu cầu của API
-      const updatedProduct = {
-        TenSanPham: formData.productName,
-        MaLoaiSanPham: formData.categoryId,
-        MaSanPham: formData.productCode,
-        DonGia: parseFloat(formData.price),
-        SoLuong: currentProduct.stock, // Thêm số lượng từ sản phẩm hiện tại
-        HinhAnh: formData.image
-      };
+        // Validate required fields
+        if (!formData.productName || !formData.categoryId) {
+            message.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+            return;
+        }
 
-      console.log('Updating product:', {
-        id: currentProduct.key,
-        data: updatedProduct
-      });
+        const loadingMessage = message.loading('Đang cập nhật sản phẩm...', 0);
 
-      await productService.updateProduct(currentProduct.key, updatedProduct);
-      message.success('Cập nhật sản phẩm thành công');
-      navigate('/list-product');
+        try {
+            // Prepare update data
+            const updateData = {
+                TenSanPham: formData.productName,
+                MaLoaiSanPham: formData.categoryId,
+                MaSanPham: formData.productCode,
+                DonGia: formData.price || 0,
+                SoLuong: formData.stock || 0
+            };
+
+            console.log('Sending update:', {
+                id: currentProduct.key,
+                data: updateData,
+                hasImage: !!formData.imageFile
+            });
+
+            const response = await productService.updateProduct(
+                currentProduct.key,
+                updateData,
+                formData.imageFile
+            );
+
+            console.log('Update successful:', response);
+            loadingMessage();
+            message.success('Cập nhật sản phẩm thành công');
+            
+            // Navigate after successful update
+            setTimeout(() => {
+                navigate('/list-product');
+            }, 1000);
+        } catch (error) {
+            loadingMessage();
+            console.error('Update failed:', error);
+            throw error;
+        }
     } catch (error) {
-      console.error('Error updating product:', error);
-      message.error('Không thể cập nhật sản phẩm: ' + error.message);
+        message.error('Không thể cập nhật sản phẩm: ' + error.message);
     }
-  };
+};
+
+const handleFileUpload = (file) => {
+    console.log('File upload started:', file);
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+        message.error('Chỉ chấp nhận file hình ảnh!');
+        return false;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        message.error('Kích thước hình ảnh phải nhỏ hơn 5MB!');
+        return false;
+    }
+
+    // Update form data with new file
+    setFormData(prev => ({
+        ...prev,
+        imageFile: file,
+        imagePreview: URL.createObjectURL(file)
+    }));
+
+    console.log('File processed:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+    });
+
+    return false;
+};
 
   return (
     <Layout className="app-layout-container-adjust">
@@ -312,31 +367,32 @@ const App = () => {
               <Row gutter={16}>
                 <Col span={24}>
                   <label>Hình ảnh sản phẩm</label>
-                  <div style={{ marginTop: '8px' }}>
-                    {formData.image && (
-                      <img
-                        src={formData.image}
-                        alt="Product"
-                        style={{
-                          maxWidth: '200px',
-                          maxHeight: '200px',
-                          objectFit: 'contain',
-                          border: '1px solid #d9d9d9',
-                          borderRadius: '4px'
-                        }}
-                      />
+                  <div className="image-upload-section">
+                    {(formData.imagePreview || formData.image) && (
+                      <div className="image-preview" style={{ marginBottom: '16px' }}>
+                        <img
+                          src={formData.imagePreview || formData.image}
+                          alt="Product"
+                          style={{
+                            maxWidth: '200px',
+                            maxHeight: '200px',
+                            objectFit: 'contain',
+                            border: '1px solid #d9d9d9',
+                            borderRadius: '4px'
+                          }}
+                        />
+                      </div>
                     )}
+                    <Upload
+                      accept="image/*"
+                      beforeUpload={handleFileUpload}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />}>
+                        {formData.image ? 'Thay đổi ảnh' : 'Tải ảnh lên'}
+                      </Button>
+                    </Upload>
                   </div>
-                </Col>
-              </Row>
-              <Row gutter={16}>
-                <Col span={24}>
-                  <label>Link hình ảnh</label>
-                  <Input
-                    placeholder="Nhập link hình ảnh"
-                    value={formData.image}
-                    onChange={(e) => handleInputChange('image', e.target.value)}
-                  />
                 </Col>
               </Row>
             </div>

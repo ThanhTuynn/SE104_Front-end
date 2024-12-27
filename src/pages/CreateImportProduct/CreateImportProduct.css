@@ -1,4 +1,4 @@
-/* Toàn bộ trang */
+.create-import-order-container1{
 .create-import-order-container {
     margin-left: 270px;
     padding: 20px;
@@ -201,4 +201,5 @@ button {
 .ant-modal-footer {
   border-radius: 0 0 8px 8px;
   background-color: #fafafa;
+}
 }

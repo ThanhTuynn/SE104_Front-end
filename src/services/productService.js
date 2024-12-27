@@ -184,42 +184,71 @@ const productService = {
             throw error;
         }
     },
-
-    addProduct: async (productData) => {
+    
+    createProduct: async (productData, imageFile) => {
         try {
-            console.log('Sending product data:', productData);
-            const response = await axiosInstance.post('/product/create', {
-                MaSanPham: productData.MaSanPham,
-                TenSanPham: productData.TenSanPham,
-                MaLoaiSanPham: productData.MaLoaiSanPham,
-                DonGia: parseFloat(productData.DonGia),
-                SoLuong: parseInt(productData.SoLuong) || 0,
-                HinhAnh: productData.HinhAnh || 'default-image.png'
+            const formData = new FormData();
+            
+            // Debug logs for product data
+            console.log('Product Data before FormData:', {
+                rawData: productData,
+                imageFile: imageFile ? {
+                    name: imageFile.name,
+                    type: imageFile.type,
+                    size: imageFile.size
+                } : 'No image'
             });
+            
+            // Append all product data fields
+            for (let key in productData) {
+                formData.append(key, productData[key]);
+                console.log(`Adding to FormData - ${key}:`, productData[key]);
+            }
+            
+            // Append image file with specific field name
+            if (imageFile) {
+                formData.append('imageFile', imageFile, imageFile.name);
+                console.log('Image file added to FormData:', {
+                    fileName: imageFile.name,
+                    fileType: imageFile.type,
+                    fileSize: imageFile.size
+                });
+            }
+
+            // Log final FormData contents
+            console.log('Final FormData contents:');
+            for (let pair of formData.entries()) {
+                console.log(`${pair[0]}: ${pair[1] instanceof File ? 'File object' : pair[1]}`);
+            }
+
+            const response = await axiosInstance.post('/product/create', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            
+            console.log('Create product success:', {
+                status: response.status,
+                data: response.data
+            });
+            
             return response.data;
         } catch (error) {
-            console.error('Error adding product:', error.response?.data || error);
-            throw new Error(error.response?.data?.message || 'Không thể thêm sản phẩm');
+            console.error('Create product error full details:', {
+                message: error.message,
+                status: error.response?.status,
+                responseData: error.response?.data,
+                requestData: {
+                    productData,
+                    hasImage: !!imageFile
+                }
+            });
+            throw new Error(error.response?.data?.error || 'Không thể tạo sản phẩm');
         }
     },
 
-    updateProduct: async (id, productData) => {
+    updateProduct: async (id, dataToUpdate) => {
         try {
-            // Đảm bảo dữ liệu được gửi đi đầy đủ và đúng định dạng
-            const dataToUpdate = {
-                MaSanPham: productData.MaSanPham,
-                TenSanPham: productData.TenSanPham,
-                MaLoaiSanPham: productData.MaLoaiSanPham,
-                DonGia: parseFloat(productData.DonGia),
-                SoLuong: parseInt(productData.SoLuong),
-                HinhAnh: productData.HinhAnh || 'default-image.png'
-            };
-
-            console.log('Sending update request:', {
-                id,
-                data: dataToUpdate
-            });
-
             const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate);
             console.log('Update response:', response.data);
             return response.data;
