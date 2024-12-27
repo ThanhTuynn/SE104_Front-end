@@ -4,71 +4,63 @@ import axios from 'axios';
 import "./ProductSearchModal.css";
 import productService from '../../../services/productService';
 import { getUnitById } from "../../../services/UnitTypeService";
-const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = false, cart = [] }) => {
+
+const ProductSearchModal = ({ 
+  isVisible, 
+  onCancel, 
+  onConfirm, 
+  isProductPage = false, // Add default value
+  cart = [] 
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [quantities, setQuantities] = useState({});
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Chỉ fetch products nếu không phải đang ở trang products
-    if (isVisible && !isProductPage) {
+    if (isVisible) {
       fetchProducts();
     }
-  }, [isVisible, isProductPage]);
+  }, [isVisible]); // Remove isProductPage from dependency array since it's now properly defined
 
   const fetchProducts = async () => {
     try {
         setLoading(true);
-        // Lấy song song sản phẩm và categories
+        // Fetch products and categories
         const [productsResponse, categoriesResponse] = await Promise.all([
             axios.get('http://localhost:3000/api/product/get-all'),
             axios.get('http://localhost:3000/api/category/get-all')
         ]);
 
-        console.log('API Response - Products:', productsResponse.data);
-        console.log('API Response - Categories:', categoriesResponse.data);
-
-        // Tạo map cho loại sản phẩm
         const categoryMap = {};
         categoriesResponse.data.forEach(cat => {
             categoryMap[cat.MaLoaiSanPham] = {
                 TenLoaiSanPham: cat.TenLoaiSanPham,
-                PhanTramLoiNhuan: cat.PhanTramLoiNhuan, // Lấy trực tiếp từ LOAISANPHAM
+                PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
                 MaDVTinh: cat.MaDVTinh,
-                TenDVTinh: cat.TenDVTinh // Thêm trường này
+                TenDVTinh: cat.TenDVTinh
             };
         });
 
-        // Format lại products với thông tin từ category
-        const formattedProducts = productsResponse.data.map(product => {
-            const category = categoryMap[product.MaLoaiSanPham];
-            console.log('Mapping product:', {
-                productId: product.MaSanPham,
-                categoryInfo: category,
-                ptln: category?.PhanTramLoiNhuan
+        // Filter out products with isDelete=true and map the remaining
+        const formattedProducts = productsResponse.data
+            .filter(product => !product.isDelete)
+            .map(product => {
+                const category = categoryMap[product.MaLoaiSanPham];
+                return {
+                    id: product.MaSanPham,
+                    name: product.TenSanPham,
+                    price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
+                    rawPrice: product.DonGia,
+                    image: product.HinhAnh || 'default-image.png',
+                    PhanTramLoiNhuan: parseFloat(category?.PhanTramLoiNhuan || 0),
+                    stock: product.SoLuong || 0,
+                    availableStock: product.SoLuong || 0, // Track available stock
+                    categoryName: category?.TenLoaiSanPham || 'Chưa phân loại',
+                    TenDVTinh: category?.TenDVTinh || 'N/A'
+                };
             });
 
-            return {
-                id: product.MaSanPham,
-                MaSanPham: product.MaSanPham,
-                TenSanPham: product.TenSanPham,
-                name: product.TenSanPham,
-                MaLoaiSanPham: product.MaLoaiSanPham,
-                DonGia: product.DonGia,
-                SoLuong: product.SoLuong || 0,
-                stock: product.SoLuong || 0,
-                price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
-                rawPrice: product.DonGia,
-                image: product.HinhAnh || 'default-image.png',
-                // Lấy PhanTramLoiNhuan từ category map
-                PhanTramLoiNhuan: parseFloat(category?.PhanTramLoiNhuan || 0),
-                categoryName: category?.TenLoaiSanPham || 'Chưa phân loại',
-                TenDVTinh: category?.TenDVTinh || 'N/A' // Ánh xạ đơn vị tính
-            };
-        });
-
-        console.log('Formatted Products with PTLN:', formattedProducts);
         setProducts(formattedProducts);
     } catch (error) {
         console.error('Error fetching data:', error);
@@ -90,47 +82,47 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
   };
 
   const handleQuantityChange = (productId, change) => {
-    const availableStock = getAvailableStock(productId);
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    // Calculate available stock considering current cart
+    const cartItem = cart.find(item => item.id === productId);
+    const cartQuantity = cartItem ? cartItem.quantity || 0 : 0;
+    const availableStock = product.stock - cartQuantity;
+
     setQuantities(prev => {
       const currentQty = prev[productId] || 1;
       const newQty = currentQty + change;
-      
+
       if (newQty < 1) return prev;
       if (newQty > availableStock) {
         message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${availableStock})`);
         return prev;
       }
-      
+
       return { ...prev, [productId]: newQty };
     });
   };
 
-  const handleProductConfirm = async (product) => {
-    try {
-        const selectedQuantity = quantities[product.id] || 1;
-        
-        // Validate against current stock
-        if (selectedQuantity > product.stock) {
-            message.error('Số lượng vượt quá tồn kho hiện có!');
-            return;
-        }
+  const handleProductConfirm = (product) => {
+    const selectedQuantity = quantities[product.id] || 1;
+    const availableStock = product.stock - (cart.find(item => item.id === product.id)?.quantity || 0);
 
-        const productToAdd = {
-            ...product,
-            quantity: selectedQuantity,
-            currentStock: product.stock,
-            requestedQuantity: selectedQuantity
-        };
-
-        onConfirm(productToAdd);
-        onCancel();
-        setQuantities({}); // Reset quantities after confirmation
-        message.success(`Đã thêm ${selectedQuantity} sản phẩm vào giỏ hàng`);
-    } catch (error) {
-        console.error('Error confirming product:', error);
-        message.error('Không thể thêm sản phẩm');
+    if (selectedQuantity > availableStock) {
+      message.error('Số lượng vượt quá tồn kho hiện có!');
+      return;
     }
-};
+
+    const updatedProduct = {
+      ...product,
+      quantity: selectedQuantity,
+      availableStock: availableStock - selectedQuantity
+    };
+
+    onConfirm(updatedProduct);
+    setQuantities(prev => ({ ...prev, [product.id]: selectedQuantity }));
+    onCancel();
+  };
 
   const columns = [
     {

@@ -5,24 +5,24 @@ const API_URL = 'http://localhost:3000/api';
 
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+    baseURL: API_URL,
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
 
 // Add request interceptor to handle token
 axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    (config) => {
+        const token = getAccessToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
 );
 
 export const getAllOrders = async () => {
@@ -96,9 +96,31 @@ export const createOrder = async (orderData) => {
 
 export const updateOrder = async (id, orderData) => {
     try {
-        const response = await axiosInstance.put(`/sale/update/${id}`, orderData);
+        // Format data to match backend expectations
+        const formattedData = {
+            updateDetails: {
+                NgayLap: orderData.invoiceData.NgayLap,
+                MaKhachHang: orderData.invoiceData.MaKhachHang,
+                TongTien: parseFloat(orderData.invoiceData.TongTien)
+            },
+            addDetails: orderData.details.map(detail => ({
+                MaSanPham: detail.MaSanPham,
+                SoLuong: parseInt(detail.SoLuong),
+                DonGiaBanRa: parseFloat(detail.DonGiaBanRa),
+                ThanhTien: parseFloat(detail.ThanhTien)
+            })),
+            deleteDetails: orderData.deleteDetails.map(detail => ({
+                MaChiTietBH: detail.MaChiTietBH,
+                MaSanPham: detail.MaSanPham,
+                SoLuong: parseInt(detail.SoLuong)
+            }))
+        };
+
+        console.log('Formatted update data:', formattedData);
+        const response = await axiosInstance.put(`/sale/update/${id}`, formattedData);
         return response.data;
     } catch (error) {
+        console.error('Update order error:', error);
         throw error;
     }
 };

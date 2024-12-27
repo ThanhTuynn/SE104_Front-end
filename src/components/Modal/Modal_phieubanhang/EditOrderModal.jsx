@@ -9,6 +9,8 @@ import { getOrderById, updateOrder } from '../../../services/Orderproduct';  // 
 const { Option } = Select;
 
 const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sửa đơn hàng" }) => {
+  // Add products state
+  const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState(""); // Trạng thái tìm kiếm
   const [filteredProducts, setFilteredProducts] = useState([]); // Sản phẩm được lọc
   const [cart, setCart] = useState([]); // Giỏ hàng
@@ -19,33 +21,45 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [deletedDetails, setDeletedDetails] = useState([]); // Add state to track deleted details
+  const [invoiceNumber, setInvoiceNumber] = useState(''); // Add new state for invoice number
   
   // Load initial data when modal opens
   useEffect(() => {
     const fetchOrderData = async () => {
         if (initialData && isVisible) {
+            setInvoiceNumber(initialData.SoPhieuBH || ''); // Set invoice number
             try {
-                // Lấy song song order, products và categories
+                // Fetch order, products and categories in parallel
                 const [orderResponse, productsRes, categoriesRes] = await Promise.all([
                     getOrderById(initialData.SoPhieuBH),
                     axios.get('http://localhost:3000/api/product/get-all'),
                     axios.get('http://localhost:3000/api/category/get-all')
                 ]);
 
-                // Tạo map cho categories để lưu PhanTramLoiNhuan
+                // Create category map for profit margins
                 const categoryMap = {};
                 categoriesRes.data.forEach(cat => {
-                    categoryMap[cat.MaLoaiSanPham] = cat.PhanTramLoiNhuan;
-                });
-
-                // Map products với PhanTramLoiNhuan
-                const productMap = {};
-                productsRes.data.forEach(product => {
-                    productMap[product.MaSanPham] = {
-                        ...product,
-                        PhanTramLoiNhuan: parseFloat(categoryMap[product.MaLoaiSanPham] || 0)
+                    categoryMap[cat.MaLoaiSanPham] = {
+                        PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
+                        TenLoaiSanPham: cat.TenLoaiSanPham
                     };
                 });
+
+                // Map products with profit margins and current stock
+                const productMap = {};
+                const productsWithStock = productsRes.data.map(product => {
+                    const mappedProduct = {
+                        ...product,
+                        PhanTramLoiNhuan: parseFloat(categoryMap[product.MaLoaiSanPham]?.PhanTramLoiNhuan || 0),
+                        categoryName: categoryMap[product.MaLoaiSanPham]?.TenLoaiSanPham,
+                        currentStock: product.SoLuong, // Track current stock
+                        originalStock: product.SoLuong // Keep original stock for reference
+                    };
+                    productMap[product.MaSanPham] = mappedProduct;
+                    return mappedProduct;
+                });
+
+                setProducts(productsWithStock);
 
                 if (orderResponse) {
                     setOrderDate(new Date(orderResponse.NgayLap).toISOString().split('T')[0]);
@@ -57,6 +71,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                     });
 
                     if (Array.isArray(orderResponse.details)) {
+                        // Map cart items with proper stock tracking
                         const cartItems = orderResponse.details.map(detail => {
                             const product = productMap[detail.MaSanPham];
                             return {
@@ -65,18 +80,24 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                                 price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
                                 rawPrice: detail.DonGiaBanRa,
                                 PhanTramLoiNhuan: product?.PhanTramLoiNhuan || 0,
-                                image: product?.HinhAnh || 'default-image-url',
+                                image: product?.HinhAnh || 'default-image.png',
                                 quantity: detail.SoLuong,
+                                currentStock: product?.SoLuong || 0,
+                                originalStock: product?.SoLuong || 0,
                                 MaChiTietBH: detail.MaChiTietBH
                             };
                         });
 
-                        console.log('Processed cart items:', cartItems);
                         setCart(cartItems);
 
+                        // Initialize quantities
                         const initQuantities = {};
                         orderResponse.details.forEach(detail => {
                             initQuantities[detail.MaSanPham] = detail.SoLuong;
+                            // Update available stock for each product
+                            if (productMap[detail.MaSanPham]) {
+                                productMap[detail.MaSanPham].currentStock -= detail.SoLuong;
+                            }
                         });
                         setQuantities(initQuantities);
                     }
@@ -103,23 +124,44 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
 
 // Sửa handleProductSelect để lưu PhanTramLoiNhuan và hiển thị hình ảnh đúng cách
 const handleProductSelect = (product) => {
-  if (cart.some((item) => item.id === product.id)) {
-    setQuantities(prev => ({
-      ...prev,
-      [product.id]: (prev[product.id] || 1) + (product.quantity || 1)
-    }));
+  const existingItem = cart.find(item => item.id === product.id);
+    
+  if (existingItem) {
+    // Update quantity of existing item
+    setQuantities(prev => {
+      const newQty = (prev[product.id] || 1) + (product.quantity || 1);
+      if (newQty > product.availableStock) {
+        message.warning(`Số lượng vượt quá tồn kho (${product.availableStock})`);
+        return prev;
+      }
+      return { ...prev, [product.id]: newQty };
+    });
   } else {
-    const productWithPTLN = {
+    // Add new item
+    const productWithStock = {
       ...product,
       PhanTramLoiNhuan: product.PhanTramLoiNhuan,
-      image: product.HinhAnh || 'default-image-url' // Ensure image URL is set correctly
+      image: product.HinhAnh || 'default-image-url',
+      originalStock: product.stock,
+      currentStock: product.stock - product.quantity
     };
-    setCart(prevCart => [...prevCart, productWithPTLN]);
+    
+    setCart(prevCart => [...prevCart, productWithStock]);
     setQuantities(prev => ({
       ...prev,
       [product.id]: product.quantity || 1
     }));
   }
+  
+  // Update available stock in products list
+  setProducts(prevProducts => 
+    prevProducts.map(p => 
+      p.id === product.id 
+        ? { ...p, availableStock: p.availableStock - (product.quantity || 1) }
+        : p
+    )
+  );
+  
   setIsProductModalVisible(false);
 };
 
@@ -138,14 +180,30 @@ const handleProductSelect = (product) => {
     }));
   };
 
-  // Update removeFromCart to track deleted details
+  // Update removeFromCart function
   const removeFromCart = (productId) => {
     const productToRemove = cart.find(item => item.id === productId);
     if (productToRemove && productToRemove.MaChiTietBH) {
-      setDeletedDetails(prev => [...prev, productToRemove]);
+        setDeletedDetails(prev => [...prev, productToRemove]);
     }
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
-  };
+    
+    // Return quantity to available stock
+    const removedQuantity = quantities[productId] || 1;
+    setProducts(prevProducts => 
+        prevProducts.map(p => 
+            p.id === productId 
+                ? { ...p, availableStock: p.availableStock + removedQuantity }
+                : p
+        )
+    );
+    
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+    setQuantities(prev => {
+        const newQuantities = { ...prev };
+        delete newQuantities[productId];
+        return newQuantities;
+    });
+};
 
   // Format ngày tháng khi gửi lên server
   const formatDateForServer = (dateString) => {
@@ -162,17 +220,16 @@ const handleProductSelect = (product) => {
 
   // Add the single calculateTotal function
   const calculateTotal = () => {
-    return parseFloat(cart.reduce((total, item) => {
+    return cart.reduce((total, item) => {
       const quantity = quantities[item.id] || 1;
       const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
       return total + (quantity * sellingPrice);
-    }, 0).toFixed(2));
+    }, 0);
   };
 
 // Update handleUpdateOrder function
 const handleUpdateOrder = async () => {
   try {
-    // Validate input data
     if (!selectedCustomer?.id) {
       message.error('Vui lòng chọn khách hàng');
       return;
@@ -183,53 +240,40 @@ const handleUpdateOrder = async () => {
       return;
     }
 
-    // Calculate total amount with proper decimal handling
-    const total = calculateTotal();
-    const totalAmount = parseFloat(total.toFixed(2));
+    // Calculate and format total amount properly
+    const total = parseFloat(calculateTotal().toFixed(2));
 
-    // Format data for backend
+    // Prepare update data matching backend structure
     const updateData = {
-      updateDetails: [{
+      invoiceData: {
+        SoPhieuBH: initialData.SoPhieuBH,
         NgayLap: formatDateForServer(orderDate),
-        MaKH: selectedCustomer.id,
-        TongTien: totalAmount // Send as number with 2 decimal places
-      }],
-      addDetails: cart.filter(item => !item.MaChiTietBH).map(item => {
-        const sellingPrice = parseFloat(calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan).toFixed(2));
-        const quantity = quantities[item.id] || 1;
-        const lineTotal = parseFloat((sellingPrice * quantity).toFixed(2));
-        
-        return {
-          MaSanPham: item.id,
-          SoLuong: quantity,
-          DonGiaBanRa: sellingPrice,
-          ThanhTien: lineTotal,
-          HinhAnh: item.image || 'default-image.png'
-        };
-      }),
+        MaKhachHang: selectedCustomer.id,
+        TongTien: total
+      },
+      details: cart.filter(item => !item.MaChiTietBH).map(item => ({
+        MaSanPham: item.id,
+        SoLuong: parseInt(quantities[item.id] || 1),
+        DonGiaBanRa: parseFloat(calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan).toFixed(2)),
+        ThanhTien: parseFloat((calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)).toFixed(2))
+      })),
       deleteDetails: deletedDetails.map(item => ({
         MaChiTietBH: item.MaChiTietBH,
         MaSanPham: item.id,
-        SoLuong: item.quantity
+        SoLuong: parseInt(item.quantity)
       }))
     };
 
-    const loadingMessage = message.loading('Đang cập nhật đơn hàng...', 0);
+    console.log('Update data being sent:', updateData);
+    const result = await updateOrder(initialData.SoPhieuBH, updateData);
+    console.log('Update response:', result);
 
-    try {
-      await updateOrder(initialData.SoPhieuBH, updateData);
-      loadingMessage();
-      message.success('Cập nhật phiếu bán hàng thành công!');
-      onSave();
-      onClose();
-    } catch (error) {
-      loadingMessage();
-      console.error('Update error:', error);
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng');
-    }
+    message.success('Cập nhật phiếu bán hàng thành công!');
+    onSave();
+    onClose();
   } catch (error) {
-    console.error('Error in handleUpdateOrder:', error);
-    message.error('Có lỗi xảy ra khi cập nhật phiếu bán hàng');
+    console.error('Error updating:', error);
+    message.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng');
   }
 };
 
@@ -276,6 +320,22 @@ useEffect(() => {
             <div className="modal-body">
               {/* Cột bên trái: Thông tin */}
               <div className="modal-column left-column">
+                {/* Add Invoice Number input field */}
+                <div className="header-row">
+                  <label>Mã phiếu bán hàng</label>
+                </div>
+                <Input
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  style={{
+                    marginBottom: '16px',
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                    width: "100%",
+                    height: "40px",
+                  }}
+                  disabled // Make it read-only since it's an identifier
+                />
                 <div className="header-row">
                   <label>Thông tin khách hàng </label>
                   <div className="toggle-container">
@@ -357,6 +417,7 @@ useEffect(() => {
                   onCancel={() => setIsProductModalVisible(false)}
                   onConfirm={handleProductSelect}
                   cart={cart} // Pass the cart prop
+                  isProductPage={false} // Explicitly set to false for editing orders
                 />
                 {/* Hiển thị giỏ hàng */}
                 <div className="cart-container" style={{

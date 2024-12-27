@@ -10,25 +10,64 @@ import productService from '../../../services/productService';
 const { Option } = Select;
 
 const AddOrderModal = ({ isVisible, onClose, title, save }) => {
-  const [searchTerm, setSearchTerm] = useState(""); // Trạng thái tìm kiếm
-  const [filteredProducts, setFilteredProducts] = useState([]); // Sản phẩm được lọc
-  const [cart, setCart] = useState([]); // Giỏ hàng
+  // Add products state
+  const [products, setProducts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [cart, setCart] = useState([]);
   const [isProductModalVisible, setIsProductModalVisible] = useState(false);
-  const [quantities, setQuantities] = useState({}); // Thêm state để lưu số lượng
+  const [quantities, setQuantities] = useState({});
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  // Remove handleSearch function and productList since we don't need them anymore
-  
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+
+  // Add useEffect to fetch products when modal opens
+  useEffect(() => {
+    if (isVisible) {
+      fetchProducts();
+    }
+  }, [isVisible]);
+
+  const fetchProducts = async () => {
+    try {
+      const [productsRes, categoriesRes] = await Promise.all([
+        axios.get('http://localhost:3000/api/product/get-all'),
+        axios.get('http://localhost:3000/api/category/get-all')
+      ]);
+
+      const categoryMap = {};
+      categoriesRes.data.forEach(cat => {
+        categoryMap[cat.MaLoaiSanPham] = {
+          PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
+          TenLoaiSanPham: cat.TenLoaiSanPham
+        };
+      });
+
+      const productsWithStock = productsRes.data.map(product => ({
+        ...product,
+        currentStock: product.SoLuong,
+        originalStock: product.SoLuong,
+        PhanTramLoiNhuan: categoryMap[product.MaLoaiSanPham]?.PhanTramLoiNhuan || 0
+      }));
+
+      setProducts(productsWithStock);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      message.error('Không thể tải danh sách sản phẩm');
+    }
+  };
+
   const handleProductSelect = (product) => {
     if (cart.some((item) => item.id === product.id)) {
-      // If product already exists, just update quantity
       setQuantities(prev => {
         const currentQty = prev[product.id] || 1;
         const newQty = currentQty + (product.quantity || 1);
         
-        // Check against available stock
-        if (newQty > product.stock) {
-          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${product.stock})`);
+        // Find product in products array to check current stock
+        const productInStock = products.find(p => p.MaSanPham === product.id);
+        const availableStock = productInStock?.currentStock || 0;
+        
+        if (newQty > availableStock) {
+          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${availableStock})`);
           return prev;
         }
         
@@ -38,11 +77,10 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         };
       });
     } else {
-      // Add new product with stock tracking
       setCart(prevCart => [...prevCart, {
         ...product,
-        currentStock: product.stock, // Track current stock
-        originalStock: product.stock // Keep original stock for reference
+        currentStock: product.currentStock,
+        originalStock: product.originalStock
       }]);
       setQuantities(prev => ({
         ...prev,
@@ -51,20 +89,29 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
     }
     setIsProductModalVisible(false);
   };
-  // Thêm sản phẩm vào giỏ hàng
-  const addToCart = (product) => {
-    if (!cart.some((item) => item.id === product.id)) {
-      setCart((prevCart) => [...prevCart, product]);
-    }
-    setSearchTerm(""); // Reset thanh tìm kiếm về rỗng
-    setFilteredProducts([]); // Reset danh sách sản phẩm
-  };
+
   const handleQuantityChange = (productId, change) => {
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: Math.max(1, (prev[productId] || 1) + change)
-    }));
-  };
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    setQuantities(prev => {
+        const currentQty = prev[productId] || 1;
+        const newQty = currentQty + change;
+        
+        if (newQty < 1) return prev;
+        
+        const cartItem = cart.find(item => item.id === productId);
+        const originalQty = cartItem ? cartItem.quantity : 0;
+        const availableStock = product.originalStock - (newQty - originalQty);
+        
+        if (availableStock < 0) {
+            message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${product.originalStock})`);
+            return prev;
+        }
+        
+        return { ...prev, [productId]: newQty };
+    });
+};
   const resetModal = () => {
     setSearchTerm("");
     setFilteredProducts([]);
@@ -104,7 +151,7 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   // Lưu đơn hàng
   const handleSaveOrder = async () => {
     try {
-      if (!selectedCustomer?.id || !orderDate || cart.length === 0) {
+      if (!selectedCustomer?.id || !orderDate || cart.length === 0 || !invoiceNumber) {
         message.error('Vui lòng điền đầy đủ thông tin');
         return;
       }
@@ -154,6 +201,7 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
       // Tạo đơn hàng với thông tin đã được tính toán
       const orderData = {
         invoiceData: {
+          SoPhieuBH: invoiceNumber, // Add invoice number to the order data
           NgayLap: orderDate,
           MaKhachHang: selectedCustomer.id,
           TongTien: calculateTotal()
@@ -212,6 +260,21 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
             <div className="modal-body">
               {/* Cột bên trái: Thông tin */}
               <div className="modal-column left-column">
+                <div className="header-row">
+                  <label>Mã phiếu bán hàng</label>
+                </div>
+                <Input
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="Nhập mã phiếu bán hàng"
+                  style={{
+                    marginBottom: '16px',
+                    border: "1px solid #ccc",
+                    borderRadius: "8px",
+                    width: "100%",
+                    height: "40px",
+                  }}
+                />
                 <div className="header-row">
                   <label>Thông tin khách hàng </label>
                   <div className="toggle-container">
