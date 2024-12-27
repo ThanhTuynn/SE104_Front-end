@@ -93,7 +93,13 @@ const SidebarComponent = () => {
                 <TagOutlined />
                 <span>Quản lý đơn vị tính</span>
               </a>
-            </li>
+          </li>
+          <li>
+              <a onClick={() => navigate('/type-product')} className="nav-link">
+                <TagOutlined />
+                <span>Quản lý Loại Sản Phẩm</span>
+              </a>
+          </li>
         </ul>
         <ul className="nav-list secondary-nav">
           <li>

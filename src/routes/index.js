@@ -27,7 +27,7 @@ import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
 const routes = [
     {
         path: '/',
-        page: SignIn,  // Đặt SignIn làm trang mặc định
+        page: SignIn,
         isShowHeader: false,
         protected: false,
     },
@@ -38,43 +38,43 @@ const routes = [
         protected: true,
     },
     {
-        path: 'list-customer',
+        path: '/list-customer',
         page: ListCustomerPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'customer-detail/:id',
+        path: '/customer-detail/:id',
         page: DetailCustomer,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'list-employee',
+        path: '/list-employee',
         page: ListEmployeePage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'employee-detail/1',
+        path: '/employee-detail/:id',  // Changed from 'employee-detail/1' to accept variable ID
         page: DetailEmployee,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'list-import-product',
+        path: '/list-import-product',
         page: ImportProduct,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'import-product-detail/1',
+        path: '/import-product-detail/:id',  // Changed to match order code format HDN
         page: DetailImportProduct,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'create-import-product',
+        path: '/create-import-product',
         page: CreateImportProduct,
         isShowHeader: true,
         protected: true,
@@ -92,80 +92,83 @@ const routes = [
         protected: false,
     },
     {
-        path: 'adjust-service/:id',
+        path: '/adjust-service/:id',
         page: AdjustServicePage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'list-order-product',
+        path: '/list-order-product',
         page: OrderProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'order-product-detail/:id', // Ensure this path matches the navigation path
+        path: '/order-product-detail/:id', // Ensure this path matches the navigation path
         page: OrderProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'list-product',
+        path: '/list-product',
         page: ProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'list-service',
+        path: '/list-service',
         page: ServicePage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'add-product',
+        path: '/add-product',
         page: AddProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'adjust-product/:key', // Thêm route cho AdjustProductPage với tham số id
+        path: '/adjust-product/:id', // Changed from :key to :id for consistency
         page: AdjustProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'add-service',
+        path: '/add-service',
         page: AddServicePage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'type-product',
+        path: '/type-product',
         page: TypeProductPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'top-bar',
+        path: '/top-bar',
         page: TopbarComponent,
     },
     {
-        path: 'signup-details',
+        path: '/signup-details',
         page: SignUpDetails,
+        isShowHeader: false,
+        protected: false,
     },
     {
-        path: 'personal',
+        path: '/personal',
         page: Personal,
-        isShowHeader: true
+        isShowHeader: true,
+        protected: true,  // Added protected flag
     },
     {
-        path: 'personalinfopage',
+        path: '/personalinfopage',
         page: PersonalInfoPage,
         isShowHeader: true,
         protected: true,
     },
     {
-        path: 'unit-type',
+        path: '/unit-type',
         page: Unittypeproduct,
         isShowHeader: true,
         protected: true,
