@@ -43,6 +43,15 @@ export const importProduct = {
       console.error('Delete purchase error', error);
       throw error;
     }
+  },
+  getPurchaseById: async (id) => {
+    try {
+      const response = await axiosInstance.get(`/purchase/get-details/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get purchase by id error:', error);
+      throw error;
+    }
   }
 };
 

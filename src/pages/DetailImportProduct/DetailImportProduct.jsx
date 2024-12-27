@@ -1,138 +1,141 @@
-import React, { useState } from "react";
-import { Input, Button, DatePicker, Form, Table } from "antd";
+import React, { useState, useEffect } from "react";
+import { Input, Button, DatePicker, Form, Table, message, Spin } from "antd";
 import "./DetailImportProduct.css";
-import { useNavigate } from "react-router-dom";
-
-
-const { TextArea } = Input;
+import { useNavigate, useParams } from "react-router-dom";
+import importProduct from "../../services/importProduct";
 
 const DetailImportOrder = () => {
-  const navigate = useNavigate(); // Khai báo useNavigate
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [purchaseData, setPurchaseData] = useState(null);
 
-  // Hàm xử lý khi nhấn nút Hủy
+  useEffect(() => {
+    const fetchPurchaseDetail = async () => {
+      try {
+        setLoading(true);
+        const data = await importProduct.getPurchaseById(id);
+        console.log('Raw API response:', data); // Debug log
+
+        // Validate data before processing
+        if (!data) {
+          throw new Error('Không có dữ liệu phiếu mua hàng');
+        }
+
+        setPurchaseData({
+          id: data.SoPhieu,
+          date: new Date(data.NgayLap).toLocaleDateString('vi-VN'),
+          provider: {
+            id: data.NhaCungCap?.MaNCC || 'N/A',
+            name: data.NhaCungCap?.TenNCC || 'N/A',
+            phone: data.NhaCungCap?.SoDienThoai || 'N/A',
+            address: data.NhaCungCap?.DiaChi || 'N/A'
+          },
+          products: data.ChiTietPhieuMua?.map(item => ({
+            code: item.MaChiTietMH,        // Từ CHITIETPHIEUMUAHANG
+            productCode: item.MaSanPham,    // Mã sản phẩm từ bảng SANPHAM
+            name: item.SanPham?.TenSanPham, // Tên sản phẩm từ bảng SANPHAM
+            quantity: item.SoLuong,         // Số lượng từ CHITIETPHIEUMUAHANG
+            price: item.DonGia,            // Đơn giá từ CHITIETPHIEUMUAHANG
+            total: item.ThanhTien          // Thành tiền từ CHITIETPHIEUMUAHANG
+          })) || [],
+          totalAmount: data.TongTien
+        });
+      } catch (error) {
+        message.error("Không thể tải thông tin phiếu mua hàng");
+        console.error("Fetch purchase detail error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPurchaseDetail();
+  }, [id]);
+
   const handleCancel = () => {
-    navigate(-1); // Quay lại trang trước
-  };
-
-  // Initial predefined data
-  const supplierData = { id: 1, name: "Vân Mây", phone: "0312456789", address: "123 Đường ABC, Quận 1, TP.HCM" };
-
-  const initProductData = [
-    { code: "SP001", name: "Sản phẩm A", quantity: 10, price: 100, category: "Loại 1" },
-    { code: "SP002", name: "Sản phẩm B", quantity: 20, price: 200, category: "Loại 2" },
-    { code: "SP003", name: "Sản phẩm C", quantity: 5, price: 150, category: "Loại 1" },
-  ];
-
-  const initEmployeeData = { name: "Nguyễn Văn B", id: 1, position: "Nhân viên kho", department: "Kho vận" };
-
-  const [formState, setFormState] = useState({
-    supplier: supplierData.name,
-    supplierAddress: supplierData.address,
-    products: initProductData,
-    employeeName: initEmployeeData.name,
-    employeePosition: initEmployeeData.position,
-    employeeDepartment: initEmployeeData.department,
-    expectedDate: null,
-    referenceCode: "",
-    notes: "",
-    discount: 0,
-    otherCosts: 0,
-    totalQuantity: initProductData.reduce((acc, product) => acc + product.quantity, 0),
-    totalAmount: initProductData.reduce((acc, product) => acc + product.quantity * product.price, 0),
-  });
-
-  const isFormComplete = () => {
-    const { supplier, employeeName, referenceCode, expectedDate } = formState;
-    return supplier && employeeName && referenceCode && expectedDate;
-  };
-
-  const handleSave = () => {
-    if (!isFormComplete()) {
-      alert("Vui lòng điền đầy đủ các trường bắt buộc.");
-      return;
-    }
-    alert("Đơn hàng đã được lưu.");
-    navigate("list-import-product");
-  };
-
-  const [initialFormState, setInitialFormState] = useState({
-    ...formState,
-  });
-
-  // Check if there's any change in the costs section
-  const isCostChanged = () => {
-    const { discount, otherCosts, laborCosts } = formState;
-    return (
-      discount !== initialFormState.discount ||
-      otherCosts !== initialFormState.otherCosts ||
-      laborCosts !== initialFormState.laborCosts
-    );
-  };
-
-  // Handle purchase button click
-  const handlePurchase = () => {
-    if (!isCostChanged()) {
-      alert("Chưa có thay đổi nào về chi phí mua hàng.");
-      return;
-    }
-    alert("Đơn hàng đã được tạo thành công.");
-  };
-
-  // Handle changes to input fields
-  const handleChange = (key, value) => {
-    setFormState((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleFeeChange = (key, value) => {
-    const newFormState = { ...formState, [key]: value };
-
-    // Calculate the total cost whenever there's a change
-    const totalCost =
-      parseFloat(newFormState.totalAmount || 0) +
-      parseFloat(newFormState.discount || 0) +
-      parseFloat(newFormState.otherCosts || 0) +
-      parseFloat(newFormState.laborCosts || 0) -
-      parseFloat(newFormState.discount || 0);
-
-    newFormState.totalCost = totalCost;
-
-    setFormState(newFormState);
+    navigate(-1);
   };
 
   const columns = [
-    { title: 'Mã sản phẩm', dataIndex: 'code', key: 'code' },
-    { title: 'Tên sản phẩm', dataIndex: 'name', key: 'name' },
-    { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
-    { title: 'Giá', dataIndex: 'price', key: 'price' },
-    { title: 'Loại sản phẩm', dataIndex: 'category', key: 'category' },
+    { 
+      title: 'Mã sản phẩm',
+      dataIndex: 'productCode',
+      key: 'productCode',
+    },
+    { 
+      title: 'Tên sản phẩm',
+      dataIndex: 'name',
+      key: 'name'
+    },
+    { 
+      title: 'Số lượng',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      align: 'right'
+    },
+    { 
+      title: 'Đơn giá',
+      dataIndex: 'price',
+      key: 'price',
+      align: 'right',
+      render: (price) => new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+      }).format(price)
+    },
+    { 
+      title: 'Thành tiền',
+      dataIndex: 'total',
+      key: 'total',
+      align: 'right',
+      render: (total) => new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND'
+      }).format(total)
+    }
   ];
 
+  if (loading) {
+    return <div className="loading-container"><Spin size="large" /></div>;
+  }
+
   return (
-    <div className="create-import-order-container">
-      <header className="header">
-        <h2>Chi tiết phiếu mua hàng</h2>
-        <div className="header-actions">
-          <Button danger onClick={handleCancel}>
-            Thoát
-          </Button>
-        </div>
+    <div className="product-detail">
+      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0 }}>Chi tiết phiếu mua hàng - Mã đơn: {purchaseData?.id}</h2>
+        <Button danger onClick={handleCancel}>
+          Thoát
+        </Button>
       </header>
 
       <div className="form-container">
-        {/* Supplier Section */}
         <div className="form-section">
           <h3>Nhà cung cấp</h3>
-          <p>Tên: {supplierData.name}</p>
-          <p>Số điện thoại: {supplierData.phone}</p>
-          <p>Địa chỉ: {supplierData.address}</p>
+          <p>Tên: {purchaseData?.provider.name}</p>
+          <p>Số điện thoại: {purchaseData?.provider.phone}</p>
+          <p>Địa chỉ: {purchaseData?.provider.address}</p>
         </div>
 
-        {/* Product Section */}
         <div className="form-section">
           <h3>Sản phẩm</h3>
-          <Table dataSource={formState.products} columns={columns} rowKey="code" pagination={false} />
+          <Table 
+            dataSource={purchaseData?.products} 
+            columns={columns} 
+            rowKey="code" 
+            pagination={false}
+            summary={() => (
+              <Table.Summary fixed>
+                <Table.Summary.Row>
+                  <Table.Summary.Cell colSpan={4} index={0}>Tổng cộng</Table.Summary.Cell>
+                  <Table.Summary.Cell index={1}>
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                      .format(purchaseData?.totalAmount)}
+                  </Table.Summary.Cell>
+                </Table.Summary.Row>
+              </Table.Summary>
+            )}
+          />
         </div>
-
       </div>
     </div>
   );
