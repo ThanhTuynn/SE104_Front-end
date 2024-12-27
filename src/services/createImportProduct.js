@@ -79,6 +79,7 @@ export const createImportProduct = {
   createOrder: async (orderData) => {
     try {
       const response = await axiosInstance.post('/purchase/create', orderData);
+      console.log('Create order response:', response.data)
       return response.data;
     } catch (error) {
       console.error('Creating order error', error);

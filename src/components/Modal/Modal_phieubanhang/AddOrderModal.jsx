@@ -21,14 +21,28 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   
   const handleProductSelect = (product) => {
     if (cart.some((item) => item.id === product.id)) {
-      setQuantities(prev => ({
-        ...prev,
-        [product.id]: (prev[product.id] || 1) + (product.quantity || 1)
-      }));
+      // If product already exists, just update quantity
+      setQuantities(prev => {
+        const currentQty = prev[product.id] || 1;
+        const newQty = currentQty + (product.quantity || 1);
+        
+        // Check against available stock
+        if (newQty > product.stock) {
+          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${product.stock})`);
+          return prev;
+        }
+        
+        return {
+          ...prev,
+          [product.id]: newQty
+        };
+      });
     } else {
+      // Add new product with stock tracking
       setCart(prevCart => [...prevCart, {
         ...product,
-        originalStock: product.originalStock
+        currentStock: product.stock, // Track current stock
+        originalStock: product.stock // Keep original stock for reference
       }]);
       setQuantities(prev => ({
         ...prev,

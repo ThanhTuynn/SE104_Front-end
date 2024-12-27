@@ -125,21 +125,21 @@ const ProductPage = () => {
             setLoading(true);
             const products = await productService.getAllProducts();
 
+            // Products will already be sorted by createdAt from the backend
             const formattedData = products.map((product) => ({
                 ...product,
-                stockDisplay: 
-                    !product.stock || product.stock === 0 ? "Hết hàng" : product.stock,
-                price: !product.price || product.price === 0 
+                stockDisplay: !product.stock || product.stock === 0 ? "Hết hàng" : product.stock,
+                price: !product.price || product.price === null || product.DonGia === null 
                     ? "Chưa có giá" 
                     : new Intl.NumberFormat("vi-VN", {
                         style: "currency",
                         currency: "VND",
-                    }).format(product.price)
+                    }).format(product.price || product.DonGia)
             }));
 
             setData(formattedData);
             setFilteredData(formattedData);
-
+            
             // Lấy danh sách unique categories
             const uniqueCats = [...new Set(formattedData.map((item) => item.category))];
             setUniqueCategories(uniqueCats);

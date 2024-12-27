@@ -4,7 +4,7 @@ import axios from 'axios';
 import "./ProductSearchModal.css";
 import productService from '../../../services/productService';
 import { getUnitById } from "../../../services/UnitTypeService";
-const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = false }) => {
+const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = false, cart = [] }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [quantities, setQuantities] = useState({});
   const [products, setProducts] = useState([]);
@@ -82,17 +82,22 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleQuantityChange = (productId, change, maxStock) => {
+  const getAvailableStock = (productId) => {
+    const cartItem = cart.find(item => item.id === productId);
+    const currentQty = cartItem ? (quantities[productId] || 1) : 0;
+    const product = products.find(p => p.id === productId);
+    return product ? product.stock - currentQty : 0;
+  };
+
+  const handleQuantityChange = (productId, change) => {
+    const availableStock = getAvailableStock(productId);
     setQuantities(prev => {
       const currentQty = prev[productId] || 1;
       const newQty = currentQty + change;
       
-      // Chỉ kiểm tra số lượng, không cập nhật database
-      if (newQty < 1) {
-        return prev;
-      }
-      if (newQty > maxStock) {
-        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${maxStock})`);
+      if (newQty < 1) return prev;
+      if (newQty > availableStock) {
+        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${availableStock})`);
         return prev;
       }
       
@@ -100,41 +105,116 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
     });
   };
 
-  const handleProductConfirm = (product) => {
+  const handleProductConfirm = async (product) => {
     try {
         const selectedQuantity = quantities[product.id] || 1;
         
+        // Validate against current stock
         if (selectedQuantity > product.stock) {
             message.error('Số lượng vượt quá tồn kho hiện có!');
             return;
         }
 
-        // Log chi tiết trước khi gửi đi
-        console.log('Selected product details:', {
-            id: product.id,
-            MaSanPham: product.MaSanPham,
-            name: product.name,
-            price: product.price,
-            rawPrice: product.rawPrice,
-            PhanTramLoiNhuan: product.PhanTramLoiNhuan,
-            stock: product.stock,
-            selectedQuantity
-        });
-
-        onConfirm({
+        const productToAdd = {
             ...product,
             quantity: selectedQuantity,
-            originalStock: product.stock,
+            currentStock: product.stock,
             requestedQuantity: selectedQuantity
-        });
+        };
 
+        onConfirm(productToAdd);
         onCancel();
+        setQuantities({}); // Reset quantities after confirmation
         message.success(`Đã thêm ${selectedQuantity} sản phẩm vào giỏ hàng`);
     } catch (error) {
         console.error('Error confirming product:', error);
         message.error('Không thể thêm sản phẩm');
     }
 };
+
+  const columns = [
+    {
+      title: 'Hình ảnh',
+      dataIndex: 'image',
+      width: '100px',
+    },
+    {
+      title: 'Tên sản phẩm',
+      dataIndex: 'name',
+    },
+    {
+      title: 'Giá',
+      dataIndex: 'price',
+    },
+    {
+      title: 'Tồn kho',
+      dataIndex: 'stock',
+      render: (_, record) => {
+        const availableStock = getAvailableStock(record.id);
+        return (
+          <span style={{ color: availableStock <= 5 ? '#ff4d4f' : 'inherit' }}>
+            {availableStock}
+          </span>
+        );
+      }
+    },
+    {
+      title: 'Số lượng',
+      dataIndex: 'quantity',
+      width: '150px',
+      render: (_, record) => {
+        const availableStock = getAvailableStock(record.id);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Button
+              onClick={() => handleQuantityChange(record.id, -1)}
+              disabled={(quantities[record.id] || 1) <= 1}
+              style={{
+                width: '24px',
+                height: '24px',
+                minWidth: '24px',
+                borderRadius: '4px',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              -
+            </Button>
+            <span style={{ margin: '0 4px' }}>{quantities[record.id] || 1}</span>
+            <Button
+              onClick={() => handleQuantityChange(record.id, 1)}
+              disabled={(quantities[record.id] || 1) >= availableStock}
+              style={{
+                width: '24px',
+                height: '24px',
+                minWidth: '24px',
+                borderRadius: '4px',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              +
+            </Button>
+          </div>
+        )
+      }
+    },
+    {
+      title: '',
+      render: (_, record) => (
+        <Button
+          type="primary"
+          onClick={() => handleProductConfirm(record)}
+        >
+          Chọn
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <div className="modal-for-product1">
@@ -153,78 +233,7 @@ const ProductSearchModal = ({ isVisible, onCancel, onConfirm, isProductPage = fa
       />
       <Table
         loading={loading}
-        columns={[
-          {
-            title: 'Hình ảnh',
-            dataIndex: 'image',
-            width: '100px',
-          },
-          {
-            title: 'Tên sản phẩm',
-            dataIndex: 'name',
-          },
-          {
-            title: 'Giá',
-            dataIndex: 'price',
-          },
-          {
-            title: 'Tồn kho',
-            dataIndex: 'stock',
-            width: '100px',
-          },
-          {
-            title: 'Số lượng',
-            dataIndex: 'quantity',
-            width: '150px',
-            render: (_, record) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Button
-                  onClick={() => handleQuantityChange(record.id, -1, record.stock)}
-                  disabled={(quantities[record.id] || 1) <= 1}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    minWidth: '24px',
-                    borderRadius: '4px',
-                    padding: '0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  -
-                </Button>
-                <span style={{ margin: '0 4px' }}>{quantities[record.id] || 1}</span>
-                <Button
-                  onClick={() => handleQuantityChange(record.id, 1, record.stock)}
-                  style={{
-                    width: '24px',
-                    height: '24px',
-                    minWidth: '24px',
-                    borderRadius: '4px',
-                    padding: '0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  +
-                </Button>
-              </div>
-            ),
-          },
-          {
-            title: '',
-            render: (_, record) => (
-              <Button
-                type="primary"
-                onClick={() => handleProductConfirm(record)}
-              >
-                Chọn
-              </Button>
-            ),
-          },
-        ]}
+        columns={columns}
         dataSource={filteredProducts}
         rowKey="id"
         pagination={false}

@@ -5,7 +5,6 @@ import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhan
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";
 import axios from 'axios';
-// Change this import
 import { getOrderById, updateOrder } from '../../../services/Orderproduct';  // Update import to include updateOrder
 const { Option } = Select;
 
@@ -19,6 +18,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [deletedDetails, setDeletedDetails] = useState([]); // Add state to track deleted details
   
   // Load initial data when modal opens
   useEffect(() => {
@@ -65,7 +65,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                                 price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
                                 rawPrice: detail.DonGiaBanRa,
                                 PhanTramLoiNhuan: product?.PhanTramLoiNhuan || 0,
-                                image: product?.HinhAnh || 'default-image.png',
+                                image: product?.HinhAnh || 'default-image-url',
                                 quantity: detail.SoLuong,
                                 MaChiTietBH: detail.MaChiTietBH
                             };
@@ -101,7 +101,7 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
     }
   }, [isVisible]);
 
-// Sửa handleProductSelect để lưu PhanTramLoiNhuan
+// Sửa handleProductSelect để lưu PhanTramLoiNhuan và hiển thị hình ảnh đúng cách
 const handleProductSelect = (product) => {
   if (cart.some((item) => item.id === product.id)) {
     setQuantities(prev => ({
@@ -111,7 +111,8 @@ const handleProductSelect = (product) => {
   } else {
     const productWithPTLN = {
       ...product,
-      PhanTramLoiNhuan: product.PhanTramLoiNhuan
+      PhanTramLoiNhuan: product.PhanTramLoiNhuan,
+      image: product.HinhAnh || 'default-image-url' // Ensure image URL is set correctly
     };
     setCart(prevCart => [...prevCart, productWithPTLN]);
     setQuantities(prev => ({
@@ -137,8 +138,12 @@ const handleProductSelect = (product) => {
     }));
   };
 
-  // Xóa sản phẩm khỏi giỏ hàng
+  // Update removeFromCart to track deleted details
   const removeFromCart = (productId) => {
+    const productToRemove = cart.find(item => item.id === productId);
+    if (productToRemove && productToRemove.MaChiTietBH) {
+      setDeletedDetails(prev => [...prev, productToRemove]);
+    }
     setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
   };
 
@@ -150,63 +155,107 @@ const handleProductSelect = (product) => {
 
   // Add function to calculate selling price with profit margin
   const calculateSellingPrice = (basePrice, profitMargin) => {
-    console.log('Calculating price with:', { basePrice, profitMargin });
     const margin = (profitMargin || 0) / 100;
     const finalPrice = basePrice * (1 + margin);
-    console.log('Final price:', finalPrice);
-    return finalPrice;
+    return parseFloat(finalPrice.toFixed(2)); // Ensure 2 decimal places
   };
 
-// Sửa handleUpdateOrder
+  // Add the single calculateTotal function
+  const calculateTotal = () => {
+    return parseFloat(cart.reduce((total, item) => {
+      const quantity = quantities[item.id] || 1;
+      const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
+      return total + (quantity * sellingPrice);
+    }, 0).toFixed(2));
+  };
+
+// Update handleUpdateOrder function
 const handleUpdateOrder = async () => {
-    try {
-        // Validate input data
-        if (!selectedCustomer?.id) {
-            alert('Vui lòng chọn khách hàng');
-            return;
-        }
-
-        if (!orderDate) {
-            alert('Vui lòng chọn ngày lập phiếu');
-            return;
-        }
-
-        if (cart.length === 0) {
-            alert('Vui lòng thêm sản phẩm vào giỏ hàng');
-            return;
-        }
-
-        // Format data theo đúng cấu trúc backend yêu cầu
-        const updateData = {
-            invoiceData: {
-                NgayLap: orderDate,
-                MaKhachHang: selectedCustomer.id,
-                TongTien: calculateTotal()
-            },
-            details: cart.map(item => ({
-                MaChiTietBH: item.MaChiTietBH || `CTBH${Date.now()}_${item.id}`,
-                SoPhieuBH: initialData.SoPhieuBH,
-                MaSanPham: item.id,
-                SoLuong: quantities[item.id] || 1,
-                DonGiaBanRa: calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan),
-                ThanhTien: (quantities[item.id] || 1) * calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan)
-            }))
-        };
-
-        console.log('Updating with profit margins:', updateData);
-        // Gọi API update using updateOrder from Orderproduct service
-        const result = await updateOrder(initialData.SoPhieuBH, updateData);
-        console.log('Update response:', result);
-
-        alert('Cập nhật phiếu bán hàng thành công!');
-        onSave();
-        onClose();
-    } catch (error) {
-        console.error('Error updating:', error);
-        console.error('Error response:', error.response?.data);
-        alert(`Lỗi: ${error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng'}`);
+  try {
+    // Validate input data
+    if (!selectedCustomer?.id) {
+      message.error('Vui lòng chọn khách hàng');
+      return;
     }
+
+    if (!orderDate) {
+      message.error('Vui lòng chọn ngày lập phiếu');
+      return;
+    }
+
+    // Calculate total amount with proper decimal handling
+    const total = calculateTotal();
+    const totalAmount = parseFloat(total.toFixed(2));
+
+    // Format data for backend
+    const updateData = {
+      updateDetails: [{
+        NgayLap: formatDateForServer(orderDate),
+        MaKH: selectedCustomer.id,
+        TongTien: totalAmount // Send as number with 2 decimal places
+      }],
+      addDetails: cart.filter(item => !item.MaChiTietBH).map(item => {
+        const sellingPrice = parseFloat(calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan).toFixed(2));
+        const quantity = quantities[item.id] || 1;
+        const lineTotal = parseFloat((sellingPrice * quantity).toFixed(2));
+        
+        return {
+          MaSanPham: item.id,
+          SoLuong: quantity,
+          DonGiaBanRa: sellingPrice,
+          ThanhTien: lineTotal,
+          HinhAnh: item.image || 'default-image.png'
+        };
+      }),
+      deleteDetails: deletedDetails.map(item => ({
+        MaChiTietBH: item.MaChiTietBH,
+        MaSanPham: item.id,
+        SoLuong: item.quantity
+      }))
+    };
+
+    const loadingMessage = message.loading('Đang cập nhật đơn hàng...', 0);
+
+    try {
+      await updateOrder(initialData.SoPhieuBH, updateData);
+      loadingMessage();
+      message.success('Cập nhật phiếu bán hàng thành công!');
+      onSave();
+      onClose();
+    } catch (error) {
+      loadingMessage();
+      console.error('Update error:', error);
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng');
+    }
+  } catch (error) {
+    console.error('Error in handleUpdateOrder:', error);
+    message.error('Có lỗi xảy ra khi cập nhật phiếu bán hàng');
+  }
 };
+
+// Add useEffect to handle cart updates
+useEffect(() => {
+    if (initialData?.details && Array.isArray(initialData.details)) {
+        const cartItems = initialData.details.map(detail => ({
+            id: detail.MaSanPham,
+            name: detail.TenSanPham,
+            image: detail.HinhAnh || 'default-image.png',
+            price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
+            rawPrice: detail.DonGiaBanRa,
+            PhanTramLoiNhuan: detail.PhanTramLoiNhuan || 0,
+            quantity: detail.SoLuong,
+            MaChiTietBH: detail.MaChiTietBH
+        }));
+
+        setCart(cartItems);
+
+        const initQuantities = {};
+        initialData.details.forEach(detail => {
+            initQuantities[detail.MaSanPham] = detail.SoLuong;
+        });
+        setQuantities(initQuantities);
+    }
+}, [initialData]);
 
   if (!isVisible) return null;
   const handleCustomerSelect = (customer) => {
@@ -218,15 +267,6 @@ const handleUpdateOrder = async () => {
     setIsCustomerModalVisible(false);
   };
 
-  // Thêm hàm tính tổng tiền
-  const calculateTotal = () => {
-    return cart.reduce((total, item) => {
-      const quantity = quantities[item.id] || 1;
-      const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
-      return total + (quantity * sellingPrice);
-    }, 0);
-  };
-  
   return (
     <div className="tc1">
       <div className="overlay1">
@@ -316,6 +356,7 @@ const handleUpdateOrder = async () => {
                   isVisible={isProductModalVisible}
                   onCancel={() => setIsProductModalVisible(false)}
                   onConfirm={handleProductSelect}
+                  cart={cart} // Pass the cart prop
                 />
                 {/* Hiển thị giỏ hàng */}
                 <div className="cart-container" style={{
@@ -397,7 +438,10 @@ const handleUpdateOrder = async () => {
                       }}>
                         <strong>Tổng cộng:</strong>
                         <span style={{ fontSize: "18px", color: "#1890ff" }}>
-                          {new Intl.NumberFormat('vi-VN').format(calculateTotal())} đ
+                          {new Intl.NumberFormat('vi-VN', { 
+                            style: 'currency', 
+                            currency: 'VND' 
+                          }).format(calculateTotal())}
                         </span>
                       </div>
                     </>
