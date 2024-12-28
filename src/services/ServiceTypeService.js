@@ -5,24 +5,24 @@ const API_URL = 'http://localhost:3000/api';
 
 // Create axios instance with dynamic token configuration
 const axiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+    baseURL: API_URL,
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
 
 // Add request interceptor to add token before each request
 axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = getAccessToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    (config) => {
+        const token = getAccessToken();
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
 );
 
 const getAllServiceTypes = async () => {

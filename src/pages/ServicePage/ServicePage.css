@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900&display=swap');
 
-
 .order-table-container-sr{
   margin-left: 270px;
   padding: 20px;
@@ -97,5 +96,53 @@
       background-color: #cdd1ff;
       color: #091057;
     }
+  }
+}
+
+/* Main container */
+.service-page-container {
+  margin-left: 270px; /* Match sidebar width */
+  padding: 20px;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+}
+
+/* Content wrapper */
+.service-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-x: auto; /* Add horizontal scroll if needed */
+}
+
+/* Header section */
+.service-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+/* Action buttons container */
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Table styles */
+.ant-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ant-table {
+  min-width: 800px; /* Minimum width to prevent squishing */
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .service-page-container {
+    margin-left: 80px; /* Adjust for collapsed sidebar */
   }
 }

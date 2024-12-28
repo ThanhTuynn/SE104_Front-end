@@ -28,48 +28,27 @@ axiosInstance.interceptors.request.use(
 const serviceService = {
     getAllServiceTickets: async () => {
         try {
-            // Lấy cả danh sách dịch vụ và khách hàng
-            const [servicesRes, customersRes] = await Promise.all([
-                axiosInstance.get('/services/get-all'),
-                axiosInstance.get('/customers/get-all')
-            ]);
+            const response = await axiosInstance.get('/services/get-all');
+            console.log('Service API response:', response.data); // Debug log
+            return response.data;
+        } catch (error) {
+            console.error('Get services error:', error);
+            throw error;
+        }
+    },
 
-            // Debug log
-            console.log('Services data:', servicesRes.data);
-            console.log('Customers data:', customersRes.data);
-
-            // Tạo map cho khách hàng
-            const customerMap = {};
-            customersRes.data.forEach(customer => {
-                customerMap[customer.MaKhachHang] = customer.TenKhachHang;
-            });
-
-            console.log('Customer mapping:', customerMap);
-
-            // Map response data với tên khách hàng
-            const mappedData = servicesRes.data.map(ticket => {
-                console.log('Processing ticket:', ticket);
-                console.log('Customer for ticket:', customerMap[ticket.MaKhachHang]);
-
-                return {
-                    key: ticket.SoPhieuDV,
-                    productCode: ticket.SoPhieuDV,
-                    serviceName: ticket.CHITIETDICHVU?.[0]?.LOAIDICHVU?.TenLoaiDichVu || 'Chưa có tên dịch vụ',
-                    postedDate: new Date(ticket.NgayLap).toLocaleDateString('en-US', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                    }),
-                    price: new Intl.NumberFormat('vi-VN', {
-                        style: 'decimal',
-                        maximumFractionDigits: 0
-                    }).format(ticket.TongTien || 0),
-                    customer: customerMap[ticket.MaKhachHang] || 'Không tìm thấy khách hàng'
-                };
-            });
-
-            console.log('Mapped data:', mappedData);
-            return mappedData;
+    getAllServices: async () => {
+        try {
+            const response = await axiosInstance.get('/services/get-all');
+            return response.data.map(ticket => ({
+                key: ticket.SoPhieuDV,
+                SoPhieuDV: ticket.SoPhieuDV,
+                NgayLap: ticket.NgayLap,
+                customer: ticket.customer,
+                TongTien: ticket.TongTien,
+                TongTienTraTruoc: ticket.TongTienTraTruoc,
+                TinhTrang: ticket.TinhTrang
+            }));
         } catch (error) {
             console.error('Get services error:', error);
             throw error;
@@ -94,6 +73,57 @@ const serviceService = {
         } catch (error) {
             console.error('Delete multiple services error:', error);
             throw error;
+        }
+    },
+
+    createServiceTicket: async (ticketData, details) => {
+        try {
+            const response = await axiosInstance.post('/services/create', {
+                ticketData,
+                details
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Create service ticket error:', error);
+            throw new Error(
+                error.response?.data?.message || 
+                'Không thể tạo phiếu dịch vụ'
+            );
+        }
+    },
+
+    getServiceTicketById: async (id) => {
+        try {
+            const response = await axiosInstance.get(`/services/${id}`);
+            console.log('Service ticket data:', response.data);
+            return {
+                ticketInfo: {
+                    SoPhieuDV: response.data.serviceTicket.SoPhieuDV,
+                    NgayLap: response.data.serviceTicket.NgayLap,
+                    TongTien: response.data.serviceTicket.TongTien,
+                    TongTienTraTruoc: response.data.serviceTicket.TongTienTraTruoc,
+                    TinhTrang: response.data.serviceTicket.TinhTrang,
+                    customer: response.data.serviceTicket.customer
+                },
+                services: response.data.serviceDetails.map(detail => ({
+                    id: detail.MaChiTietDV,
+                    name: detail.TenLoaiDichVu,
+                    price: detail.DonGiaDuocTinh,
+                    calculatedPrice: detail.DonGiaDuocTinh,
+                    quantity: detail.SoLuong,
+                    prepaid: detail.TraTruoc,
+                    total: detail.ThanhTien,
+                    additionalCost: detail.ChiPhiRieng,
+                    deliveryDate: detail.NgayGiao,
+                    status: detail.TinhTrang
+                }))
+            };
+        } catch (error) {
+            console.error('Get service ticket by ID error:', error);
+            throw new Error(
+                error.response?.data?.message || 
+                'Không thể tải thông tin phiếu dịch vụ'
+            );
         }
     }
 };
