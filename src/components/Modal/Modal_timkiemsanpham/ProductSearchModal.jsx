@@ -26,7 +26,6 @@ const ProductSearchModal = ({
   const fetchProducts = async () => {
     try {
         setLoading(true);
-        // Fetch products and categories
         const [productsResponse, categoriesResponse] = await Promise.all([
             axios.get('http://localhost:3000/api/product/get-all'),
             axios.get('http://localhost:3000/api/category/get-all')
@@ -42,9 +41,9 @@ const ProductSearchModal = ({
             };
         });
 
-        // Filter out products with isDelete=true and map the remaining
+        // Filter out products with isDelete=true AND stock=0
         const formattedProducts = productsResponse.data
-            .filter(product => !product.isDelete)
+            .filter(product => !product.isDelete && product.SoLuong > 0) // Thêm điều kiện SoLuong > 0
             .map(product => {
                 const category = categoryMap[product.MaLoaiSanPham];
                 return {
@@ -55,8 +54,9 @@ const ProductSearchModal = ({
                     image: product.HinhAnh || 'default-image.png',
                     PhanTramLoiNhuan: parseFloat(category?.PhanTramLoiNhuan || 0),
                     stock: product.SoLuong || 0,
-                    availableStock: product.SoLuong || 0, // Track available stock
+                    availableStock: product.SoLuong || 0,
                     categoryName: category?.TenLoaiSanPham || 'Chưa phân loại',
+                    MaDVTinh: category?.MaDVTinh,
                     TenDVTinh: category?.TenDVTinh || 'N/A'
                 };
             });
@@ -128,7 +128,13 @@ const ProductSearchModal = ({
     {
       title: 'Hình ảnh',
       dataIndex: 'image',
-      width: '100px',
+      render: (image) => (
+        <img
+          src={image}
+          alt="Sản phẩm"
+          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+        />
+      ),
     },
     {
       title: 'Tên sản phẩm',
@@ -137,63 +143,6 @@ const ProductSearchModal = ({
     {
       title: 'Giá',
       dataIndex: 'price',
-    },
-    {
-      title: 'Tồn kho',
-      dataIndex: 'stock',
-      render: (_, record) => {
-        const availableStock = getAvailableStock(record.id);
-        return (
-          <span style={{ color: availableStock <= 5 ? '#ff4d4f' : 'inherit' }}>
-            {availableStock}
-          </span>
-        );
-      }
-    },
-    {
-      title: 'Số lượng',
-      dataIndex: 'quantity',
-      width: '150px',
-      render: (_, record) => {
-        const availableStock = getAvailableStock(record.id);
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Button
-              onClick={() => handleQuantityChange(record.id, -1)}
-              disabled={(quantities[record.id] || 1) <= 1}
-              style={{
-                width: '24px',
-                height: '24px',
-                minWidth: '24px',
-                borderRadius: '4px',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              -
-            </Button>
-            <span style={{ margin: '0 4px' }}>{quantities[record.id] || 1}</span>
-            <Button
-              onClick={() => handleQuantityChange(record.id, 1)}
-              disabled={(quantities[record.id] || 1) >= availableStock}
-              style={{
-                width: '24px',
-                height: '24px',
-                minWidth: '24px',
-                borderRadius: '4px',
-                padding: '0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              +
-            </Button>
-          </div>
-        )
-      }
     },
     {
       title: '',

@@ -5,7 +5,9 @@ import CustomerSearchModal from "../Modal_timkiemkhachhang/Modal_timkiemkhachhan
 import ProductSearchModal from "../Modal_timkiemsanpham/ProductSearchModal";
 import "./AddOrderModal.css";
 import axios from 'axios';
-import { getOrderById, updateOrder } from '../../../services/Orderproduct';  // Update import to include updateOrder
+import { getOrderById, updateOrder } from '../../../services/Orderproduct';
+import productService from '../../../services/productService';
+
 const { Option } = Select;
 
 const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sửa đơn hàng" }) => {
@@ -22,95 +24,126 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [deletedDetails, setDeletedDetails] = useState([]); // Add state to track deleted details
   const [invoiceNumber, setInvoiceNumber] = useState(''); // Add new state for invoice number
+  const [newProducts, setNewProducts] = useState([]);
+  const [deletedProducts, setDeletedProducts] = useState([]);
   
   // Load initial data when modal opens
   useEffect(() => {
     const fetchOrderData = async () => {
-        if (initialData && isVisible) {
-            setInvoiceNumber(initialData.SoPhieuBH || ''); // Set invoice number
-            try {
-                // Fetch order, products and categories in parallel
-                const [orderResponse, productsRes, categoriesRes] = await Promise.all([
-                    getOrderById(initialData.SoPhieuBH),
-                    axios.get('http://localhost:3000/api/product/get-all'),
-                    axios.get('http://localhost:3000/api/category/get-all')
-                ]);
+      if (initialData && isVisible) {
+        try {
+          // Fetch tất cả dữ liệu cần thiết một lần
+          const [orderResponse, productsRes, categoriesRes, unitsRes] = await Promise.all([
+            getOrderById(initialData.SoPhieuBH),
+            axios.get('http://localhost:3000/api/product/get-all'),
+            axios.get('http://localhost:3000/api/category/get-all'),
+            axios.get('http://localhost:3000/api/unit/get-all')
+          ]);
 
-                // Create category map for profit margins
-                const categoryMap = {};
-                categoriesRes.data.forEach(cat => {
-                    categoryMap[cat.MaLoaiSanPham] = {
-                        PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
-                        TenLoaiSanPham: cat.TenLoaiSanPham
-                    };
-                });
-
-                // Map products with profit margins and current stock
-                const productMap = {};
-                const productsWithStock = productsRes.data.map(product => {
-                    const mappedProduct = {
-                        ...product,
-                        PhanTramLoiNhuan: parseFloat(categoryMap[product.MaLoaiSanPham]?.PhanTramLoiNhuan || 0),
-                        categoryName: categoryMap[product.MaLoaiSanPham]?.TenLoaiSanPham,
-                        currentStock: product.SoLuong, // Track current stock
-                        originalStock: product.SoLuong // Keep original stock for reference
-                    };
-                    productMap[product.MaSanPham] = mappedProduct;
-                    return mappedProduct;
-                });
-
-                setProducts(productsWithStock);
-
-                if (orderResponse) {
-                    setOrderDate(new Date(orderResponse.NgayLap).toISOString().split('T')[0]);
-                    setSelectedCustomer({
-                        id: orderResponse.MaKhachHang,
-                        name: orderResponse.customer.TenKhachHang,
-                        phone: orderResponse.customer.SoDT,
-                        address: orderResponse.customer.DiaChi
-                    });
-
-                    if (Array.isArray(orderResponse.details)) {
-                        // Map cart items with proper stock tracking
-                        const cartItems = orderResponse.details.map(detail => {
-                            const product = productMap[detail.MaSanPham];
-                            return {
-                                id: detail.MaSanPham,
-                                name: product?.TenSanPham || `Sản phẩm ${detail.MaSanPham}`,
-                                price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
-                                rawPrice: detail.DonGiaBanRa,
-                                PhanTramLoiNhuan: product?.PhanTramLoiNhuan || 0,
-                                image: product?.HinhAnh || 'default-image.png',
-                                quantity: detail.SoLuong,
-                                currentStock: product?.SoLuong || 0,
-                                originalStock: product?.SoLuong || 0,
-                                MaChiTietBH: detail.MaChiTietBH
-                            };
-                        });
-
-                        setCart(cartItems);
-
-                        // Initialize quantities
-                        const initQuantities = {};
-                        orderResponse.details.forEach(detail => {
-                            initQuantities[detail.MaSanPham] = detail.SoLuong;
-                            // Update available stock for each product
-                            if (productMap[detail.MaSanPham]) {
-                                productMap[detail.MaSanPham].currentStock -= detail.SoLuong;
-                            }
-                        });
-                        setQuantities(initQuantities);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching order data:', error);
-                message.error('Có lỗi khi tải thông tin đơn hàng');
+          // 1. Tạo mapping cho đơn vị tính
+          const unitsMap = {};
+          const units = Array.isArray(unitsRes.data) ? unitsRes.data : 
+                      (unitsRes.data.data ? unitsRes.data.data : []);
+          
+          units.forEach(unit => {
+            if (unit && unit.MaDVTinh) {
+              unitsMap[unit.MaDVTinh] = unit.TenDVTinh;
             }
+          });
+
+          // 2. Tạo mapping cho loại sản phẩm
+          const categoryMap = {};
+          categoriesRes.data.forEach(cat => {
+            categoryMap[cat.MaLoaiSanPham] = {
+              TenLoaiSanPham: cat.TenLoaiSanPham,
+              PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
+              MaDVTinh: cat.MaDVTinh
+            };
+          });
+
+          // 3. Map tất cả sản phẩm với đơn vị tính (cho ProductSearchModal)
+          const productsWithDetails = productsRes.data
+            .filter(product => !product.isDelete)
+            .map(product => {
+              const category = categoryMap[product.MaLoaiSanPham] || {};
+              const maDVTinh = category.MaDVTinh;
+              const tenDVTinh = unitsMap[maDVTinh];
+
+              return {
+                id: product.MaSanPham,
+                name: product.TenSanPham,
+                price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
+                rawPrice: product.DonGia,
+                image: product.HinhAnh || 'default-image.png',
+                MaLoaiSanPham: product.MaLoaiSanPham,
+                TenLoaiSanPham: category.TenLoaiSanPham,
+                DonGia: product.DonGia,
+                stock: product.SoLuong || 0,
+                PhanTramLoiNhuan: category.PhanTramLoiNhuan || 0,
+                MaDVTinh: maDVTinh,
+                TenDVTinh: tenDVTinh || 'N/A',
+                categoryName: category.TenLoaiSanPham || 'Chưa phân loại'
+              };
+            });
+
+          setProducts(productsWithDetails);
+
+          if (orderResponse) {
+            // Set invoice number
+            setInvoiceNumber(orderResponse.SoPhieuBH);
+            
+            // Set order date
+            setOrderDate(orderResponse.NgayLap);
+            
+            // Set customer info
+            setSelectedCustomer({
+              id: orderResponse.MaKhachHang,
+              name: orderResponse.customer?.TenKhachHang || '',
+              phone: orderResponse.customer?.SoDT || ''
+            });
+
+            // Set cart items with all details including unit
+            if (Array.isArray(orderResponse.details)) {
+              const cartItems = orderResponse.details.map(detail => {
+                // Tìm sản phẩm tương ứng trong productsWithDetails
+                const productWithDetails = productsWithDetails.find(p => p.id === detail.MaSanPham);
+
+                return {
+                  id: detail.MaSanPham,
+                  name: detail.TenSanPham,
+                  MaChiTietBH: detail.MaChiTietBH,
+                  rawPrice: detail.DonGiaBanRa,
+                  price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
+                  PhanTramLoiNhuan: productWithDetails?.PhanTramLoiNhuan || 0,
+                  quantity: detail.SoLuong,
+                  ThanhTien: detail.ThanhTien,
+                  MaLoaiSanPham: productWithDetails?.MaLoaiSanPham,
+                  TenDVTinh: productWithDetails?.TenDVTinh || 'N/A',
+                  stock: productWithDetails?.stock || 0,
+                  image: productWithDetails?.image || 'default-image.png'
+                };
+              });
+
+              console.log('Cart items with details:', cartItems);
+              setCart(cartItems);
+
+              // Set quantities
+              const initQuantities = {};
+              orderResponse.details.forEach(detail => {
+                initQuantities[detail.MaSanPham] = detail.SoLuong;
+              });
+              setQuantities(initQuantities);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching data:', error);
+          message.error('Có lỗi khi tải thông tin');
         }
+      }
     };
 
     fetchOrderData();
-}, [initialData, isVisible]);
+  }, [initialData, isVisible]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -122,48 +155,50 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
     }
   }, [isVisible]);
 
-// Sửa handleProductSelect để lưu PhanTramLoiNhuan và hiển thị hình ảnh đúng cách
-const handleProductSelect = (product) => {
-  const existingItem = cart.find(item => item.id === product.id);
+  // Cập nhật handleProductSelect để bao gồm đơn vị tính
+  const handleProductSelect = (product) => {
+    console.log('Selected product:', product);
+
+    // Tìm sản phẩm trong danh sách products đã fetch
+    const productWithDetails = products.find(p => p.id === product.id);
+    if (!productWithDetails) {
+      message.error('Không tìm thấy thông tin sản phẩm');
+      return;
+    }
+
+    if (cart.some((item) => item.id === product.id)) {
+      setQuantities(prev => {
+        const currentQty = prev[product.id] || 1;
+        const newQty = currentQty + 1;
+        
+        if (newQty > productWithDetails.stock) {
+          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${productWithDetails.stock})`);
+          return prev;
+        }
+        
+        return {
+          ...prev,
+          [product.id]: newQty
+        };
+      });
+    } else {
+      setNewProducts(prev => [...prev, product.id]);
+
+      const newProduct = {
+        ...productWithDetails, // Lấy tất cả thông tin từ sản phẩm đã fetch
+        quantity: 1
+      };
+
+      console.log('New product to cart:', newProduct);
+      setCart(prevCart => [...prevCart, newProduct]);
+      setQuantities(prev => ({
+        ...prev,
+        [product.id]: 1
+      }));
+    }
     
-  if (existingItem) {
-    // Update quantity of existing item
-    setQuantities(prev => {
-      const newQty = (prev[product.id] || 1) + (product.quantity || 1);
-      if (newQty > product.availableStock) {
-        message.warning(`Số lượng vượt quá tồn kho (${product.availableStock})`);
-        return prev;
-      }
-      return { ...prev, [product.id]: newQty };
-    });
-  } else {
-    // Add new item
-    const productWithStock = {
-      ...product,
-      PhanTramLoiNhuan: product.PhanTramLoiNhuan,
-      image: product.HinhAnh || 'default-image-url',
-      originalStock: product.stock,
-      currentStock: product.stock - product.quantity
-    };
-    
-    setCart(prevCart => [...prevCart, productWithStock]);
-    setQuantities(prev => ({
-      ...prev,
-      [product.id]: product.quantity || 1
-    }));
-  }
-  
-  // Update available stock in products list
-  setProducts(prevProducts => 
-    prevProducts.map(p => 
-      p.id === product.id 
-        ? { ...p, availableStock: p.availableStock - (product.quantity || 1) }
-        : p
-    )
-  );
-  
-  setIsProductModalVisible(false);
-};
+    setIsProductModalVisible(false);
+  };
 
   // Thêm sản phẩm vào giỏ hàng
   const addToCart = (product) => {
@@ -174,36 +209,75 @@ const handleProductSelect = (product) => {
     setFilteredProducts([]); // Reset danh sách sản phẩm
   };
   const handleQuantityChange = (productId, change) => {
-    setQuantities(prev => ({
-      ...prev,
-      [productId]: Math.max(1, (prev[productId] || 1) + change)
-    }));
+    const cartItem = cart.find(item => item.id === productId);
+    if (!cartItem) return;
+
+    setQuantities(prev => {
+      const currentQty = prev[productId] || 1;
+      const newQty = currentQty + change;
+
+      // Kiểm tra số lượng tối thiểu
+      if (newQty < 1) return prev;
+
+      // Kiểm tra số lượng tồn kho
+      if (newQty > cartItem.stock) {
+        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${cartItem.stock})`);
+        return prev;
+      }
+
+      // Cập nhật số lượng mới
+      return { ...prev, [productId]: newQty };
+    });
   };
 
   // Update removeFromCart function
   const removeFromCart = (productId) => {
-    const productToRemove = cart.find(item => item.id === productId);
-    if (productToRemove && productToRemove.MaChiTietBH) {
-        setDeletedDetails(prev => [...prev, productToRemove]);
-    }
-    
-    // Return quantity to available stock
-    const removedQuantity = quantities[productId] || 1;
-    setProducts(prevProducts => 
-        prevProducts.map(p => 
-            p.id === productId 
-                ? { ...p, availableStock: p.availableStock + removedQuantity }
-                : p
-        )
-    );
-    
-    setCart(prevCart => prevCart.filter(item => item.id !== productId));
-    setQuantities(prev => {
+    try {
+      // Tìm sản phẩm cần xóa
+      const productToRemove = cart.find(item => item.id === productId);
+      console.log('Product to remove:', productToRemove);
+
+      if (!productToRemove) {
+        console.log('Product not found in cart');
+        return;
+      }
+
+      // Nếu là sản phẩm từ đơn hàng gốc (có MaChiTietBH)
+      if (productToRemove.MaChiTietBH) {
+        const deletedProduct = {
+          MaChiTietBH: productToRemove.MaChiTietBH,
+          MaSanPham: productId,
+          SoLuong: quantities[productId] || 1
+        };
+
+        // Cập nhật danh sách sản phẩm đã xóa
+        setDeletedProducts(prevDeleted => {
+          const newDeletedProducts = [...prevDeleted, deletedProduct];
+          console.log('Updated deletedProducts:', newDeletedProducts);
+          return newDeletedProducts;
+        });
+      }
+
+      // Cập nhật giỏ hàng bằng cách tạo một mảng mới không có sản phẩm bị xóa
+      setCart(prevCart => {
+        const updatedCart = prevCart.filter(item => item.id !== productId);
+        console.log('Updated cart:', updatedCart);
+        return updatedCart;
+      });
+
+      // Cập nhật số lượng
+      setQuantities(prev => {
         const newQuantities = { ...prev };
         delete newQuantities[productId];
+        console.log('Updated quantities:', newQuantities);
         return newQuantities;
-    });
-};
+      });
+
+    } catch (error) {
+      console.error('Error in removeFromCart:', error);
+      message.error('Có lỗi khi xóa sản phẩm');
+    }
+  };
 
   // Format ngày tháng khi gửi lên server
   const formatDateForServer = (dateString) => {
@@ -227,53 +301,65 @@ const handleProductSelect = (product) => {
     }, 0);
   };
 
+// Hàm format ngày tháng
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Update handleUpdateOrder function
 const handleUpdateOrder = async () => {
   try {
-    if (!selectedCustomer?.id) {
-      message.error('Vui lòng chọn khách hàng');
+    if (!selectedCustomer?.id || !orderDate || cart.length === 0 || !invoiceNumber) {
+      message.error('Vui lòng điền đầy đủ thông tin');
       return;
     }
 
-    if (!orderDate) {
-      message.error('Vui lòng chọn ngày lập phiếu');
-      return;
-    }
-
-    // Calculate and format total amount properly
-    const total = parseFloat(calculateTotal().toFixed(2));
-
-    // Prepare update data matching backend structure
-    const updateData = {
-      invoiceData: {
-        SoPhieuBH: initialData.SoPhieuBH,
-        NgayLap: formatDateForServer(orderDate),
-        MaKhachHang: selectedCustomer.id,
-        TongTien: total
-      },
-      details: cart.filter(item => !item.MaChiTietBH).map(item => ({
-        MaSanPham: item.id,
-        SoLuong: parseInt(quantities[item.id] || 1),
-        DonGiaBanRa: parseFloat(calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan).toFixed(2)),
-        ThanhTien: parseFloat((calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)).toFixed(2))
-      })),
-      deleteDetails: deletedDetails.map(item => ({
-        MaChiTietBH: item.MaChiTietBH,
-        MaSanPham: item.id,
-        SoLuong: parseInt(item.quantity)
-      }))
+    // Format dữ liệu theo cấu trúc backend yêu cầu
+    const requestData = {
+      updateDetails: [
+        {
+          NgayLap: formatDate(orderDate),
+          MaKH: selectedCustomer.id
+        }
+      ],
+      addDetails: cart
+        .filter(item => !item.MaChiTietBH)  // Chỉ lấy sản phẩm mới thêm vào
+        .map(item => {
+          const quantity = parseInt(quantities[item.id]) || 1;
+          const price = Number(calculateSellingPrice(
+            parseFloat(item.rawPrice),
+            parseFloat(item.PhanTramLoiNhuan)
+          ));
+          return {
+            MaSanPham: item.id,
+            SoLuong: quantity,
+            DonGiaBanRa: price,
+            ThanhTien: quantity * price
+          };
+        }),
+      deleteDetails: deletedProducts  // Sử dụng danh sách sản phẩm đã xóa
     };
 
-    console.log('Update data being sent:', updateData);
-    const result = await updateOrder(initialData.SoPhieuBH, updateData);
-    console.log('Update response:', result);
+    // In ra console theo format yêu cầu
+    console.log(JSON.stringify({
+      updateDetails: requestData.updateDetails,
+      addDetails: requestData.addDetails,
+      deleteDetails: requestData.deleteDetails
+    }, null, 2));
 
-    message.success('Cập nhật phiếu bán hàng thành công!');
-    onSave();
-    onClose();
+    const response = await updateOrder(invoiceNumber, requestData);
+    if (response) {
+      message.success('Cập nhật phiếu bán hàng thành công!');
+      onSave && onSave();
+      onClose();
+    }
   } catch (error) {
-    console.error('Error updating:', error);
-    message.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật phiếu bán hàng');
+    console.error('Error in handleUpdateOrder:', error);
+    message.error('Có lỗi xảy ra khi cập nhật phiếu bán hàng: ' + error.message);
   }
 };
 
@@ -429,66 +515,71 @@ useEffect(() => {
                   <h3>Giỏ hàng</h3>
                   {cart.length > 0 ? (
                     <>
-                      {cart.map((item) => (
-                        <div
-                          key={item.id}
-                          className="cart-item"
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            marginBottom: 10,
-                            padding: "10px",
-                            backgroundColor: "#f8f9ff",
-                            borderRadius: "8px"
-                          }}
-                        >
-                          <img
-                            src={item.image}
-                            alt={item.name}
+                      {cart.map((item) => {
+                        // Log từng item trong cart khi render
+                        console.log('=== RENDERING CART ITEM ===');
+                        console.log('Item:', item);
+                        console.log('TenDVTinh:', item.TenDVTinh);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="cart-item"
                             style={{
-                              width: "40px",
-                              height: "40px",
-                              marginRight: "10px",
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <strong>{item.name}</strong>
-                            <div style={{ color: "gray" }}>
-                              Đơn giá gốc: {item.price}
-                            </div>
-                            <div style={{ color: "gray" }}>
-                              Lợi nhuận: {item.PhanTramLoiNhuan}%
-                            </div>
-                            <div style={{ color: "blue" }}>
-                              Thành tiền: {new Intl.NumberFormat('vi-VN').format(
-                                calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
-                              )} đ
-                            </div>
-                          </div>
-                          <div style={{ 
-                            marginRight: '15px',
-                            padding: '4px 8px',
-                            backgroundColor: '#e6f7ff',
-                            borderRadius: '4px',
-                            fontSize: '14px'
-                          }}>
-                            Số lượng: {quantities[item.id] || 1}
-                          </div>
-                          <button
-                            onClick={() => removeFromCart(item.id)}
-                            style={{
-                              backgroundColor: "#ff4d4f",
-                              color: "#fff",
-                              border: "none",
-                              padding: "5px 10px",
-                              borderRadius: "4px",
-                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              marginBottom: 10,
+                              padding: "10px",
+                              backgroundColor: "#f8f9ff",
+                              borderRadius: "8px"
                             }}
                           >
-                            Xóa
-                          </button>
-                        </div>
-                      ))}
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                marginRight: "10px",
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <strong>{item.name}</strong>
+                              <div style={{ color: "gray" }}>
+                                Đơn giá gốc: {item.price}
+                              </div>
+                              <div style={{ color: "gray" }}>
+                                Lợi nhuận: {item.PhanTramLoiNhuan}%
+                              </div>
+                              <div style={{ color: "blue" }}>
+                                Thành tiền: {new Intl.NumberFormat('vi-VN').format(
+                                  calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
+                                )} VNĐ
+                              </div>
+                              <div style={{ color: "gray" }}>
+                                Đơn vị tính: {item.TenDVTinh || 'N/A'}
+                              </div>
+                              <div style={{ color: "gray" }}>
+                                Số lượng: {quantities[item.id] || 1} {item.TenDVTinh || 'N/A'}
+                              </div>
+                            </div>
+                            <button
+                              className="remove-btn"
+                              onClick={() => removeFromCart(item.id)}
+                              style={{
+                                backgroundColor: "#ff4d4f",
+                                color: "#fff",
+                                border: "none",
+                                padding: "5px 10px",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        );
+                      })}
                       <div style={{
                         marginTop: "16px",
                         padding: "10px",
@@ -521,7 +612,7 @@ useEffect(() => {
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </div>  
                   </div>
                 </div>
               </div>

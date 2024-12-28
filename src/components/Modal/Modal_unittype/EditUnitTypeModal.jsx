@@ -2,35 +2,54 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 import { updateUnitType } from '../../../services/UnitTypeService';
 
-const EditUnitTypeModal = ({ isVisible, onClose, initialData }) => {
+const EditUnitTypeModal = ({ isVisible, onClose, initialData, unitTypes = [] }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
   // Update form values when initialData changes
   useEffect(() => {
     if (isVisible && initialData) {
+      console.log('Initial Data:', initialData); // Thêm log để debug
       form.setFieldsValue({
-        id: initialData.id,
-        name: initialData.name
+        MaDonVi: initialData.id, // Đổi từ id sang MaDonVi
+        TenDonVi: initialData.name // Đổi từ name sang TenDonVi
       });
     }
   }, [isVisible, initialData, form]);
+
+  useEffect(() => {
+    // Log ra form values mỗi khi form thay đổi
+    console.log('Form values:', form.getFieldsValue());
+  }, [form]);
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      
-      await updateUnitType(initialData.id, {
-        id: values.id,
-        name: values.name
+
+      // Kiểm tra tên đơn vị tính trùng, loại trừ chính nó
+      const duplicateName = unitTypes.find(
+        unit => unit.id !== values.MaDonVi && // Bỏ qua chính nó
+          unit.TenDonVi.toLowerCase().trim() === values.TenDonVi.toLowerCase().trim()
+      );
+      if (duplicateName) {
+        message.error('Tên đơn vị tính đã được sử dụng!');
+        return;
+      }
+
+      await updateUnitType(initialData.MaDonVi, {
+        MaDonVi: values.MaDonVi,
+        TenDonVi: values.TenDonVi.trim()
       });
 
       message.success('Cập nhật đơn vị tính thành công');
-      onClose(true); // Pass true to trigger data refresh
+      onClose(true);
     } catch (error) {
-      console.error('Error updating unit:', error);
-      message.error(error.message || 'Có lỗi xảy ra khi cập nhật đơn vị tính');
+      if (error.message?.includes('duplicate')) {
+        message.error('Tên đơn vị tính đã tồn tại!');
+      } else {
+        message.error('Mã hoặc tên đơn vị tính đã tồn tại!');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,20 +76,23 @@ const EditUnitTypeModal = ({ isVisible, onClose, initialData }) => {
         form={form}
         layout="vertical"
         initialValues={initialData}
+        onValuesChange={(_, allValues) => {
+          console.log('Form changed:', allValues); // Thêm log để debug
+        }}
       >
         <Form.Item
-          name="id"
+          name="MaDonVi" // Đổi từ id sang MaDonVi
           label="Mã đơn vị tính"
           rules={[
             { required: true, message: 'Vui lòng nhập mã đơn vị tính' },
             { max: 50, message: 'Mã đơn vị tính không được vượt quá 50 ký tự' }
           ]}
         >
-          <Input disabled style={{ background: '#f5f5f5' }} /> {/* Add disabled prop and gray background */}
+          <Input maxLength={100} placeholder="Nhập mã đơn vị tính" />
         </Form.Item>
 
         <Form.Item
-          name="name"
+          name="TenDonVi" // Đổi từ name sang TenDonVi
           label="Tên đơn vị tính"
           rules={[
             { required: true, message: 'Vui lòng nhập tên đơn vị tính' },

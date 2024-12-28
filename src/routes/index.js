@@ -23,7 +23,8 @@ import Personal from '../pages/PersonalInfoPage/Personal'
 import PersonalInfoPage from '../pages/PersonalInfoPage/Personal'; // Import PersonalInfoPage
 import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import Unittypeproduct
 import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
-import TypeServicePage from '../pages/TypeServicePage/TypeServicePage'
+import TypeServicePage from '../pages/Typeservicepage/Typeservicepage'; // Import TypeServicePage
+import AdjustImportProduct from '../pages/AdjustImportProduct/AdjustImportProduct'
 
 const routes = [
     {
@@ -77,6 +78,12 @@ const routes = [
     {
         path: '/create-import-product',
         page: CreateImportProduct,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: '/adjust-import-product/:id',  // Thêm route mới cho AdjustImportProduct
+        page: AdjustImportProduct,
         isShowHeader: true,
         protected: true,
     },
@@ -143,6 +150,12 @@ const routes = [
     {
         path: '/type-product',
         page: TypeProductPage,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: '/type-service',
+        page: TypeServicePage,
         isShowHeader: true,
         protected: true,
     },

@@ -187,7 +187,6 @@ const ImportProduct = () => {
       title: "Tổng tiền",
       dataIndex: "total",
       key: "total",
-      align: 'right',
     },
   ];
 
