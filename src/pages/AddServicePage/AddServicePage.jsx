@@ -145,29 +145,29 @@ const App = () => {
                 {
                     title: "Trả trước",
                     dataIndex: "prepayment",
-                    key: "prepayment",
+            key: "prepayment",
                     width: "12%",
-                    render: (_, record) => {
+            render: (_, record) => {
                         const basePrice = Number(record.price) + Number(record.additionalCost || 0);
                         const total = (record.quantity || 1) * basePrice;
                         const minPrepayment = total * (record.pttr / 100);
 
-                        return (
-                            <div>
-                                <div
-                                    style={{
-                                        fontSize: "12px",
-                                        color: "#666",
-                                        marginBottom: "4px",
-                                    }}
-                                >
+                return (
+                    <div>
+                        <div
+                            style={{
+                                fontSize: "12px",
+                                color: "#666",
+                                marginBottom: "4px",
+                            }}
+                        >
                                     Tối thiểu: {formatCurrency(minPrepayment)} ({record.pttr}%)
-                                </div>
-                                <Input
-                                    type="number"
+                        </div>
+                        <Input
+                            type="number"
                                     value={record.prepayment || 0}
-                                    onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
+                            onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
                                         const isValid = validatePrepayment(record, value);
 
                                         setInvalidPrepayments((prev) => ({
@@ -175,7 +175,7 @@ const App = () => {
                                             [record.id]: !isValid,
                                         }));
 
-                                        const updatedData = data.map((item) =>
+                                const updatedData = data.map((item) =>
                                             item.id === record.id
                                                 ? {
                                                       ...item,
@@ -183,8 +183,8 @@ const App = () => {
                                                       remaining: total - value,
                                                   }
                                                 : item
-                                        );
-                                        setData(updatedData);
+                                );
+                                setData(updatedData);
                                         calculateTotals(updatedData);
                                     }}
                                     style={{
@@ -204,11 +204,11 @@ const App = () => {
                                         Số tiền trả trước phải lớn hơn hoặc bằng {record.pttr}% tổng tiền
                                     </div>
                                 )}
-                            </div>
-                        );
-                    },
-                },
-                {
+                    </div>
+                );
+            },
+        },
+        {
                     title: "Còn lại",
                     dataIndex: "remaining",
                     key: "remaining",
@@ -247,8 +247,8 @@ const App = () => {
             render: (_, record) => (
                 <Select
                     defaultValue="Chưa giao"
-                    style={{
-                        width: "100%",
+                        style={{
+                            width: "100%",
                         zIndex: 1000, // Add z-index to ensure dropdown shows above other elements
                     }}
                     dropdownStyle={{
@@ -300,7 +300,7 @@ const App = () => {
                 const total = basePrice * quantity;
 
                 return {
-                    ...service,
+                ...service,
                     additionalCost: 0,
                     total: total,
                     prepayment: (total * service.pttr) / 100,
@@ -510,8 +510,8 @@ const App = () => {
             okType: "danger",
             cancelText: "Hủy",
             onOk() {
-                const updatedData = data.filter((item) => !selectedRows.includes(item.id));
-                setData(updatedData);
+        const updatedData = data.filter((item) => !selectedRows.includes(item.id));
+        setData(updatedData);
                 setSelectedRows([]);
                 calculateTotals(updatedData);
                 message.success("Đã xóa các dịch vụ đã chọn");

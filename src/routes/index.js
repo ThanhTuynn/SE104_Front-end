@@ -23,6 +23,7 @@ import Personal from '../pages/PersonalInfoPage/Personal'
 import PersonalInfoPage from '../pages/PersonalInfoPage/Personal'; // Import PersonalInfoPage
 import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import Unittypeproduct
 import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
+import TypeServicePage from '../pages/TypeServicePage/TypeServicePage'
 
 const routes = [
     {
@@ -178,6 +179,12 @@ const routes = [
         page: SignIn,
         isShowHeader: false,
         protected: false,
+    },
+    {
+        path: '/type-service',
+        page: TypeServicePage,
+        isShowHeader: true,
+        protected: true,
     },
     {
         path: '*',

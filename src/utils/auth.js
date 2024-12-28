@@ -50,3 +50,38 @@ export const checkTokenStatus = () => {
     } : null
   };
 };
+
+export const ROLE_PERMISSIONS = {
+  admin: [
+    '/products',
+    '/list-import-product', 
+    '/services',
+    '/warehouse',
+    '/orders',
+    '/list-customer',
+    '/list-employee',
+    '/revenue',
+    '/unit-type'
+  ],
+  seller: [
+    '/orders',
+    '/list-import-product',
+    '/services', 
+    '/list-customer'
+  ],
+  warehouse: [
+    '/products',
+    '/warehouse',
+    '/unit-type'
+  ]
+};
+
+export const hasRouteAccess = (path) => {
+  const userRole = getUserRole()?.toLowerCase();
+  if (!userRole) return false;
+  
+  // Admin has access to everything
+  if (userRole === 'admin') return true;
+  
+  return ROLE_PERMISSIONS[userRole]?.includes(path);
+};
