@@ -78,19 +78,30 @@ export const createImportProduct = {
   },
   createOrder: async (orderData) => {
     try {
-      const response = await axiosInstance.post('/purchase/create', {
-        soPhieu: orderData.orderId,
-        ngayLap: orderData.date,
-        nhaCungCap: orderData.supplierId,
-        chiTietSanPham: orderData.products.map(product => ({
-          maSanPham: product.code,
-          soLuong: parseInt(product.quantity),
-          donGia: parseFloat(product.unitPrice),
-          thanhTien: parseInt(product.quantity) * parseFloat(product.unitPrice)
-        }))
-      });
+      // Log dữ liệu request theo format yêu cầu
+      console.log(JSON.stringify({
+        soPhieu: orderData.soPhieu,
+        ngayLap: orderData.ngayLap,
+        nhaCungCap: orderData.nhaCungCap,
+        diaChi: orderData.diaChi,
+        soDienThoai: orderData.soDienThoai,
+        chiTietSanPham: orderData.chiTietSanPham
+      }, null, 4));
+
+      // Tạo phiếu nhập hàng
+      const response = await axiosInstance.post('/purchase/create', orderData);
+
+      // Cập nhật đơn giá cho từng sản phẩm
+      const updatePromises = orderData.chiTietSanPham.map(item => 
+        createImportProduct.updateProductPrice(item.maSanPham, item.donGia)
+      );
+      await Promise.all(updatePromises);
+
       return response.data;
     } catch (error) {
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('tồn tại')) {
+        throw new Error('Mã đơn hàng đã tồn tại');
+      }
       console.error('Create purchase order error:', error);
       throw error;
     }
@@ -133,6 +144,28 @@ export const createImportProduct = {
       return response.data;
     } catch (error) {
       console.error('Update purchase error:', error);
+      throw error;
+    }
+  },
+  updateProductPrice: async (productId, newPrice) => {
+    try {
+      // Lấy thông tin sản phẩm hiện tại
+      const currentProduct = await axiosInstance.get(`/product/get-details/${productId}`);
+      const productData = currentProduct.data;
+
+      // Cập nhật với đầy đủ thông tin
+      const response = await axiosInstance.patch(`/product/update/${productId}`, {
+        MaSanPham: productData.MaSanPham,
+        TenSanPham: productData.TenSanPham,
+        MaLoaiSanPham: productData.MaLoaiSanPham,
+        DonGia: newPrice,
+        SoLuong: productData.SoLuong,
+        HinhAnh: productData.HinhAnh
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('Update product price error:', error);
       throw error;
     }
   },

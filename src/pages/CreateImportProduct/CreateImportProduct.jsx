@@ -50,6 +50,7 @@ const CreateImportOrder = () => {
   const [productData, setProductData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [productCategories, setProductCategories] = useState([]);
+  const [orderId, setOrderId] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -103,6 +104,11 @@ const CreateImportOrder = () => {
   };
 
   const handleSave = async () => {
+    if (!orderId) {
+      message.error("Vui lòng nhập mã phiếu mua hàng");
+      return;
+    }
+
     if (!isFormComplete()) {
       message.error("Vui lòng điền đầy đủ các trường bắt buộc.");
       return;
@@ -118,46 +124,42 @@ const CreateImportOrder = () => {
       return;
     }
 
-    // Format mã phiếu mua hàng theo yêu cầu (PMH + số)
-    const orderId = `PMH${Date.now().toString().slice(-6)}`;
     const currentDate = new Date().toISOString().split('T')[0];
 
     const orderData = {
-      orderId, // soPhieu
-      date: currentDate, // ngayLap
-      supplierId: selectedSuppliers[0].id, // nhaCungCap
-      products: selectedProducts.map(product => ({
-        code: product.code, // maSanPham
-        quantity: parseInt(product.quantity), // soLuong
-        unitPrice: parseFloat(product.unitPrice), // donGia
+      soPhieu: orderId,
+      ngayLap: currentDate,
+      nhaCungCap: selectedSuppliers[0].id,
+      diaChi: selectedSuppliers[0].address,
+      soDienThoai: selectedSuppliers[0].phone,
+      chiTietSanPham: selectedProducts.map(product => ({
+        maSanPham: product.code,
+        soLuong: parseInt(product.quantity),
+        donGia: parseFloat(product.unitPrice),
+        thanhTien: parseInt(product.quantity) * parseFloat(product.unitPrice)
       }))
     };
+
+    // Log dữ liệu theo format yêu cầu
+    console.log(JSON.stringify({
+      soPhieu: orderData.soPhieu,
+      ngayLap: orderData.ngayLap,
+      nhaCungCap: orderData.nhaCungCap,
+      diaChi: orderData.diaChi,
+      soDienThoai: orderData.soDienThoai,
+      chiTietSanPham: orderData.chiTietSanPham
+    }, null, 4));
 
     try {
       await createImportProduct.createOrder(orderData);
       message.success("Phiếu mua hàng đã được lưu thành công");
-      
-      // Cập nhật số lượng sản phẩm trong kho
-      for (const product of selectedProducts) {
-        try {
-          const formData = new FormData();
-          formData.append('MaSanPham', product.code);
-          formData.append('TenSanPham', product.name);
-          formData.append('MaLoaiSanPham', product.category);
-          formData.append('DonGia', product.unitPrice);
-          formData.append('SoLuong', parseInt(product.quantity));
-          formData.append('HinhAnh', product.image);
-
-          await createImportProduct.updateProduct(product.code, formData);
-        } catch (error) {
-          console.error(`Error updating product ${product.code}:`, error);
-        }
-      }
-
       navigate("/list-import-product");
     } catch (error) {
-      message.error("Lỗi khi lưu phiếu mua hàng: " + (error.response?.data?.message || error.message));
-      console.error("Save order error:", error);
+      if (error.message === 'Mã đơn hàng đã tồn tại') {
+        message.error("Mã đơn hàng đã tồn tại");
+      } else {
+        message.error("Mã đơn hàng đã tồn tại");
+      }
     }
   };
 
@@ -346,61 +348,44 @@ const CreateImportOrder = () => {
   );
 
   const supplierColumns = [
-    {
-      title: (
-        <Checkbox
-          indeterminate={
-            selectedSuppliers.length > 0 &&
-            selectedSuppliers.length < supplierData.length
-          }
-          checked={selectedSuppliers.length === supplierData.length}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setSelectedSuppliers(supplierData);
-            } else {
-              setSelectedSuppliers([]);
-            }
-          }}
-        />
-      ),
-      key: "select",
-      render: (text, supplier) => (
-        <Checkbox
-          checked={selectedSuppliers.some((item) => item.id === supplier.id)}
-          onChange={() => handleSelectSupplier(supplier)}
-        />
-      ),
-    },
     { title: "Mã nhà cung cấp", dataIndex: "id", key: "id" },
     { title: "Tên nhà cung cấp", dataIndex: "name", key: "name" },
     { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
     { title: "Địa chỉ", dataIndex: "address", key: "address" },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      render: (_, record) => (
+        <Button
+          type={selectedSuppliers.some(supplier => supplier.id === record.id) ? 'default' : 'primary'}
+          onClick={() => {
+            setSelectedSuppliers([record]);
+            setSearchTerm('');
+          }}
+        >
+          Chọn
+        </Button>
+      ),
+    },
   ];
 
   const selectedSupplierColumns = [
-    {
-      title: (
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => setSelectedSuppliers([])}
-        />
-      ),
-      key: "action",
-      render: (text, supplier) => (
-        <Button
-          type="link"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleRemoveSupplier(supplier.id)}
-        />
-      ),
-    },
     { title: "Mã nhà cung cấp", dataIndex: "id", key: "id" },
     { title: "Tên nhà cung cấp", dataIndex: "name", key: "name" },
     { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
     { title: "Địa chỉ", dataIndex: "address", key: "address" },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      render: () => (
+        <Button
+          danger
+          onClick={() => setSelectedSuppliers([])}
+        >
+          Xóa
+        </Button>
+      ),
+    },
   ];
 
   const productColumns = [
@@ -455,6 +440,25 @@ const CreateImportOrder = () => {
     },
     { title: "Tên sản phẩm", dataIndex: "name", key: "name" },
     { title: "Loại sản phẩm", dataIndex: "category", key: "category" },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      render: (_, record) => (
+        <Button
+          type="primary"
+          onClick={() => {
+            if (selectedProducts.some(product => product.code === record.code)) {
+              message.warning('Sản phẩm này đã được chọn!');
+            } else {
+              setSelectedProducts(prev => [...prev, { ...record, quantity: 1, unitPrice: 0 }]);
+            }
+            setProductSearchTerm(''); // Reset thanh tìm kiếm sau khi chọn
+          }}
+        >
+          Chọn
+        </Button>
+      ),
+    },
   ];
 
   const selectedProductColumns = [
@@ -567,6 +571,22 @@ const CreateImportOrder = () => {
       </header>
 
       <div className="form-container">
+        <div className="form-section">
+          <h3>Thông tin phiếu</h3>
+          <Form.Item 
+            label="Mã phiếu mua hàng" 
+            required
+          >
+            <Input
+              placeholder="Nhập mã phiếu"
+              value={orderId}
+              onChange={(e) => {
+                setOrderId(e.target.value);
+              }}
+            />
+          </Form.Item>
+        </div>
+
         {/* Supplier Section */}
         <div className="form-section">
           <h3>Nhà cung cấp</h3>

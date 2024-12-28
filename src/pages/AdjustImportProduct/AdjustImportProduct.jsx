@@ -8,6 +8,7 @@ import {
   Upload,
   message,
   Table,
+  Alert,
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import "./AdjustImportProduct.css";
@@ -29,6 +30,7 @@ const AdjustImportOrder = () => {
   const [supplierData, setSupplierData] = useState([]);
   const [productData, setProductData] = useState([]);
   const [productCategories, setProductCategories] = useState([]);
+  const [isOverTwoDays, setIsOverTwoDays] = useState(false);
 
   // States cho form nhập liệu
   const [newSupplier, setNewSupplier] = useState({
@@ -54,6 +56,14 @@ const AdjustImportOrder = () => {
         const data = await createImportProduct.getPurchaseById(id);
         const providerData = await createImportProduct.getProviderById(data.purchaseOrder.MaNCC);
         
+        // Kiểm tra thời gian
+        const orderDate = new Date(data.purchaseOrder.NgayLap);
+        const currentDate = new Date();
+        const diffTime = Math.abs(currentDate - orderDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        setIsOverTwoDays(diffDays > 2);
+
         const productsWithDetails = await Promise.all(
           data.purchaseDetails.map(async (item) => {
             const productData = await createImportProduct.getProductById(item.MaSanPham);
@@ -240,11 +250,10 @@ const AdjustImportOrder = () => {
       key: 'action',
       render: (_, record) => (
         <Button
-          type="primary"
+          type={selectedSuppliers.some(supplier => supplier.id === record.id) ? 'default' : 'primary'}
           onClick={() => {
-            if (!selectedSuppliers.some(supplier => supplier.id === record.id)) {
-              setSelectedSuppliers([record]);
-            }
+            setSelectedSuppliers([record]);
+            setSearchTerm('');
           }}
         >
           Chọn
@@ -276,9 +285,12 @@ const AdjustImportOrder = () => {
         <Button
           type="primary"
           onClick={() => {
-            if (!selectedProducts.some(product => product.code === record.code)) {
+            if (selectedProducts.some(product => product.code === record.code)) {
+              message.warning('Sản phẩm này đã được chọn!');
+            } else {
               setSelectedProducts(prev => [...prev, { ...record, quantity: 1, unitPrice: 0 }]);
             }
+            setProductSearchTerm(''); // Reset thanh tìm kiếm sau khi chọn
           }}
         >
           Chọn
@@ -401,50 +413,88 @@ const AdjustImportOrder = () => {
             <Table
               bordered
               dataSource={selectedSuppliers}
-              columns={supplierColumns.filter((col) => col.key !== "action")}
+              columns={[
+                ...supplierColumns.filter(col => col.key !== 'action'),
+                {
+                  title: 'Thao tác',
+                  key: 'action',
+                  render: () => (
+                    <Button
+                      danger
+                      onClick={() => setSelectedSuppliers([])}
+                    >
+                      Xóa
+                    </Button>
+                  ),
+                },
+              ]}
               rowKey="id"
               pagination={false}
             />
           </div>
         </div>
 
-        <div className="form-section">
-          <h3>Sản phẩm</h3>
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Input
-              placeholder="Tìm kiếm sản phẩm theo mã hoặc tên"
-              value={productSearchTerm}
-              onChange={(e) => handleProductSearch(e.target.value)}
+        {isOverTwoDays ? (
+          <div className="form-section">
+            <h3>Sản phẩm</h3>
+            <Alert
+              message="Không thể chỉnh sửa danh sách sản phẩm"
+              description="Phiếu mua hàng đã quá 2 ngày kể từ ngày tạo. Bạn không thể thêm hoặc xóa sản phẩm."
+              type="warning"
+              showIcon
             />
-            <Button type="link" onClick={() => setShowNewProductModal(true)}>
-              Thêm sản phẩm mới
-            </Button>
+            <div style={{ marginTop: "16px" }}>
+              <h4>Sản phẩm đã chọn:</h4>
+              <Table
+                bordered
+                dataSource={selectedProducts}
+                columns={selectedProductColumns.filter(col => col.key !== 'action')}
+                rowKey="code"
+              />
+            </div>
+            <div style={{ marginTop: "16px", textAlign: "right" }}>
+              <h4>Tổng đơn giá: {calculateTotalPrice().toLocaleString()} VND</h4>
+            </div>
           </div>
-          {productSearchTerm && (
-            <Table
-              bordered
-              dataSource={productData.filter(
-                (product) =>
-                  product.code.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-                  product.name.toLowerCase().includes(productSearchTerm.toLowerCase())
-              )}
-              columns={productColumns}
-              rowKey="code"
-            />
-          )}
-          <div style={{ marginTop: "16px" }}>
-            <h4>Sản phẩm đã chọn:</h4>
-            <Table
-              bordered
-              dataSource={selectedProducts}
-              columns={selectedProductColumns}
-              rowKey="code"
-            />
+        ) : (
+          <div className="form-section">
+            <h3>Sản phẩm</h3>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Input
+                placeholder="Tìm kiếm sản phẩm theo mã hoặc tên"
+                value={productSearchTerm}
+                onChange={(e) => handleProductSearch(e.target.value)}
+              />
+              <Button type="link" onClick={() => setShowNewProductModal(true)}>
+                Thêm sản phẩm mới
+              </Button>
+            </div>
+            {productSearchTerm && (
+              <Table
+                bordered
+                dataSource={productData.filter(
+                  (product) =>
+                    product.code.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+                    product.name.toLowerCase().includes(productSearchTerm.toLowerCase())
+                )}
+                columns={productColumns}
+                rowKey="code"
+              />
+            )}
+            <div style={{ marginTop: "16px" }}>
+              <h4>Sản phẩm đã chọn:</h4>
+              <Table
+                bordered
+                dataSource={selectedProducts}
+                columns={selectedProductColumns}
+                rowKey="code"
+              />
+            </div>
+            <div style={{ marginTop: "16px", textAlign: "right" }}>
+              <h4>Tổng đơn giá: {calculateTotalPrice().toLocaleString()} VND</h4>
+            </div>
           </div>
-          <div style={{ marginTop: "16px", textAlign: "right" }}>
-            <h4>Tổng đơn giá: {calculateTotalPrice().toLocaleString()} VND</h4>
-          </div>
-        </div>
+        )}
 
         {/* Modal thêm nhà cung cấp mới */}
         <Modal
