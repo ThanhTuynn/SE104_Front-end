@@ -95,6 +95,47 @@ export const createImportProduct = {
       throw error;
     }
   },
+  getPurchaseById: async (id) => {
+    try {
+      const response = await axiosInstance.get(`/purchase/get-details/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get purchase by id error:', error);
+      throw error;
+    }
+  },
+  getProviderById: async (providerId) => {
+    try {
+      const response = await axiosInstance.get(`/provider/get-details/${providerId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get provider details error:', error);
+      throw error;
+    }
+  },
+  getProductById: async (productId) => {
+    try {
+      const response = await axiosInstance.get(`/product/get-details/${productId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get product details error:', error);
+      throw error;
+    }
+  },
+  updatePurchase: async (id, updateData) => {
+    try {
+      const { updateDetails, addDetails, deleteDetails } = updateData;
+      const response = await axiosInstance.patch(`/purchase/update/${id}`, {
+        updateDetails: updateDetails || [],
+        addDetails: addDetails || [],
+        deleteDetails: deleteDetails || []
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Update purchase error:', error);
+      throw error;
+    }
+  },
 };
 
 export default createImportProduct;

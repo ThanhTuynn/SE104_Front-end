@@ -24,6 +24,7 @@ import PersonalInfoPage from '../pages/PersonalInfoPage/Personal'; // Import Per
 import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import Unittypeproduct
 import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
 import TypeServicePage from '../pages/Typeservicepage/Typeservicepage'; // Import TypeServicePage
+import AdjustImportProduct from '../pages/AdjustImportProduct/AdjustImportProduct'
 
 const routes = [
     {
@@ -77,6 +78,12 @@ const routes = [
     {
         path: '/create-import-product',
         page: CreateImportProduct,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: '/adjust-import-product/:id',  // Thêm route mới cho AdjustImportProduct
+        page: AdjustImportProduct,
         isShowHeader: true,
         protected: true,
     },

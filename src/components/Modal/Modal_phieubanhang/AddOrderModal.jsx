@@ -19,6 +19,8 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   const [quantities, setQuantities] = useState({});
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [units, setUnits] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   // Add useEffect to fetch products when modal opens
   useEffect(() => {
@@ -29,56 +31,52 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
 
   const fetchProducts = async () => {
     try {
-      // 1. Fetch products and categories first
       const [productsRes, categoriesRes, unitsRes] = await Promise.all([
         axios.get('http://localhost:3000/api/product/get-all'),
         axios.get('http://localhost:3000/api/category/get-all'),
-        axios.get('http://localhost:3000/api/unit/get-all') // Lấy tất cả đơn vị tính
+        axios.get('http://localhost:3000/api/unit/get-all')
       ]);
 
-      // 2. Create units mapping first - handle potential array structure
+      // 1. Tạo mapping cho đơn vị tính
       const unitsMap = {};
-      console.log('Units response:', unitsRes.data); // Debug log
-
-      // Ensure we're working with an array of units
-      const unitsArray = Array.isArray(unitsRes.data) ? unitsRes.data : 
-                        (unitsRes.data.data ? unitsRes.data.data : []);
-
-      unitsArray.forEach(unit => {
+      const units = Array.isArray(unitsRes.data) ? unitsRes.data : 
+                   (unitsRes.data.data ? unitsRes.data.data : []);
+      
+      units.forEach(unit => {
         if (unit && unit.MaDVTinh) {
           unitsMap[unit.MaDVTinh] = unit.TenDVTinh;
-          console.log('Processing unit:', {
-            MaDVTinh: unit.MaDVTinh,
-            TenDVTinh: unit.TenDVTinh
-          });
         }
       });
 
-      // Rest of your existing code...
+      console.log('=== Units Data ===');
+      console.log('Units from API:', units);
+      console.log('Units Map:', unitsMap);
+
+      // 2. Tạo mapping cho loại sản phẩm
       const categoryMap = {};
       categoriesRes.data.forEach(cat => {
-        if (cat.MaDVTinh) {
-          categoryMap[cat.MaLoaiSanPham] = {
-            TenLoaiSanPham: cat.TenLoaiSanPham,
-            PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
-            MaDVTinh: cat.MaDVTinh
-          };
-        }
+        categoryMap[cat.MaLoaiSanPham] = {
+          TenLoaiSanPham: cat.TenLoaiSanPham,
+          PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
+          MaDVTinh: cat.MaDVTinh
+        };
       });
 
-      // Rest of the mapping code remains the same...
+      console.log('=== Categories Data ===');
+      console.log('Categories Map:', categoryMap);
+
+      // 3. Map sản phẩm với đơn vị tính
       const productsWithDetails = productsRes.data
         .filter(product => !product.isDelete)
         .map(product => {
           const category = categoryMap[product.MaLoaiSanPham] || {};
-          const tenDVTinh = unitsMap[category.MaDVTinh] || 'N/A';
+          const maDVTinh = category.MaDVTinh;
+          const tenDVTinh = unitsMap[maDVTinh];
 
-          console.log('Mapping product:', {
-            MaSanPham: product.MaSanPham,
-            TenSanPham: product.TenSanPham,
-            MaDVTinh: category.MaDVTinh,
-            TenDVTinh: tenDVTinh
-          });
+          console.log(`=== Product ${product.MaSanPham} ===`);
+          console.log('Category:', category);
+          console.log('MaDVTinh:', maDVTinh);
+          console.log('TenDVTinh:', tenDVTinh);
 
           return {
             id: product.MaSanPham,
@@ -90,34 +88,41 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
             TenLoaiSanPham: category.TenLoaiSanPham,
             DonGia: product.DonGia,
             stock: product.SoLuong || 0,
-            PhanTramLoiNhuan: category?.PhanTramLoiNhuan || 0,
-            MaDVTinh: category.MaDVTinh,
-            TenDVTinh: tenDVTinh,
+            PhanTramLoiNhuan: category.PhanTramLoiNhuan || 0,
+            MaDVTinh: maDVTinh,
+            TenDVTinh: tenDVTinh || 'N/A',
             categoryName: category.TenLoaiSanPham || 'Chưa phân loại'
           };
-      });
+        });
 
-      console.log('Final Products with Details:', productsWithDetails);
+      console.log('=== Final Products ===');
+      console.log('Products with details:', productsWithDetails);
+
       setProducts(productsWithDetails);
     } catch (error) {
       console.error('Error in fetchProducts:', error);
-      console.error('Units Response:', error.response?.data); // Additional error logging
       message.error('Không thể tải dữ liệu sản phẩm');
     }
   };
 
   const handleProductSelect = (product) => {
+    console.log('=== Selected Product ===');
+    console.log('Product:', product);
+
+    // Tìm sản phẩm trong danh sách products đã fetch
+    const productWithDetails = products.find(p => p.id === product.id);
+    if (!productWithDetails) {
+      message.error('Không tìm thấy thông tin sản phẩm');
+      return;
+    }
+
     if (cart.some((item) => item.id === product.id)) {
       setQuantities(prev => {
         const currentQty = prev[product.id] || 1;
-        const newQty = currentQty + (product.quantity || 1);
+        const newQty = currentQty + 1;
         
-        // Find product in products array to check current stock
-        const productInStock = products.find(p => p.MaSanPham === product.id);
-        const availableStock = productInStock?.currentStock || 0;
-        
-        if (newQty > availableStock) {
-          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${availableStock})`);
+        if (newQty > productWithDetails.stock) {
+          message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${productWithDetails.stock})`);
           return prev;
         }
         
@@ -127,16 +132,21 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         };
       });
     } else {
-      setCart(prevCart => [...prevCart, {
-        ...product,
-        currentStock: product.currentStock,
-        originalStock: product.originalStock
-      }]);
+      const newProduct = {
+        ...productWithDetails, // Lấy tất cả thông tin từ sản phẩm đã fetch
+        quantity: 1
+      };
+
+      console.log('=== Adding to Cart ===');
+      console.log('Product with details:', newProduct);
+
+      setCart(prevCart => [...prevCart, newProduct]);
       setQuantities(prev => ({
         ...prev,
-        [product.id]: product.quantity || 1
+        [product.id]: 1
       }));
     }
+    
     setIsProductModalVisible(false);
   };
 
@@ -206,52 +216,10 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         return;
       }
 
-      // Log thông tin đầy đủ trước khi cập nhật
-      console.log('=== DATA BEFORE UPDATE ===');
-      console.log('Cart items:', cart);
-      console.log('Quantities:', quantities);
-      console.log('Selected Customer:', selectedCustomer);
-
-      // Kiểm tra và cập nhật số lượng tồn kho cho tất cả sản phẩm
-      for (const item of cart) {
-        const requestedQuantity = quantities[item.id] || 1;
-        const newStock = item.originalStock - requestedQuantity;  // Sử dụng số lượng tồn ban đầu
-
-        console.log('Product Update Info:', {
-          productId: item.id,
-          name: item.name,
-          currentStock: item.originalStock,
-          newStock,
-          price: item.rawPrice,
-        });
-
-        if (newStock < 0) {
-          message.error(`Sản phẩm ${item.name} không đủ số lượng trong kho`);
-          return;
-        }
-
-        try {
-          // Cập nhật số lượng tồn trong database
-          await productService.updateProduct(item.id, {
-            MaSanPham: item.id,
-            TenSanPham: item.name,
-            MaLoaiSanPham: item.MaLoaiSanPham,
-            DonGia: item.DonGia,
-            SoLuong: newStock,
-            HinhAnh: item.HinhAnh
-          });
-          console.log(`Updated stock for product ${item.name}: ${newStock}`);
-        } catch (error) {
-          console.error('Stock update error:', error);
-          message.error(`Lỗi cập nhật tồn kho cho sản phẩm ${item.name}`);
-          return;
-        }
-      }
-
-      // Tạo đơn hàng với thông tin đã được tính toán
+      // Format dữ liệu theo yêu cầu backend
       const orderData = {
         invoiceData: {
-          SoPhieuBH: invoiceNumber, // Add invoice number to the order data
+          SoPhieuBH: invoiceNumber,
           NgayLap: orderDate,
           MaKhachHang: selectedCustomer.id,
           TongTien: calculateTotal()
@@ -259,27 +227,15 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         details: cart.map(item => {
           const quantity = quantities[item.id] || 1;
           const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
-          const lineTotal = quantity * sellingPrice;
-
-          console.log('Order Detail:', {
-            productId: item.id,
-            quantity,
-            originalPrice: item.rawPrice,
-            profitMargin: item.PhanTramLoiNhuan,
-            sellingPrice,
-            lineTotal
-          });
           return {
             MaSanPham: item.id,
-            SoLuong: quantity,
-            DonGiaBanRa: sellingPrice,
-            ThanhTien: lineTotal
+            SoLuong: parseInt(quantity),
+            DonGiaBanRa: parseFloat(sellingPrice),
+            ThanhTien: quantity * sellingPrice
           };
         })
       };
 
-      console.log('Final order data:', orderData);
-      // Lưu đơn hàng
       await createOrder(orderData);
       message.success('Lưu phiếu bán hàng thành công!');
       resetModal();

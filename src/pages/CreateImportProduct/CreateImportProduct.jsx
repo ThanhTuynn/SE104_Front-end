@@ -653,7 +653,7 @@ const CreateImportOrder = () => {
           <h3>Sản phẩm</h3>
           <div style={{ display: "flex", alignItems: "center" }}>
             <Input
-              placeholder="Tìm ki���m sản phẩm theo mã hoặc tên"
+              placeholder="Tìm kiếm sản phẩm theo mã hoặc tên"
               value={productSearchTerm}
               onChange={handleProductSearch}
             />
