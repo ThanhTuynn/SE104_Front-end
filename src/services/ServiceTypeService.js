@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAccessToken } from '../utils/auth';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'http://localhost:3000/api/service-types';
 
 // Create axios instance with dynamic token configuration
 const axiosInstance = axios.create({
@@ -27,7 +27,7 @@ axiosInstance.interceptors.request.use(
 
 const getAllServiceTypes = async () => {
     try {
-        const response = await axiosInstance.get('/service-types/get-all');
+        const response = await axiosInstance.get('/get-all');
         return response.data;
     } catch (error) {
         console.error('Error in getAllServiceTypes:', error.response?.data || error.message);
@@ -37,7 +37,7 @@ const getAllServiceTypes = async () => {
 
 const createServiceType = async (data) => {
     try {
-        const response = await axiosInstance.post('/service-types/create', data);
+        const response = await axiosInstance.post('/create', data);
         return response.data;
     } catch (error) {
         console.error('Error in createServiceType:', error.response?.data || error.message);
@@ -45,31 +45,29 @@ const createServiceType = async (data) => {
     }
 };
 
-const updateServiceType = async (id, data) => {
-    try {
-        const response = await axiosInstance.put(`/service-types/update/${id}`, data);
-        return response.data;
-    } catch (error) {
-        console.error('Error in updateServiceType:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
 const deleteServiceType = async (id) => {
     try {
-        const response = await axiosInstance.delete(`/service-types/delete/${id}`);
+        const response = await axiosInstance.delete(`/delete/${id}`);
         return response.data;
     } catch (error) {
         console.error('Error in deleteServiceType:', error.response?.data || error.message);
         throw error;
     }
 };
-
+const updateServiceType = async (id, updateData) => {
+    try {
+        const response = await axiosInstance.put(`/update/${id}`, updateData);
+        return response.data;
+    } catch (error) {
+        console.error('Error in updateServiceType:', error.response?.data || error.message);
+        throw error;
+    }
+};
 const ServiceTypeService = {
     getAllServiceTypes,
     createServiceType,
-    updateServiceType,
     deleteServiceType,
+    updateServiceType,
 };
 
 export default ServiceTypeService;

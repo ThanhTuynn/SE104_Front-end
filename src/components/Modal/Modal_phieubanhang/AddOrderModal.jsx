@@ -7,6 +7,7 @@ import "./AddOrderModal.css";
 import axios from 'axios';
 import { createOrder } from '../../../services/Orderproduct'; // Thay đổi import
 import productService from '../../../services/productService';
+import orderService from '../../../services/orderService';
 const { Option } = Select;
 
 const AddOrderModal = ({ isVisible, onClose, title, save }) => {
@@ -29,30 +30,30 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
 
   const fetchProducts = async () => {
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
-        axios.get('http://localhost:3000/api/product/get-all'),
-        axios.get('http://localhost:3000/api/category/get-all')
-      ]);
+      const response = await axios.get('http://localhost:3000/api/product/get-all');
+      const productsWithDetails = response.data
+        .filter(product => !product.isDelete)
+        .map(product => ({
+          id: product.MaSanPham,
+          name: product.TenSanPham,
+          price: `${product.DonGia?.toLocaleString('vi-VN')} VNĐ`,
+          rawPrice: product.DonGia,
+          image: product.HinhAnh,
+          currentStock: product.SoLuong,
+          originalStock: product.SoLuong,
+          MaLoaiSanPham: product.MaLoaiSanPham,
+          TenLoaiSanPham: product.category.TenLoaiSanPham,
+          DonGia: product.DonGia,
+          stock: product.SoLuong,
+          PhanTramLoiNhuan: product.category.PhanTramLoiNhuan,
+          categoryName: product.category.TenLoaiSanPham,
+          quantity: 1
+        }));
 
-      const categoryMap = {};
-      categoriesRes.data.forEach(cat => {
-        categoryMap[cat.MaLoaiSanPham] = {
-          PhanTramLoiNhuan: cat.PhanTramLoiNhuan,
-          TenLoaiSanPham: cat.TenLoaiSanPham
-        };
-      });
-
-      const productsWithStock = productsRes.data.map(product => ({
-        ...product,
-        currentStock: product.SoLuong,
-        originalStock: product.SoLuong,
-        PhanTramLoiNhuan: categoryMap[product.MaLoaiSanPham]?.PhanTramLoiNhuan || 0
-      }));
-
-      setProducts(productsWithStock);
+      setProducts(productsWithDetails);
     } catch (error) {
       console.error('Error fetching products:', error);
-      message.error('Không thể tải danh sách sản phẩm');
+      message.error('Không thể tải dữ liệu sản phẩm');
     }
   };
 
@@ -77,11 +78,24 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         };
       });
     } else {
+      // Log để kiểm tra dữ liệu sản phẩm trước khi thêm vào cart
+      console.log('Product being added to cart:', {
+        id: product.id,
+        name: product.name,
+        TenLoaiSanPham: product.TenLoaiSanPham,
+        TenDVTinh: product.TenDVTinh
+      });
+
       setCart(prevCart => [...prevCart, {
         ...product,
         currentStock: product.currentStock,
-        originalStock: product.originalStock
+        originalStock: product.originalStock,
+        TenLoaiSanPham: product.TenLoaiSanPham // Đảm bảo có TenLoaiSanPham
       }]);
+
+      // Log cart sau khi thêm sản phẩm
+      console.log('Updated cart:', cart);
+
       setQuantities(prev => ({
         ...prev,
         [product.id]: product.quantity || 1
@@ -91,27 +105,27 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
   };
 
   const handleQuantityChange = (productId, change) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
+    const cartItem = cart.find(item => item.id === productId);
+    if (!cartItem) return;
+  
     setQuantities(prev => {
-        const currentQty = prev[productId] || 1;
-        const newQty = currentQty + change;
-        
-        if (newQty < 1) return prev;
-        
-        const cartItem = cart.find(item => item.id === productId);
-        const originalQty = cartItem ? cartItem.quantity : 0;
-        const availableStock = product.originalStock - (newQty - originalQty);
-        
-        if (availableStock < 0) {
-            message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${product.originalStock})`);
-            return prev;
-        }
-        
-        return { ...prev, [productId]: newQty };
+      const currentQty = prev[productId] || 1;
+      const newQty = currentQty + change;
+  
+      // Kiểm tra số lượng tối thiểu
+      if (newQty < 1) return prev;
+  
+      // Kiểm tra số lượng tồn kho
+      if (newQty > cartItem.stock) {
+        message.warning(`Số lượng không thể vượt quá số lượng tồn kho (${cartItem.stock})`);
+        return prev;
+      }
+  
+      // Cập nhật số lượng mới
+      return { ...prev, [productId]: newQty };
     });
-};
+  };
+  
   const resetModal = () => {
     setSearchTerm("");
     setFilteredProducts([]);
@@ -156,87 +170,46 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
         return;
       }
 
-      // Log thông tin đầy đủ trước khi cập nhật
-      console.log('=== DATA BEFORE UPDATE ===');
-      console.log('Cart items:', cart);
-      console.log('Quantities:', quantities);
-      console.log('Selected Customer:', selectedCustomer);
-
-      // Kiểm tra và cập nhật số lượng tồn kho cho tất cả sản phẩm
-      for (const item of cart) {
-        const requestedQuantity = quantities[item.id] || 1;
-        const newStock = item.originalStock - requestedQuantity;  // Sử dụng số lượng tồn ban đầu
-
-        console.log('Product Update Info:', {
-          productId: item.id,
-          name: item.name,
-          currentStock: item.originalStock,
-          newStock,
-          price: item.rawPrice,
-        });
-
-        if (newStock < 0) {
-          message.error(`Sản phẩm ${item.name} không đủ số lượng trong kho`);
-          return;
-        }
-
-        try {
-          // Cập nhật số lượng tồn trong database
-          await productService.updateProduct(item.id, {
-            MaSanPham: item.id,
-            TenSanPham: item.name,
-            MaLoaiSanPham: item.MaLoaiSanPham,
-            DonGia: item.DonGia,
-            SoLuong: newStock,
-            HinhAnh: item.HinhAnh
-          });
-          console.log(`Updated stock for product ${item.name}: ${newStock}`);
-        } catch (error) {
-          console.error('Stock update error:', error);
-          message.error(`Lỗi cập nhật tồn kho cho sản phẩm ${item.name}`);
-          return;
-        }
-      }
-
-      // Tạo đơn hàng với thông tin đã được tính toán
-      const orderData = {
-        invoiceData: {
-          SoPhieuBH: invoiceNumber, // Add invoice number to the order data
-          NgayLap: orderDate,
-          MaKhachHang: selectedCustomer.id,
-          TongTien: calculateTotal()
-        },
-        details: cart.map(item => {
+      // Format dữ liệu đơn hàng
+      const formattedOrderData = {
+        soPhieu: invoiceNumber,
+        ngayLap: orderDate,
+        khachHang: selectedCustomer.id,
+        tongTien: calculateTotal(),
+        chiTietSanPham: cart.map(item => {
           const quantity = quantities[item.id] || 1;
           const sellingPrice = calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan);
-          const lineTotal = quantity * sellingPrice;
-
-          console.log('Order Detail:', {
-            productId: item.id,
-            quantity,
-            originalPrice: item.rawPrice,
-            profitMargin: item.PhanTramLoiNhuan,
-            sellingPrice,
-            lineTotal
-          });
           return {
-            MaSanPham: item.id,
-            SoLuong: quantity,
-            DonGiaBanRa: sellingPrice,
-            ThanhTien: lineTotal
+            maSanPham: item.id,
+            soLuong: quantity,
+            donGiaBanRa: sellingPrice,
+            thanhTien: quantity * sellingPrice
           };
         })
       };
 
-      console.log('Final order data:', orderData);
-      // Lưu đơn hàng
-      await createOrder(orderData);
+      // Log dữ liệu theo format đẹp
+      console.log(JSON.stringify({
+        soPhieu: formattedOrderData.soPhieu,
+        ngayLap: formattedOrderData.ngayLap,
+        khachHang: formattedOrderData.khachHang,
+        tongTien: formattedOrderData.tongTien,
+        chiTietSanPham: formattedOrderData.chiTietSanPham
+      }, null, 4));
+
+      // Gọi API tạo đơn hàng
+      await orderService.createOrder(formattedOrderData);
       message.success('Lưu phiếu bán hàng thành công!');
       resetModal();
       onClose();
     } catch (error) {
-      console.error('Save order error:', error);
-      message.error('Có lỗi xảy ra khi lưu phiếu bán hàng');
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('tồn tại')) {
+        console.log('Mã phiếu đã tồn tại:', invoiceNumber);
+        message.error(`Mã phiếu ${invoiceNumber} đã tồn tại trong hệ thống`);
+      } else {
+        console.error('Save order error:', error);
+        message.error(`Mã phiếu ${invoiceNumber} đã tồn tại trong hệ thống`);
+      }
     }
   };
   const [isCustomerModalVisible, setIsCustomerModalVisible] = useState(false);
@@ -388,10 +361,22 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                             }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <strong>{item.name}</strong>
-                              <div style={{ color: "gray", marginLeft: "10px", textAlign: "right" }}>
-                                {item.TenDVTinh}
+                            <div style={{ 
+                              display: "flex", 
+                              justifyContent: "space-between", 
+                              alignItems: "center",
+                              marginBottom: "4px"
+                            }}>
+                              <strong style={{ flex: 1 }}>{item.name}</strong>
+                              <div style={{ 
+                                color: "gray", 
+                                marginLeft: "10px",
+                                backgroundColor: "#f0f0f0",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "0.9em"
+                              }}>
+                                {item.TenLoaiSanPham}
                               </div>
                             </div>
                             <div style={{ color: "gray" }}>
@@ -405,15 +390,34 @@ const AddOrderModal = ({ isVisible, onClose, title, save }) => {
                                 calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
                               )} đ
                             </div>
+                            <div style={{ color: item.stock > 0 ? "green" : "red", marginTop: "4px" }}>
+                              Tồn kho: {item.stock}
+                            </div>
                           </div>
-                          <div style={{ 
-                            marginRight: '15px',
-                            padding: '4px 8px',
-                            backgroundColor: '#e6f7ff',
-                            borderRadius: '4px',
-                            fontSize: '14px'
-                          }}>
-                            Số lượng: {quantities[item.id] || 1}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '15px' }}>
+                            <Button 
+                              size="small"
+                              onClick={() => handleQuantityChange(item.id, -1)}
+                              disabled={quantities[item.id] <= 1}
+                            >
+                              -
+                            </Button>
+                            <span style={{ 
+                              padding: '4px 8px',
+                              backgroundColor: '#e6f7ff',
+                              borderRadius: '4px',
+                              minWidth: '40px',
+                              textAlign: 'center'
+                            }}>
+                              {quantities[item.id] || 1}
+                            </span>
+                            <Button
+                              size="small"
+                              onClick={() => handleQuantityChange(item.id, 1)}
+                              disabled={quantities[item.id] >= item.stock}
+                            >
+                              +
+                            </Button>
                           </div>
                           <button
                             onClick={() => removeFromCart(item.id)}

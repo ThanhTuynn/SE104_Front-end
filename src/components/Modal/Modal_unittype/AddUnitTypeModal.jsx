@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 import { createUnitType } from '../../../services/UnitTypeService';
 
-const AddUnitTypeModal = ({ isVisible, onClose }) => {
+const AddUnitTypeModal = ({ isVisible, onClose, unitTypes = [] }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
@@ -10,14 +10,38 @@ const AddUnitTypeModal = ({ isVisible, onClose }) => {
     try {
       const values = await form.validateFields();
       setLoading(true);
+
+      // Kiểm tra mã đơn vị tính trùng
+      const duplicateId = unitTypes.find(
+        unit => unit.id.toLowerCase() === values.id.toLowerCase()
+      );
+      if (duplicateId) {
+        message.error('Mã đơn vị tính đã tồn tại!');
+        return;
+      }
+
+      // Kiểm tra tên đơn vị tính trùng
+      const duplicateName = unitTypes.find(
+        unit => unit.name.toLowerCase().trim() === values.name.toLowerCase().trim()
+      );
+      if (duplicateName) {
+        message.error('Tên đơn vị tính đã tồn tại!');
+        return;
+      }
       
-      await createUnitType(values);
+      await createUnitType({
+        id: values.id.trim(),
+        name: values.name.trim()
+      });
       message.success('Thêm đơn vị tính thành công');
       form.resetFields();
-      onClose(true); // Pass true to trigger refresh
+      onClose(true);
     } catch (error) {
-      console.error('Error creating unit type:', error);
-      message.error(error.message || 'Có lỗi xảy ra khi thêm đơn vị tính');
+      if (error.message?.includes('duplicate')) {
+        message.error('Mã hoặc tên đơn vị tính đã tồn tại!');
+      } else {
+        message.error('Mã hoặc tên đơn vị tính đã tồn tại!');
+      }
     } finally {
       setLoading(false);
     }
