@@ -76,18 +76,40 @@ const serviceService = {
         }
     },
 
-    createServiceTicket: async (ticketData, details) => {
+    createServiceTicket: async (serviceData) => {
         try {
-            const response = await axiosInstance.post('/services/create', {
-                ticketData,
-                details
-            });
+            // Validate and format data before sending
+            const formattedData = {
+                ticketData: {
+                    SoPhieuDV: serviceData.ticketData.SoPhieuDV,
+                    MaKhachHang: serviceData.ticketData.MaKhachHang,
+                    NgayLap: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+                    TongTien: Number(serviceData.ticketData.TongTien) || 0,
+                    TongTienTraTruoc: Number(serviceData.ticketData.TongTienTraTruoc) || 0,
+                    TinhTrang: "Chưa giao"
+                },
+                details: serviceData.details.map(detail => ({
+                    MaLoaiDV: detail.MaLoaiDV,
+                    SoLuong: Number(detail.SoLuong),
+                    DonGiaDuocTinh: detail.DonGiaDuocTinh,
+                    ChiPhiRieng: detail.ChiPhiRieng,
+                    TraTruoc: detail.TraTruoc,
+                    ThanhTien: detail.ThanhTien,
+                    NgayGiao: detail.NgayGiao,
+                    TinhTrang: "Chưa giao"
+                }))
+            };
+
+            // Log the formatted data
+            console.log('Formatted service data:', formattedData);
+
+            const response = await axiosInstance.post('/services/create', formattedData);
             return response.data;
         } catch (error) {
             console.error('Create service ticket error:', error);
             throw new Error(
                 error.response?.data?.message || 
-                'Không thể tạo phiếu dịch vụ'
+                'Lỗi tạo phiếu dịch vụ'
             );
         }
     },
@@ -95,35 +117,69 @@ const serviceService = {
     getServiceTicketById: async (id) => {
         try {
             const response = await axiosInstance.get(`/services/${id}`);
-            console.log('Service ticket data:', response.data);
-            return {
+            console.log("Raw API response:", response.data);
+
+            // Kiểm tra dữ liệu trả về
+            if (!response.data || !response.data.serviceTicket || !response.data.serviceDetails) {
+                throw new Error('Invalid response structure from API');
+            }
+
+            const formattedResponse = {
                 ticketInfo: {
                     SoPhieuDV: response.data.serviceTicket.SoPhieuDV,
                     NgayLap: response.data.serviceTicket.NgayLap,
-                    TongTien: response.data.serviceTicket.TongTien,
-                    TongTienTraTruoc: response.data.serviceTicket.TongTienTraTruoc,
-                    TinhTrang: response.data.serviceTicket.TinhTrang,
-                    customer: response.data.serviceTicket.customer
+                    MaKhachHang: response.data.serviceTicket.MaKhachHang,
+                    TongTien: response.data.serviceTicket.TongTien?.toString() || "0",
+                    TongTienTraTruoc: response.data.serviceTicket.TongTienTraTruoc?.toString() || "0",
+                    TinhTrang: response.data.serviceTicket.TinhTrang || "Chưa giao",
+                    customer: {
+                        TenKhachHang: response.data.serviceTicket.customer?.TenKhachHang || "",
+                        SoDT: response.data.serviceTicket.customer?.SoDT || "",
+                        DiaChi: response.data.serviceTicket.customer?.DiaChi || ""
+                    }
                 },
                 services: response.data.serviceDetails.map(detail => ({
                     id: detail.MaChiTietDV,
-                    name: detail.TenLoaiDichVu,
-                    price: detail.DonGiaDuocTinh,
-                    calculatedPrice: detail.DonGiaDuocTinh,
-                    quantity: detail.SoLuong,
-                    prepaid: detail.TraTruoc,
-                    total: detail.ThanhTien,
-                    additionalCost: detail.ChiPhiRieng,
-                    deliveryDate: detail.NgayGiao,
-                    status: detail.TinhTrang
+                    name: detail.TenLoaiDichVu || "",
+                    price: parseFloat(detail.DonGiaDuocTinh) || 0,
+                    quantity: parseInt(detail.SoLuong) || 1,
+                    total: parseFloat(detail.ThanhTien) || 0,
+                    prepaid: parseFloat(detail.TraTruoc) || 0,
+                    additionalCost: parseFloat(detail.ChiPhiRieng) || 0,
+                    status: detail.TinhTrang || "Chưa giao",
+                    deliveryDate: detail.NgayGiao || null,
+                    pttr: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0,
+                    serviceType: {
+                        TenLoaiDichVu: detail.TenLoaiDichVu || "",
+                        PhanTramTraTruoc: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0
+                    }
                 }))
             };
+
+            console.log("Formatted response:", formattedResponse);
+            return formattedResponse;
+
         } catch (error) {
             console.error('Get service ticket by ID error:', error);
             throw new Error(
                 error.response?.data?.message || 
                 'Không thể tải thông tin phiếu dịch vụ'
             );
+        }
+    },
+
+    updateServiceTicket: async (id, ticketData) => {
+        try {
+            // Use axiosInstance instead of axios to ensure token is included
+            const response = await axiosInstance.put(`/services/update/${id}`, ticketData);
+            return response.data;
+        } catch (error) {
+            console.error('Update service error details:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+            throw new Error(error.response?.data?.message || 'Không thể cập nhật phiếu dịch vụ');
         }
     }
 };

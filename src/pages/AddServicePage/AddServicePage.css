@@ -1,26 +1,11 @@
-/* Import Google Fonts */
-.app-layout-ser {
+.app-layout-seSr {
     @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
-    width: 100%;
-    /* Global Reset */
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Poppins", sans-serif;
-    }
-    .bod {
-        /* Body Styles */
-        body {
-            min-height: 100vh;
-            background: #f4f6f9; /* Màu nền dịu mắt */
-            color: #333;
-        }
 
         /* App Layout */
         .app-layout {
             height: 100vh;
             display: flex;
+            min-height: 100vh;
         }
 
         /* Sidebar Styles */
@@ -64,6 +49,8 @@
             overflow-y: auto; /* Kích hoạt cuộn dọc */
             overflow-x: hidden; /* Ẩn cuộn ngang nếu không cần thiết */
             margin-top: 10px;
+            padding: 24px;
+            background-color: white;
         }
 
         /* Breadcrumb Container */
@@ -96,15 +83,29 @@
             margin-bottom: 20px;
             color: #333;
             width: 100%;
+            margin: 0;
         }
 
         /* Header Actions */
         .header-actions {
             display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-bottom: 20px;
-            margin-right: 5px;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .left-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .right-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .export-button {
+            margin-right: 8px;
         }
 
         /* Update existing styles */
@@ -116,6 +117,8 @@
             display: flex; /* Use flexbox */
             align-items: center; /* Center vertically */
             justify-content: center; /* Center horizontally */
+            min-width: 120px;
+            border-radius: 8px;
         }
 
         /* If you want to center text in other elements as well, add these classes */
@@ -129,8 +132,6 @@
         /* For table cells */
         .ant-table-cell {
             text-align: center;
-            overflow: visible !important; /* Change from 'hidden' to 'visible' */
-            white-space: nowrap;
         }
 
         .action-btnt:first-child {
@@ -238,8 +239,7 @@
 
         /* Select Boxes */
         .ant-select {
-            width: auto; /* Hoặc đặt kích thước phù hợp */
-            max-width: 100%;
+            width: 100%;
         }
 
         .ant-select-selector {
@@ -326,7 +326,7 @@
         }
 
         /* Media Queries for Responsive Design */
-        @media (max-width: 100%) {
+        @media (max-width: 768px) {
             .header-actions {
                 flex-direction: column;
                 gap: 15px;
@@ -350,6 +350,10 @@
             display: flex;
             align-items: center; /* Căn giữa theo chiều dọc */
             gap: 10px; /* Khoảng cách giữa logo và tiêu đề */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
         }
 
         .title {
@@ -369,6 +373,14 @@
         }
         .delete {
             margin-left: -300px;
+            color: #ff4d4f;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+        .delete:hover {
+            color: #ff7875;
         }
         /* CSS cho nút thanh toán */
         .payment-button {
@@ -380,6 +392,8 @@
             display: flex; /* Use flexbox */
             align-items: center; /* Center vertically */
             justify-content: center; /* Center horizontally */
+            min-width: 140px;
+            border-radius: 8px;
         }
 
         .payment-button.default {
@@ -391,23 +405,35 @@
         .payment-button.primary {
             background: #0050b3;
             color: #ffffff;
+            background-color: #1890ff;
+            color: white;
         }
 
         .payment-button.primary:hover {
             background: #bebfc1;
         }
-        .logo-imag1 {
-            width: 30px;
-            height: auto;
-            margin-left: 160px;
-            position: sticky; /* Change to sticky position */
+        /* Add a container with relative positioning */
+        .image-container {
+            position: relative;
+            width: 100%;
         }
 
-        .logo-imag2 {
+        .logo-image11 {
             width: 30px;
             height: auto;
-            margin-right: -190px !important;
+            margin-left: 430px !important;
             position: sticky; /* Change to sticky position */
+            top: 100px;
+            z-index: 100;
+        }
+
+        .logo-image21 {
+            width: 30px;
+            height: auto;
+            left: 1330px;
+            position: sticky; /* Change to sticky position */
+            top: 100px;
+            z-index: 100;
         }
         .invoice-checkbox-container {
             display: flex;
@@ -422,7 +448,22 @@
             color: #000; /* Màu sắc tiêu đề */
         }
 
-        /* Thêm style cho scrollbar */
+        /* Cập nhật style cho logo images */
+        .logo-imag1 {
+            width: 30px;
+            height: auto;
+            margin-left: 160px;
+            position: sticky;
+        }
+
+        .logo-imag2 {
+            width: 30px;
+            height: auto;
+            margin-right: -190px !important;
+            position: sticky;
+        }
+
+        /* Thêm style cho scrollable container */
         div::-webkit-scrollbar {
             width: 6px;
         }
@@ -441,19 +482,93 @@
             background: #555;
         }
 
-        /* Add these styles for Select dropdown */
+        .custom-select .ant-select-selection-item {
+            color: black !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 10001 !important;
+        }
+
+        .ant-select-dropdown .ant-select-item {
+            color: black !important;
+            text-align: center !important;
+        }
+
+        /* Căn giữa arrow icon */
+        .custom-select .ant-select-arrow {
+            margin-top: -7px !important;
+        }
+
+        /* Thêm style cho Select container */
+        .ant-select-selector {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 100% !important;
+        }
+
+        /* Đảm bảo dropdown options hiển thị đầy đủ */
         .ant-select-dropdown {
-            z-index: 1001 !important;
-        }
-
-        /* Ensure table cells can show dropdowns */
-        .ant-table-tbody > tr > td {
-            overflow: visible !important;
-        }
-
-        /* Ensure table container doesn't clip dropdowns */
-        .ant-table-container {
-            overflow: visible !important;
+            z-index: 10002 !important;
         }
     }
+
+.app-layout-ser {
+    width: 100%;
+    min-height: 100vh;
+}
+
+.app-content {
+    margin-left: 270px; /* Match sidebar width */
+    padding: 20px;
+    width: calc(100% - 270px); /* Full width minus sidebar */
+}
+
+.section {
+    width: 100% !important; /* Override inline styles */
+    margin-bottom: 20px;
+}
+
+/* Update other container widths */
+.classification-status .ant-col {
+    width: 100%;
+}
+
+.payment-section,
+.customer-section {
+    width: 100% !important;
+}
+
+/* Add new styles for header actions */
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 0 16px;
+}
+
+.header-actions .ant-btn-dangerous {
+    margin-left: 8px;
+}
+
+.header-actions .ant-btn-dangerous[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.order-table-container12 {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.order-header {
+    margin-bottom: 20px;
+}
+
+/* Add style for selected rows */
+.ant-table-row-selected > td {
+    background-color: #e6f7ff !important;
 }

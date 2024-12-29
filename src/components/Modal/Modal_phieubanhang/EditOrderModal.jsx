@@ -112,8 +112,8 @@ const EditOrderModal = ({ isVisible, onClose, onSave, initialData, title = "Sử
                   id: detail.MaSanPham,
                   name: detail.TenSanPham,
                   MaChiTietBH: detail.MaChiTietBH,
-                  rawPrice: detail.DonGiaBanRa,
-                  price: `${new Intl.NumberFormat('vi-VN').format(detail.DonGiaBanRa)} đ`,
+                  rawPrice: productWithDetails?.DonGia || 0,
+                  price: `${new Intl.NumberFormat('vi-VN').format(productWithDetails?.DonGia || 0)} đ`,
                   PhanTramLoiNhuan: productWithDetails?.PhanTramLoiNhuan || 0,
                   quantity: detail.SoLuong,
                   ThanhTien: detail.ThanhTien,
@@ -515,71 +515,93 @@ useEffect(() => {
                   <h3>Giỏ hàng</h3>
                   {cart.length > 0 ? (
                     <>
-                      {cart.map((item) => {
-                        // Log từng item trong cart khi render
-                        console.log('=== RENDERING CART ITEM ===');
-                        console.log('Item:', item);
-                        console.log('TenDVTinh:', item.TenDVTinh);
-
-                        return (
-                          <div
-                            key={item.id}
-                            className="cart-item"
+                      {cart.map((item) => (
+                        <div
+                          key={item.id}
+                          className="cart-item"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            marginBottom: 10,
+                            padding: "10px",
+                            backgroundColor: "#f8f9ff",
+                            borderRadius: "8px"
+                          }}
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.name}
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              marginBottom: 10,
-                              padding: "10px",
-                              backgroundColor: "#f8f9ff",
-                              borderRadius: "8px"
+                              width: "40px",
+                              height: "40px",
+                              marginRight: "10px",
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <strong>{item.name}</strong>
+                            <div style={{ color: "gray" }}>
+                              Đơn giá gốc: {item.price}
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Lợi nhuận: {item.PhanTramLoiNhuan}%
+                            </div>
+                            <div style={{ color: "blue" }}>
+                              Thành tiền: {new Intl.NumberFormat('vi-VN').format(
+                                calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
+                              )} VNĐ
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Đơn vị tính: {item.TenDVTinh || 'N/A'}
+                            </div>
+                            <div style={{ color: "gray" }}>
+                              Số lượng: {quantities[item.id] || 1} {item.TenDVTinh || 'N/A'}
+                            </div>
+                          </div>
+
+                          {/* Chỉ hiển thị nút điều chỉnh số lượng cho sản phẩm mới */}
+                          {!item.MaChiTietBH && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '15px' }}>
+                              <Button 
+                                size="small"
+                                onClick={() => handleQuantityChange(item.id, -1)}
+                                disabled={quantities[item.id] <= 1}
+                              >
+                                -
+                              </Button>
+                              <span style={{ 
+                                padding: '4px 8px',
+                                backgroundColor: '#e6f7ff',
+                                borderRadius: '4px',
+                                minWidth: '40px',
+                                textAlign: 'center'
+                              }}>
+                                {quantities[item.id] || 1}
+                              </span>
+                              <Button
+                                size="small"
+                                onClick={() => handleQuantityChange(item.id, 1)}
+                                disabled={quantities[item.id] >= item.stock}
+                              >
+                                +
+                              </Button>
+                            </div>
+                          )}
+
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            style={{
+                              backgroundColor: "#ff4d4f",
+                              color: "#fff",
+                              border: "none",
+                              padding: "5px 10px",
+                              borderRadius: "4px",
+                              cursor: "pointer",
                             }}
                           >
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              style={{
-                                width: "40px",
-                                height: "40px",
-                                marginRight: "10px",
-                              }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <strong>{item.name}</strong>
-                              <div style={{ color: "gray" }}>
-                                Đơn giá gốc: {item.price}
-                              </div>
-                              <div style={{ color: "gray" }}>
-                                Lợi nhuận: {item.PhanTramLoiNhuan}%
-                              </div>
-                              <div style={{ color: "blue" }}>
-                                Thành tiền: {new Intl.NumberFormat('vi-VN').format(
-                                  calculateSellingPrice(item.rawPrice, item.PhanTramLoiNhuan) * (quantities[item.id] || 1)
-                                )} VNĐ
-                              </div>
-                              <div style={{ color: "gray" }}>
-                                Đơn vị tính: {item.TenDVTinh || 'N/A'}
-                              </div>
-                              <div style={{ color: "gray" }}>
-                                Số lượng: {quantities[item.id] || 1} {item.TenDVTinh || 'N/A'}
-                              </div>
-                            </div>
-                            <button
-                              className="remove-btn"
-                              onClick={() => removeFromCart(item.id)}
-                              style={{
-                                backgroundColor: "#ff4d4f",
-                                color: "#fff",
-                                border: "none",
-                                padding: "5px 10px",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        );
-                      })}
+                            Xóa
+                          </button>
+                        </div>
+                      ))}
                       <div style={{
                         marginTop: "16px",
                         padding: "10px",
