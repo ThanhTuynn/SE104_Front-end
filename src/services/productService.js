@@ -320,33 +320,22 @@ const productService = {
         }
     },
 
-        updateProduct: async (id, dataToUpdate) => {
+        updateProduct: async (id, formData) => {
         try {
-            // Format data theo yêu cầu
-            const formattedData = {
-                MaSanPham: id,
-                TenSanPham: dataToUpdate.TenSanPham,
-                MaLoaiSanPham: dataToUpdate.MaLoaiSanPham,
-                DonGia: parseFloat(dataToUpdate.DonGia),
-                SoLuong: parseInt(dataToUpdate.SoLuong)
-            };
+            // Log the FormData contents
+            console.log('Sending update request for product:', id);
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ':', pair[1] instanceof File ? 'File object' : pair[1]);
+            }
 
-            // Log chi tiết request
-            console.log('Request URL:', `/product/update/${id}`);
-            console.log('Request data:', JSON.stringify(formattedData, null, 2));
-
-            const response = await axiosInstance.patch(`/product/update/${id}`, formattedData, {
+            const response = await axiosInstance.patch(`/product/update/${id}`, formData, {
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'multipart/form-data'
                 }
             });
             
-            if (response.status === 200) {
-                console.log('Update successful:', response.data);
-                return response.data;
-            } else {
-                throw new Error('Update failed with status: ' + response.status);
-            }
+            console.log('Update response:', response.data);
+            return response.data;
         } catch (error) {
             console.error('Update error:', {
                 message: error.message,

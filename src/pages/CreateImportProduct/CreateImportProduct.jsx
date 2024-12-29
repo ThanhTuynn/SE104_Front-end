@@ -122,7 +122,6 @@ const CreateImportOrder = () => {
       return;
     }
 
-    // Kiểm tra thông tin sản phẩm
     const invalidProducts = selectedProducts.filter(
       product => !product.quantity || !product.unitPrice
     );
@@ -132,14 +131,13 @@ const CreateImportOrder = () => {
       return;
     }
 
-    const currentDate = new Date().toISOString().split('T')[0];
+    const selectedSupplier = selectedSuppliers[0];
 
+    // Format dữ liệu theo yêu cầu của backend API
     const orderData = {
       soPhieu: orderId,
-      ngayLap: orderDate.toISOString().split('T')[0], // Format date as YYYY-MM-DD
-      nhaCungCap: selectedSuppliers[0].id,
-      diaChi: selectedSuppliers[0].address,
-      soDienThoai: selectedSuppliers[0].phone,
+      ngayLap: orderDate.toISOString().split('T')[0],
+      nhaCungCap: selectedSupplier.id,
       chiTietSanPham: selectedProducts.map(product => ({
         maSanPham: product.code,
         soLuong: parseInt(product.quantity),
@@ -148,25 +146,18 @@ const CreateImportOrder = () => {
       }))
     };
 
-    // Log dữ liệu theo format yêu cầu
-    console.log(JSON.stringify({
-      soPhieu: orderData.soPhieu,
-      ngayLap: orderData.ngayLap,
-      nhaCungCap: orderData.nhaCungCap,
-      diaChi: orderData.diaChi,
-      soDienThoai: orderData.soDienThoai,
-      chiTietSanPham: orderData.chiTietSanPham
-    }, null, 4));
-
     try {
-      await createImportProduct.createOrder(orderData);
+      console.log('Sending order data:', JSON.stringify(orderData, null, 2));
+      const result = await createImportProduct.createOrder(orderData);
+      console.log('Response:', result);
       message.success("Phiếu mua hàng đã được lưu thành công");
       navigate("/list-import-product");
     } catch (error) {
       if (error.message === 'Mã đơn hàng đã tồn tại') {
         message.error("Mã đơn hàng đã tồn tại");
       } else {
-        message.error("Mã đơn hàng đã tồn tại");
+        message.error("Có lỗi xảy ra khi lưu phiếu mua hàng");
+        console.error('Error details:', error);
       }
     }
   };

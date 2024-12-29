@@ -132,52 +132,51 @@ const App = () => {
 
     const handleSaveProduct = async () => {
         try {
-            const currentProduct = location.state?.productData;
-            if (!currentProduct) {
-                message.error("Không tìm thấy thông tin sản phẩm");
+            // Lấy thông tin chi tiết sản phẩm hiện tại
+            const currentProduct = await productService.getProductById(id);
+
+            // Tạo FormData để có thể gửi cả file
+            const formDataToSend = new FormData();
+
+            // Thêm các trường dữ liệu cơ bản
+            formDataToSend.append('MaSanPham', id);
+            formDataToSend.append('TenSanPham', formData.productName || currentProduct.TenSanPham);
+            formDataToSend.append('MaLoaiSanPham', formData.categoryId || currentProduct.MaLoaiSanPham);
+            formDataToSend.append('DonGia', formData.price === "Chưa có giá" ? 0 : parseFloat(formData.price) || currentProduct.DonGia);
+            formDataToSend.append('SoLuong', parseInt(formData.stock) || currentProduct.SoLuong);
+
+            // Xử lý file ảnh
+            if (formData.imageFile) {
+                formDataToSend.append('imageFile', formData.imageFile);
+            }
+
+            // Log dữ liệu trước khi gửi
+            console.log('FormData content:');
+            for (let pair of formDataToSend.entries()) {
+                console.log(pair[0] + ': ' + (pair[1] instanceof File ? 'File object' : pair[1]));
+            }
+
+            // Kiểm tra dữ liệu bắt buộc
+            if (!formDataToSend.get('TenSanPham') || !formDataToSend.get('MaLoaiSanPham')) {
+                message.error('Vui lòng điền đầy đủ thông tin bắt buộc');
                 return;
             }
 
-            // Validate required fields
-            if (!formData.productName || !formData.categoryId) {
-                message.error("Vui lòng điền đầy đủ thông tin bắt buộc");
-                return;
-            }
-
-            const loadingMessage = message.loading("Đang cập nhật sản phẩm...", 0);
+            // Hiển thị loading message
+            const loadingMessage = message.loading('Đang cập nhật sản phẩm...', 0);
 
             try {
-                // Create FormData object
-                const formDataToSend = new FormData();
-
-                // Append product data
-                formDataToSend.append("TenSanPham", formData.productName);
-                formDataToSend.append("MaLoaiSanPham", formData.categoryId);
-                formDataToSend.append("MaSanPham", formData.productCode);
-                // Set price to 0 if it's "Chưa có giá"
-                formDataToSend.append("DonGia", formData.price === "Chưa có giá" ? 0 : formData.price);
-                formDataToSend.append("SoLuong", formData.stock || 0);
-
-                // Append image file if exists
-                if (formData.imageFile) {
-                    formDataToSend.append("imageFile", formData.imageFile);
-                }
-
-                const response = await productService.updateProduct(currentProduct.key, formDataToSend);
-
+                await productService.updateProduct(id, formDataToSend);
                 loadingMessage();
-                message.success("Cập nhật sản phẩm thành công");
-
-                setTimeout(() => {
-                    navigate("/list-product");
-                }, 1000);
+                message.success('Cập nhật sản phẩm thành công');
+                navigate('/list-product');
             } catch (error) {
                 loadingMessage();
-                console.error("Update failed:", error);
                 throw error;
             }
         } catch (error) {
-            message.error("Không thể cập nhật sản phẩm: " + error.message);
+            console.error('Error updating product:', error);
+            message.error('Không thể cập nhật sản phẩm: ' + error.message);
         }
     };
 
