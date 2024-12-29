@@ -14,7 +14,7 @@ import { UploadOutlined } from "@ant-design/icons";
 import "./AdjustImportProduct.css";
 import { useNavigate, useParams } from "react-router-dom";
 import createImportProduct from "../../services/createImportProduct";
-
+import productService from "../../services/productService";
 const AdjustImportOrder = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -49,6 +49,12 @@ const AdjustImportOrder = () => {
     unitPrice: "",
   });
 
+  // Add a new state to track original products
+  const [originalProducts, setOriginalProducts] = useState([]);
+
+  // Thêm state để theo dõi sản phẩm bị xóa và thêm lại
+  const [readdedProducts, setReaddedProducts] = useState([]);
+
   useEffect(() => {
     const fetchOrderData = async () => {
       try {
@@ -73,7 +79,9 @@ const AdjustImportOrder = () => {
               quantity: item.SoLuong,
               unitPrice: parseFloat(item.DonGia),
               category: item.TenLoaiSanPham || 'N/A',
-              total: parseFloat(item.ThanhTien)
+              total: parseFloat(item.ThanhTien),
+              isOriginal: true, // Add this flag to identify original products
+              MaChiTietMH: item.MaChiTietMH // Add this field for deletion
             };
           })
         );
@@ -86,6 +94,10 @@ const AdjustImportOrder = () => {
         }]);
 
         setSelectedProducts(productsWithDetails);
+        setOriginalProducts(productsWithDetails.map(p => ({
+          code: p.code,
+          MaChiTietMH: p.MaChiTietMH
+        }))); // Store both code and MaChiTietMH
 
       } catch (error) {
         message.error("Không thể tải thông tin phiếu mua hàng");
@@ -162,63 +174,155 @@ const AdjustImportOrder = () => {
     );
   };
 
+  const handleDeleteProduct = (record) => {
+    // Nếu là sản phẩm gốc, thêm vào danh sách readdedProducts
+    if (record.isOriginal) {
+      setReaddedProducts(prev => [...prev, record.code]);
+    }
+    setSelectedProducts(prev =>
+      prev.filter(product => product.code !== record.code)
+    );
+  };
+
   const handleSave = async () => {
     try {
-      // Lấy danh sách sản phẩm ban đầu
       const originalData = await createImportProduct.getPurchaseById(id);
-      const originalProducts = originalData.purchaseDetails;
 
-      // Chuẩn bị updateDetails cho thông tin chung của phiếu
-      const updateDetails = [{
-        NgayLap: originalData.purchaseOrder.NgayLap,
-        MaNCC: selectedSuppliers[0]?.id || originalData.purchaseOrder.MaNCC
-      }];
+      // 1. Cập nhật đơn giá cho các sản phẩm bị xóa và thêm lại
+      const updatePricePromises = selectedProducts
+        .filter(product => readdedProducts.includes(product.code)) // Chỉ lấy những sản phẩm bị xóa và thêm lại
+        .map(async (product) => {
+          try {
+            // Lấy thông tin chi tiết sản phẩm
+            const productDetail = await productService.getProductById(product.code);
+            
+            // Tạo dữ liệu update theo format yêu cầu
+            const updatePriceData = {
+              MaSanPham: productDetail.MaSanPham,
+              TenSanPham: productDetail.TenSanPham,
+              MaLoaiSanPham: productDetail.MaLoaiSanPham,
+              DonGia: parseFloat(product.unitPrice),
+              SoLuong: productDetail.SoLuong
+            };
 
-      // Tìm các sản phẩm mới được thêm vào
-      const addDetails = selectedProducts
-        .filter(product => !originalProducts.some(p => p.MaSanPham === product.code))
-        .map(product => ({
-          MaSanPham: product.code,
-          SoLuong: product.quantity,
-          DonGia: product.unitPrice.toFixed(2),
-          ThanhTien: (product.quantity * product.unitPrice).toFixed(2)
-        }));
+            // Log để kiểm tra
+            console.log("Update data:", updatePriceData);
+            console.log("JSON format:", JSON.stringify(updatePriceData, null, 4));
 
-      // Tìm các sản phẩm bị xóa
-      const deleteDetails = originalProducts
-        .filter(original => !selectedProducts.some(p => p.code === original.MaSanPham))
-        .map(p => p.MaChiTietMH);
+            // Gọi API update đơn giá
+            await productService.updateProduct(product.code, updatePriceData);
+          } catch (error) {
+            console.error(`Lỗi cập nhật đơn giá sản phẩm ${product.code}:`, error);
+            throw error;
+          }
+        });
 
+      // Đợi tất cả các cập nhật đơn giá hoàn thành
+      await Promise.all(updatePricePromises);
+
+      // 2. Xử lý các sản phẩm bị xóa và thêm lại
+      const readdedProductsPromises = selectedProducts
+        .filter(product => readdedProducts.includes(product.code))
+        .map(async (product) => {
+          try {
+            // Đầu tiên xóa sản phẩm khỏi phiếu cũ
+            const deleteData = {
+              updateDetails: [{
+                NgayLap: originalData.purchaseOrder.NgayLap,
+                MaNCC: selectedSuppliers[0]?.id || originalData.purchaseOrder.MaNCC
+              }],
+              addDetails: [],
+              deleteDetails: originalProducts
+                .filter(original => original.code === product.code)
+                .map(original => ({
+                  MaChiTietMH: original.MaChiTietMH,
+                  MaSanPham: original.code,
+                  SoLuong: product.quantity
+                }))
+            };
+
+            await createImportProduct.updatePurchase(id, deleteData);
+
+            // Sau đó thêm lại sản phẩm với thông tin mới
+            const addData = {
+              updateDetails: [{
+                NgayLap: originalData.purchaseOrder.NgayLap,
+                MaNCC: selectedSuppliers[0]?.id || originalData.purchaseOrder.MaNCC
+              }],
+              addDetails: [{
+                MaSanPham: product.code,
+                SoLuong: product.quantity,
+                DonGia: parseFloat(product.unitPrice).toFixed(2),
+                ThanhTien: (product.quantity * product.unitPrice).toFixed(2)
+              }],
+              deleteDetails: []
+            };
+
+            await createImportProduct.updatePurchase(id, addData);
+          } catch (error) {
+            console.error(`Lỗi xử lý sản phẩm thêm lại ${product.code}:`, error);
+            throw error;
+          }
+        });
+
+      await Promise.all(readdedProductsPromises);
+
+      // 3. Cập nhật phiếu mua hàng với các thay đổi còn lại
       const updateData = {
-        updateDetails,
-        addDetails,
-        deleteDetails
-      };
-
-      // In ra console theo format yêu cầu
-      console.log(JSON.stringify({
         updateDetails: [{
           NgayLap: originalData.purchaseOrder.NgayLap,
           MaNCC: selectedSuppliers[0]?.id || originalData.purchaseOrder.MaNCC
         }],
         addDetails: selectedProducts
-          .filter(product => !originalProducts.some(p => p.MaSanPham === product.code))
+          .filter(product => !product.MaChiTietMH && !readdedProducts.includes(product.code))
           .map(product => ({
             MaSanPham: product.code,
             SoLuong: product.quantity,
-            DonGia: product.unitPrice.toFixed(2),
+            DonGia: parseFloat(product.unitPrice).toFixed(2),
             ThanhTien: (product.quantity * product.unitPrice).toFixed(2)
           })),
         deleteDetails: originalProducts
-          .filter(original => !selectedProducts.some(p => p.code === original.MaSanPham))
-          .map(p => p.MaChiTietMH)
-      }, null, 4));
+          .filter(original => 
+            !selectedProducts.some(p => p.MaChiTietMH === original.MaChiTietMH) && 
+            !readdedProducts.includes(original.code)
+          )
+          .map(original => ({
+            MaChiTietMH: original.MaChiTietMH,
+            MaSanPham: original.code,
+            SoLuong: original.quantity || 0
+          }))
+      };
 
       await createImportProduct.updatePurchase(id, updateData);
       message.success("Cập nhật phiếu mua hàng thành công");
       navigate("/list-import-product");
     } catch (error) {
       message.error("Lỗi khi cập nhật phiếu mua hàng");
+      console.error("Update error:", error);
+    }
+  };
+
+  const handleProductInfoChange = async (productCode, field, value) => {
+    try {
+      setSelectedProducts(prev =>
+        prev.map(product => {
+          if (product.code === productCode && !product.isOriginal) {
+            const newValue = field === 'quantity' ? parseInt(value) || 0 : parseFloat(value) || 0;
+            return {
+              ...product,
+              [field]: newValue,
+              total: field === 'quantity' ? 
+                newValue * product.unitPrice : 
+                field === 'unitPrice' ? 
+                  product.quantity * newValue : 
+                  product.total
+            };
+          }
+          return product;
+        })
+      );
+    } catch (error) {
+      message.error("Lỗi khi cập nhật thông tin sản phẩm");
       console.error("Update error:", error);
     }
   };
@@ -288,9 +392,14 @@ const AdjustImportOrder = () => {
             if (selectedProducts.some(product => product.code === record.code)) {
               message.warning('Sản phẩm này đã được chọn!');
             } else {
-              setSelectedProducts(prev => [...prev, { ...record, quantity: 1, unitPrice: 0 }]);
+              setSelectedProducts(prev => [...prev, { 
+                ...record, 
+                quantity: 1, 
+                unitPrice: 0, 
+                isOriginal: false,
+              }]);
             }
-            setProductSearchTerm(''); // Reset thanh tìm kiếm sau khi chọn
+            setProductSearchTerm('');
           }}
         >
           Chọn
@@ -316,42 +425,42 @@ const AdjustImportOrder = () => {
       key: 'category',
     },
     {
-      title: 'Số lượng',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      render: (_, record) => (
+      title: "Số lượng",
+      key: "quantity",
+      render: (text, product) => (
         <Input
           type="number"
-          min={1}
-          value={record.quantity}
-          onChange={(e) => {
-            const newQuantity = parseInt(e.target.value) || 0;
-            setSelectedProducts(prev =>
-              prev.map(p =>
-                p.code === record.code ? { ...p, quantity: newQuantity } : p
-              )
-            );
+          min="1"
+          value={product.quantity || ""}
+          onChange={(e) =>
+            handleProductInfoChange(product.code, "quantity", e.target.value)
+          }
+          disabled={product.isOriginal}
+          style={{
+            backgroundColor: product.isOriginal ? "#f5f5f5" : "white",
+            cursor: product.isOriginal ? "not-allowed" : "text"
           }}
+          placeholder="Nhập số lượng"
         />
       ),
     },
     {
-      title: 'Đơn giá',
-      dataIndex: 'unitPrice',
-      key: 'unitPrice',
-      render: (_, record) => (
+      title: "Đơn giá",
+      key: "unitPrice",
+      render: (text, product) => (
         <Input
           type="number"
-          min={0}
-          value={record.unitPrice}
-          onChange={(e) => {
-            const newPrice = parseFloat(e.target.value) || 0;
-            setSelectedProducts(prev =>
-              prev.map(p =>
-                p.code === record.code ? { ...p, unitPrice: newPrice } : p
-              )
-            );
+          min="0"
+          value={product.unitPrice || ""}
+          onChange={(e) =>
+            handleProductInfoChange(product.code, "unitPrice", e.target.value)
+          }
+          disabled={product.isOriginal}
+          style={{
+            backgroundColor: product.isOriginal ? "#f5f5f5" : "white",
+            cursor: product.isOriginal ? "not-allowed" : "text"
           }}
+          placeholder="Nhập đơn giá"
         />
       ),
     },
@@ -366,11 +475,7 @@ const AdjustImportOrder = () => {
       render: (_, record) => (
         <Button
           danger
-          onClick={() => {
-            setSelectedProducts(prev =>
-              prev.filter(product => product.code !== record.code)
-            );
-          }}
+          onClick={() => handleDeleteProduct(record)}
         >
           Xóa
         </Button>
