@@ -25,6 +25,7 @@ import Unittypeproduct from '../pages/Unittypeproduct/Unittypeproduct' // Import
 import TypeProductPage from '../pages/TypeProductPage/TypeProductPage'
 import TypeServicePage from '../pages/Typeservicepage/Typeservicepage'; // Import TypeServicePage
 import AdjustImportProduct from '../pages/AdjustImportProduct/AdjustImportProduct'
+import WarehouseReport from '../pages/WarehouseReport/WarehouseReport'; // Import the WarehouseReport component
 
 const routes = [
     {
@@ -196,6 +197,12 @@ const routes = [
     {
         path: '/type-service',
         page: TypeServicePage,
+        isShowHeader: true,
+        protected: true,
+    },
+    {
+        path: '/warehouse-report', // Add this to your routes array
+        page: WarehouseReport,
         isShowHeader: true,
         protected: true,
     },

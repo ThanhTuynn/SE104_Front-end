@@ -11,6 +11,7 @@ import {
   LogoutOutlined,
   TagOutlined,
   ShoppingOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import logo from '../../assets/logo.png'
@@ -51,14 +52,24 @@ const SidebarComponent = () => {
           text: 'Dashboard'
         },
         {
-          path: '/unit-type',
-          icon: <TagOutlined/>,
-          text: 'Quản lý đơn vị tính'
+          path: '/list-product',
+          icon: <AppstoreOutlined />,
+          text: 'Quản lý sản phẩm'
+        },
+        // {
+        //   path: '/product-list',
+        //   icon: <ShoppingOutlined />,
+        //   text: 'Quản lý kho'
+        // },
+        {
+          path: '/warehouse-report',  // Add this new route
+          icon: <BarChartOutlined />,
+          text: 'Báo cáo tồn kho'
         },
         {
-          path: '/list-product',
-          icon: <ShoppingOutlined />,
-          text: 'Quản lý kho'
+          path: '/unit-type',
+          icon: <TagOutlined />,
+          text: 'Quản lý đơn vị tính'
         },
         {
           path: '/list-order-product',
@@ -72,7 +83,7 @@ const SidebarComponent = () => {
         },
         {
           path: '/type-service',
-          icon: <TagOutlined/>,
+          icon: <TagOutlined />,
           text: 'Quản lý loại dịch vụ'
         },
         {
@@ -93,14 +104,19 @@ const SidebarComponent = () => {
       ],
       seller: [
         {
+          path: '/dashboard',
+          icon: <DashboardOutlined />,
+          text: 'Dashboard'
+        },
+        {
           path: '/list-order-product',
           icon: <FileAddOutlined />,
           text: 'Quản lý phiếu bán hàng'
         },
         {
-          path: '/list-import-product',
-          icon: <ShoppingCartOutlined />,
-          text: 'Quản lý phiếu mua hàng'
+          path: '/type-service',
+          icon: <TagOutlined />,
+          text: 'Quản lý loại dịch vụ'
         },
         {
           path: '/list-service',
@@ -125,14 +141,24 @@ const SidebarComponent = () => {
           text: 'Quản lý sản phẩm'
         },
         {
-          path: '/warehouse',
-          icon: <ShoppingOutlined />,
-          text: 'Quản lý kho'
+          path: '/list-import-product',
+          icon: <ShoppingCartOutlined />,
+          text: 'Quản lý phiếu mua hàng'
         },
+        // {
+        //   path: '/warehouse',
+        //   icon: <ShoppingOutlined />,
+        //   text: 'Quản lý kho'
+        // },
         {
           path: '/unit-type',
           icon: <TagOutlined />,
           text: 'Quản lý đơn vị tính'
+        },
+        {
+          path: '/warehouse-report',  // Add this new route
+          icon: <BarChartOutlined />,
+          text: 'Báo cáo tồn kho'
         }
       ]
     };
