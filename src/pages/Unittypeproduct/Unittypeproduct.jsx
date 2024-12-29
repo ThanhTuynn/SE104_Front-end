@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Table, Button, Input, Modal, message } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Table, Button, Input, message } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
 import AddUnitTypeModal from "../../components/Modal/Modal_unittype/AddUnitTypeModal";
 import EditUnitTypeModal from "../../components/Modal/Modal_unittype/EditUnitTypeModal";
 import "./Unittypeproduct.css";
-import { getAllUnitTypes, deleteUnitType } from '../../services/UnitTypeService';
+import { getAllUnitTypes } from '../../services/UnitTypeService';
 
 const Unittypeproduct = () => {
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState({
-    selectedUnits: [],
-    data: [
-    ],
+    data: [],
     isModalVisible: false,
   });
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
@@ -75,26 +73,6 @@ const Unittypeproduct = () => {
     fetchUnitTypes();
   }, []);
 
-  const handleDelete = async () => {
-    try {
-      setLoading(true);
-      for (const id of state.selectedUnits) {
-        await deleteUnitType(id);
-      }
-      message.success('Xóa đơn vị tính thành công');
-      setState(prev => ({
-        ...prev,
-        isModalVisible: false,
-        selectedUnits: []
-      }));
-      fetchUnitTypes();
-    } catch (error) {
-      message.error('Không thể xóa đơn vị tính');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filteredData = state.data.filter(item =>
     item.id.toLowerCase().includes(searchText.toLowerCase()) ||
     item.name.toLowerCase().includes(searchText.toLowerCase())
@@ -137,20 +115,6 @@ const Unittypeproduct = () => {
           </div>
         </header>
 
-        <div className="filter-section">
-          <div className="filter-button">
-            <Button
-              danger
-              icon={<DeleteOutlined />}
-              disabled={state.selectedUnits.length === 0}
-              onClick={() => handleChange("isModalVisible", true)}
-              className="delete-all-button"
-            >
-              Xóa đã chọn
-            </Button>
-          </div>
-        </div>
-
         <Table
           loading={loading}
           columns={columns}
@@ -160,28 +124,13 @@ const Unittypeproduct = () => {
             onClick: () => handleRowClick(record),
             style: { cursor: 'pointer' }
           })}
-          rowSelection={{
-            selectedRowKeys: state.selectedUnits,
-            onChange: (selectedRowKeys) =>
-              handleChange("selectedUnits", selectedRowKeys),
-          }}
           pagination={{ pageSize: 5 }}
         />
-
-        <Modal
-          title="Xác nhận xóa"
-          visible={state.isModalVisible}
-          onOk={handleDelete}
-          onCancel={() => handleChange("isModalVisible", false)}
-          okText="Xóa"
-          cancelText="Hủy"
-        >
-          <p>Bạn có chắc chắn muốn xóa những đơn vị tính đã chọn?</p>
-        </Modal>
 
         <AddUnitTypeModal 
           isVisible={isAddModalVisible}
           onClose={handleAddModalClose}
+          unitTypes={state.data}
         />
 
       </div>

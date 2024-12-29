@@ -1,24 +1,23 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input, Button, Table, Modal, Form, Select, message } from "antd";
-import { ExportOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { ExportOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import "./TypeProductPage.css";
 import Topbar from "../../components/TopbarComponent/TopbarComponent";
-import typeProductService from "../../services/typeProductService"; // lowercase import
-import unitService from "../../services/unitService"; // lowercase import
+import typeProductService from "../../services/typeProductService";
+import unitService from "../../services/unitService";
+
 const TypeProductPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [types, setTypes] = useState([]);
   const [params, setParams] = useState({
     search: "",
-    selectedRowKeys: [],
-    isDeleteModalVisible: false,
   });
 
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [addTypeForm] = Form.useForm();
-  const [units, setUnits] = useState([]); // Add state for units
+  const [units, setUnits] = useState([]);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [editForm] = Form.useForm();
@@ -43,7 +42,6 @@ const TypeProductPage = () => {
     try {
       setLoading(true);
       const response = await typeProductService.getAllTypes();
-      // Map the data and include unit information
       const typesWithUnits = response.data.map(type => ({
         key: type.MaLoaiSanPham,
         MaLoaiSanPham: type.MaLoaiSanPham,
@@ -61,7 +59,6 @@ const TypeProductPage = () => {
     }
   };
 
-  // Add dependency to useEffect to refetch types when units change
   useEffect(() => {
     if (units.length > 0) {
       fetchTypes();
@@ -90,34 +87,16 @@ const TypeProductPage = () => {
     return filtered;
   }, [types, params.search]);
 
-  const handleDeleteSelected = async () => {
-    try {
-      for (const typeId of params.selectedRowKeys) {
-        await typeProductService.deleteType(typeId);
-      }
-      message.success('Xóa loại sản phẩm thành công');
-      handleChange("selectedRowKeys", []);
-      handleChange("isDeleteModalVisible", false);
-      await fetchTypes(); // Refresh the list
-    } catch (error) {
-      message.error('Không thể xóa loại sản phẩm');
-      console.error('Delete types error:', error);
-    }
-  };
-
   const checkDuplicate = (values, isEditing = false) => {
-    // Kiểm tra mã trùng
     const isDuplicateCode = types.some(type => 
       type.MaLoaiSanPham === values.code || 
       type.MaLoaiSanPham === values.MaLoaiSanPham
     );
 
-    // Kiểm tra tên trùng
     const isDuplicateName = types.some(type => 
       type.TenLoaiSanPham.toLowerCase() === (values.name?.toLowerCase() || values.TenLoaiSanPham?.toLowerCase())
     );
 
-    // Nếu đang sửa, bỏ qua kiểm tra trùng cho chính record đang sửa
     if (isEditing && editingProduct) {
       if (values.MaLoaiSanPham === editingProduct.MaLoaiSanPham) {
         return isDuplicateName && values.TenLoaiSanPham !== editingProduct.TenLoaiSanPham;
@@ -132,7 +111,6 @@ const TypeProductPage = () => {
 
   const handleAddType = async (values) => {
     try {
-      // Kiểm tra trùng lặp trước khi thêm
       if (checkDuplicate(values)) {
         message.error('Mã hoặc tên loại sản phẩm đã tồn tại!');
         return;
@@ -171,7 +149,6 @@ const TypeProductPage = () => {
 
   const handleEdit = async (values) => {
     try {
-      // Kiểm tra trùng lặp trước khi cập nhật
       if (checkDuplicate(values, true)) {
         message.error('Mã hoặc tên loại sản phẩm đã tồn tại!');
         return;
@@ -270,27 +247,8 @@ const TypeProductPage = () => {
           </div>
         </header>
 
-        <div className="filter-section">
-          <div className="filter-button">
-            <Button
-              type="primary"
-              danger
-              icon={<DeleteOutlined />}
-              disabled={params.selectedRowKeys.length === 0}
-              onClick={() => handleChange("isDeleteModalVisible", true)}
-              className="delete-all-button"
-            >
-              Xóa đã chọn
-            </Button>
-          </div>
-        </div>
-
         <Table
           loading={loading}
-          rowSelection={{
-            selectedRowKeys: params.selectedRowKeys,
-            onChange: (selectedRowKeys) => handleChange("selectedRowKeys", selectedRowKeys),
-          }}
           columns={columns}
           dataSource={filteredTypes}
           rowKey="MaLoaiSanPham"
@@ -300,17 +258,6 @@ const TypeProductPage = () => {
             onClick: () => handleRowClick(record),
           })}
         />
-
-        <Modal
-          title="Xác nhận xóa"
-          visible={params.isDeleteModalVisible}
-          onOk={handleDeleteSelected}
-          onCancel={() => handleChange("isDeleteModalVisible", false)}
-          okText="Xóa"
-          cancelText="Hủy"
-        >
-          <p>Bạn có chắc chắn muốn xóa loại sản phẩm đã chọn?</p>
-        </Modal>
 
         <Modal
           title="Thêm loại sản phẩm mới"
@@ -371,7 +318,7 @@ const TypeProductPage = () => {
                 type="number" 
                 min={0}
                 max={100}
-                step={1} // Only allow integer steps
+                step={1}
                 placeholder="Nhập phần trăm lợi nhuận"
                 suffix="%" 
               />

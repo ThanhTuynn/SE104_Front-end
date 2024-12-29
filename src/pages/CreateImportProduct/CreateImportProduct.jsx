@@ -10,6 +10,7 @@ import {
   Table,
   Checkbox,
   DatePicker,
+  Space,
 } from "antd";
 import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import "./CreateImportProduct.css";
@@ -54,6 +55,10 @@ const CreateImportOrder = () => {
   const [productCategories, setProductCategories] = useState([]);
   const [orderId, setOrderId] = useState('');
   const [orderDate, setOrderDate] = useState(new Date());
+
+  // Thêm state cho modal chỉnh sửa nhà cung cấp
+  const [editSupplierModalVisible, setEditSupplierModalVisible] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState(null);
 
   useEffect(() => {
     fetchProducts();
@@ -320,14 +325,21 @@ const CreateImportOrder = () => {
     setProductSearchTerm(e.target.value);
   };
 
-  const handleSelectProduct = (product) => {
-    setSelectedProducts((prev) => {
-      if (prev.some((item) => item.code === product.code)) {
-        return prev.filter((item) => item.code !== product.code);
-      } else {
-        return [...prev, product];
-      }
-    });
+  const handleSelectProduct = async (product) => {
+    try {
+      setSelectedProducts((prev) => {
+        if (prev.some((item) => item.code === product.code)) {
+          return prev.filter((item) => item.code !== product.code);
+        } else {
+          // Khi chọn sản phẩm, cập nhật trạng thái isDelete
+          createImportProduct.updateProductStatus(product.code);
+          return [...prev, product];
+        }
+      });
+    } catch (error) {
+      console.error('Error updating product status:', error);
+      message.error('Không thể cập nhật trạng thái sản phẩm');
+    }
   };
 
   const handleRemoveProduct = (productCode) => {
@@ -351,23 +363,50 @@ const CreateImportOrder = () => {
   );
 
   const supplierColumns = [
-    { title: "Mã nhà cung cấp", dataIndex: "id", key: "id" },
-    { title: "Tên nhà cung cấp", dataIndex: "name", key: "name" },
-    { title: "Số điện thoại", dataIndex: "phone", key: "phone" },
-    { title: "Địa chỉ", dataIndex: "address", key: "address" },
+    {
+      title: 'Mã NCC',
+      dataIndex: 'id',
+      key: 'id',
+    },
+    {
+      title: 'Tên nhà cung cấp',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Số điện thoại',
+      dataIndex: 'phone',
+      key: 'phone',
+    },
+    {
+      title: 'Địa chỉ',
+      dataIndex: 'address',
+      key: 'address',
+    },
     {
       title: 'Thao tác',
       key: 'action',
       render: (_, record) => (
-        <Button
-          type={selectedSuppliers.some(supplier => supplier.id === record.id) ? 'default' : 'primary'}
-          onClick={() => {
-            setSelectedSuppliers([record]);
-            setSearchTerm('');
-          }}
-        >
-          Chọn
-        </Button>
+        <Space>
+          <Button
+            type={selectedSuppliers.some(supplier => supplier.id === record.id) ? 'default' : 'primary'}
+            onClick={() => {
+              setSelectedSuppliers([record]);
+              setSearchTerm('');
+            }}
+          >
+            Chọn
+          </Button>
+          <Button
+            type="link"
+            onClick={() => {
+              setEditingSupplier(record);
+              setEditSupplierModalVisible(true);
+            }}
+          >
+            Chỉnh sửa
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -566,6 +605,51 @@ const CreateImportOrder = () => {
     }, 0);
   };
 
+  // Thêm hàm xử lý chỉnh sửa nhà cung cấp
+  const handleUpdateSupplier = async () => {
+    try {
+      if (!editingSupplier?.name || !editingSupplier?.phone || !editingSupplier?.address) {
+        message.error('Vui lòng điền đầy đủ thông tin nhà cung cấp');
+        return;
+      }
+
+      // Format dữ liệu đúng với yêu cầu của API
+      const updateData = {
+        TenNCC: editingSupplier.name,
+        SoDienThoai: editingSupplier.phone,
+        DiaChi: editingSupplier.address
+      };
+
+      await createImportProduct.updateProvider(editingSupplier.id, updateData);
+
+      // Cập nhật lại danh sách nhà cung cấp
+      await fetchProviders();
+
+      // Cập nhật nhà cung cấp đã chọn nếu đang được chọn
+      if (selectedSuppliers.some(s => s.id === editingSupplier.id)) {
+        setSelectedSuppliers([{
+          id: editingSupplier.id,
+          name: editingSupplier.name,
+          phone: editingSupplier.phone,
+          address: editingSupplier.address
+        }]);
+      }
+
+      message.success('Cập nhật thông tin nhà cung cấp thành công');
+      setEditSupplierModalVisible(false);
+      setEditingSupplier(null);
+    } catch (error) {
+      message.error('Lỗi khi cập nhật thông tin nhà cung cấp');
+      console.error('Update supplier error:', error);
+    }
+  };
+
+  // Thêm hàm kiểm tra số điện thoại
+  const validatePhoneNumber = (phone) => {
+    // Kiểm tra độ dài và chỉ chứa số
+    return /^\d*$/.test(phone) && phone.length <= 10;
+  };
+
   return (
     <div className="create-import-order-container1">
     <div className="create-import-order-container">
@@ -620,7 +704,11 @@ const CreateImportOrder = () => {
             <Table
               loading={loading}
               bordered
-              dataSource={filteredSuppliers}
+              dataSource={supplierData.filter(
+                (supplier) =>
+                  supplier.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  supplier.name.toLowerCase().includes(searchTerm.toLowerCase())
+              )}
               columns={supplierColumns}
               rowKey="id"
               style={{ marginTop: "16px" }}
@@ -675,10 +763,85 @@ const CreateImportOrder = () => {
             <Form.Item label="Số điện thoại" required>
               <Input
                 value={newSupplier.phone}
-                onChange={(e) =>
-                  handleNewSupplierChange("phone", e.target.value)
-                }
+                onChange={(e) => {
+                  const newPhone = e.target.value;
+                  // Kiểm tra nếu input không phải là số thì không cho nhập
+                  if (!/^\d*$/.test(newPhone)) {
+                    message.error('Vui lòng chỉ nhập số');
+                    return;
+                  }
+                  // Kiểm tra độ dài
+                  if (!validatePhoneNumber(newPhone)) {
+                    message.error('Số điện thoại không được vượt quá 10 số');
+                    return;
+                  }
+                  handleNewSupplierChange("phone", newPhone);
+                }}
+                maxLength={10}
                 placeholder="Nhập số điện thoại"
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* Modal for editing supplier */}
+        <Modal
+          title="Chỉnh sửa thông tin nhà cung cấp"
+          visible={editSupplierModalVisible}
+          onOk={handleUpdateSupplier}
+          onCancel={() => {
+            setEditSupplierModalVisible(false);
+            setEditingSupplier(null);
+          }}
+          okText="Lưu thay đổi"
+          cancelText="Hủy"
+        >
+          <Form layout="vertical">
+            <Form.Item label="Mã nhà cung cấp">
+              <Input value={editingSupplier?.id} disabled />
+            </Form.Item>
+            <Form.Item label="Tên nhà cung cấp" required>
+              <Input
+                value={editingSupplier?.name}
+                onChange={(e) => setEditingSupplier(prev => ({
+                  ...prev,
+                  name: e.target.value
+                }))}
+                placeholder="Nhập tên nhà cung cấp"
+              />
+            </Form.Item>
+            <Form.Item label="Số điện thoại" required>
+              <Input
+                value={editingSupplier?.phone}
+                onChange={(e) => {
+                  const newPhone = e.target.value;
+                  // Kiểm tra nếu input không phải là số thì không cho nhập
+                  if (!/^\d*$/.test(newPhone)) {
+                    message.error('Vui lòng chỉ nhập số');
+                    return;
+                  }
+                  // Kiểm tra độ dài
+                  if (!validatePhoneNumber(newPhone)) {
+                    message.error('Số điện thoại không được vượt quá 10 số');
+                    return;
+                  }
+                  setEditingSupplier(prev => ({
+                    ...prev,
+                    phone: newPhone
+                  }));
+                }}
+                maxLength={10}
+                placeholder="Nhập số điện thoại"
+              />
+            </Form.Item>
+            <Form.Item label="Địa chỉ" required>
+              <Input
+                value={editingSupplier?.address}
+                onChange={(e) => setEditingSupplier(prev => ({
+                  ...prev,
+                  address: e.target.value
+                }))}
+                placeholder="Nhập địa chỉ"
               />
             </Form.Item>
           </Form>

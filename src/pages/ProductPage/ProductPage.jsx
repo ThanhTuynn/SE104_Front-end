@@ -128,7 +128,7 @@ const ProductPage = () => {
             // Products will already be sorted by createdAt from the backend
             const formattedData = products.map((product) => ({
                 ...product,
-                stockDisplay: !product.stock || product.stock === 0 ? "Hết hàng" : product.stock,
+                stockDisplay: !product.stock || product.stock === 0 ? "0" : product.stock,
                 price: !product.price || product.price === null || product.DonGia === null 
                     ? "Chưa có giá" 
                     : new Intl.NumberFormat("vi-VN", {
@@ -139,7 +139,7 @@ const ProductPage = () => {
 
             setData(formattedData);
             setFilteredData(formattedData);
-            
+            console.log(formattedData);
             // Lấy danh sách unique categories
             const uniqueCats = [...new Set(formattedData.map((item) => item.category))];
             setUniqueCategories(uniqueCats);
@@ -270,17 +270,6 @@ const ProductPage = () => {
             },
             render: (stockDisplay, record) => (
                 <span
-                    style={{
-                        color:
-                            record.stock === 0 || stockDisplay === "Chưa có hàng"
-                                ? "#ff4d4f"
-                                : record.stock <= 5
-                                ? "#ff4d4f"
-                                : record.stock <= 10
-                                ? "#faad14"
-                                : "#52c41a",
-                        fontWeight: "bold",
-                    }}
                 >
                     {stockDisplay}
                 </span>

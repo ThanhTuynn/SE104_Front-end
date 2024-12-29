@@ -11,21 +11,23 @@ const AddUnitTypeModal = ({ isVisible, onClose, unitTypes = [] }) => {
       const values = await form.validateFields();
       setLoading(true);
 
-      // Kiểm tra mã đơn vị tính trùng
+      // Check for duplicate ID
       const duplicateId = unitTypes.find(
-        unit => unit.id.toLowerCase() === values.id.toLowerCase()
+        unit => unit.id.toLowerCase() === values.id.toLowerCase().trim()
       );
       if (duplicateId) {
-        message.error('Mã đơn vị tính đã tồn tại!');
+        message.error('Mã đơn vị tính này đã tồn tại trong hệ thống!');
+        setLoading(false);
         return;
       }
 
-      // Kiểm tra tên đơn vị tính trùng
+      // Check for duplicate name - make case-insensitive comparison
       const duplicateName = unitTypes.find(
-        unit => unit.name.toLowerCase().trim() === values.name.toLowerCase().trim()
+        unit => unit.name.toLowerCase() === values.name.toLowerCase().trim()
       );
       if (duplicateName) {
-        message.error('Tên đơn vị tính đã tồn tại!');
+        message.error('Tên đơn vị tính này đã tồn tại trong hệ thống!');
+        setLoading(false);
         return;
       }
       
@@ -37,10 +39,10 @@ const AddUnitTypeModal = ({ isVisible, onClose, unitTypes = [] }) => {
       form.resetFields();
       onClose(true);
     } catch (error) {
-      if (error.message?.includes('duplicate')) {
-        message.error('Mã hoặc tên đơn vị tính đã tồn tại!');
+      if (error.response?.data?.message) {
+        message.error(error.response.data.message);
       } else {
-        message.error('Mã hoặc tên đơn vị tính đã tồn tại!');
+        message.error('Có lỗi xảy ra khi thêm đơn vị tính!');
       }
     } finally {
       setLoading(false);

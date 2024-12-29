@@ -82,6 +82,11 @@ const SidebarComponent = () => {
           text: 'Quản lý phiếu mua hàng'
         },
         {
+          path: '/type-product',  // Add this new route
+          icon: <TagOutlined/>,
+          text: 'Quản lý loại sản phẩm'
+        },
+        {
           path: '/type-service',
           icon: <TagOutlined />,
           text: 'Quản lý loại dịch vụ'
