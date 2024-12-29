@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, Layout, Menu, Input, Select, Button, Checkbox, Row, Col, Card, DatePicker, Modal } from "antd";
+import { Table, Layout, Menu, Input, Select, Button, Checkbox, Row, Col, Card, DatePicker, Modal, message } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import ServiceConfirmationModal from "../../components/Modal/Modal_xacnhan/Modal_xacnhan";
 import ServiceModal from "../../components/Modal/Modal_timkiemdichvu/Modal_timkiemdichvu";
@@ -32,6 +32,13 @@ const AddServicePage = () => {
         setIsModalVisible(false);
     };
 
+    const validatePrepayment = (record, value) => {
+        const basePrice = Number(record.price) + Number(record.additionalCost || 0);
+        const total = (record.quantity || 1) * basePrice;
+        const minPrepayment = total * (record.pttr / 100);
+        return value >= minPrepayment;
+    };
+
     const columns = [
         {
             title: "STT",
@@ -39,7 +46,7 @@ const AddServicePage = () => {
             key: "stt",
             width: "5%",
             align: "center",
-            render: (_, __, index) => index + 1,
+            render: (text, record, index) => index + 1,
         },
         {
             title: "Loại dịch vụ",
@@ -85,7 +92,7 @@ const AddServicePage = () => {
             title: "Chi phí riêng",
             dataIndex: "additionalCost",
             key: "additionalCost",
-            width: "15%",
+            width: "12%",
             render: (_, record) => (
                 <Input
                     type="number"
@@ -94,10 +101,7 @@ const AddServicePage = () => {
                         const additionalCost = Math.round(Number(e.target.value) || 0);
                         const updatedData = data.map((item) => {
                             if (item.id === record.id) {
-                                // console.log("additionalCost", additionalCost);
-
                                 const basePrice = Math.round(Number(item.price) + additionalCost);
-                                // console.log("basePrice", basePrice);
                                 const quantity = item.quantity || 1;
                                 const total = basePrice * quantity;
 
@@ -146,15 +150,9 @@ const AddServicePage = () => {
                                 </div>
                                 <Input
                                     type="number"
+                                    value={record.prepayment || minPrepayment} // Hiển thị giá trị mặc định
                                     onChange={(e) => {
                                         const value = parseFloat(e.target.value) || 0;
-                                        const isValid = value >= minPrepayment;
-
-                                        setInvalidPrepayments((prev) => ({
-                                            ...prev,
-                                            [record.id]: !isValid,
-                                        }));
-
                                         const updatedData = data.map((item) =>
                                             item.id === record.id
                                                 ? {
@@ -164,19 +162,11 @@ const AddServicePage = () => {
                                                   }
                                                 : item
                                         );
-                                        setData(updatedData);
-                                        calculateTotals(updatedData);
+                                        setData(updatedData); // Lưu dữ liệu mới
+                                        calculateTotals(updatedData); // Tính toán lại tổng
                                     }}
-                                    style={{
-                                        width: "100%",
-                                        borderColor: invalidPrepayments[record.id] ? "#ff4d4f" : "#d9d9d9",
-                                    }}
+                                    style={{ width: "100%" }}
                                 />
-                                {invalidPrepayments[record.id] && (
-                                    <div style={{ color: "#ff4d4f", fontSize: "12px", marginTop: "4px" }}>
-                                        Số tiền trả trước phải lớn hơn hoặc bằng {record.pttr}% tổng tiền
-                                    </div>
-                                )}
                             </div>
                         );
                     },
@@ -220,13 +210,20 @@ const AddServicePage = () => {
             render: (_, record) => (
                 <Select
                     defaultValue="Chưa giao"
-                    style={{ width: "100%" }}
+                    style={{
+                        width: "100%",
+                        zIndex: 1000, // Add z-index to ensure dropdown shows above other elements
+                    }}
+                    dropdownStyle={{
+                        zIndex: 1001, // Ensure dropdown menu appears above other elements
+                    }}
                     onChange={(value) => {
                         const updatedData = data.map((item) =>
                             item.id === record.id ? { ...item, status: value } : item
                         );
                         setData(updatedData);
                     }}
+                    getPopupContainer={(trigger) => trigger.parentNode} // This ensures the dropdown renders relative to its parent
                 >
                     <Option value="Chưa giao">Chưa giao</Option>
                     <Option value="Đã giao">Đã giao</Option>
@@ -370,32 +367,89 @@ const AddServicePage = () => {
                 });
                 return;
             }
-
+            // Prepare service data with guaranteed non-null values
             const serviceData = {
                 ticketData: {
                     SoPhieuDV: serviceTicketId.trim(),
                     MaKhachHang: selectedCustomer.id,
-                    NgayLap: new Date().toISOString().split("T")[0],
-                    TongTien: totalAmount,
-                    TongTienTraTruoc: calculatedTraTruoc,
-                    TinhTrang: "Chưa giao",
+                    NgayLap: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+                    TongTien: Number(totalAmount) || 0,
+                    TongTienTraTruoc: Number(calculatedTraTruoc) || 0,
+                    TinhTrang: "Chưa giao"
                 },
-                details: data.map((item) => ({
-                    MaLoaiDV: item.id,
-                    SoLuong: parseInt(item.quantity) || 1,
-                    DonGiaDuocTinh: item.price.toString(),
-                    ChiPhiRieng: (item.additionalCost || 0).toString(),
-                    TraTruoc: item.prepayment.toString(),
-                    ThanhTien: ((item.price + (item.additionalCost || 0)) * (item.quantity || 1)).toString(),
-                    ConLai: (
-                        (item.price + (item.additionalCost || 0)) * (item.quantity || 1) -
-                        (item.prepayment || 0)
-                    ).toString(),
-                    NgayGiao: item.deliveryDate,
-                    TinhTrang: "Chưa giao",
-                })),
+                details: data.map(item => ({
+                    MaLoaiDV: item.MaLoaiDV || item.id, // Use MaLoaiDV if available, fallback to id
+                    SoLuong: Number(item.quantity) || 1,
+                    DonGiaDuocTinh: String(item.price || 0),
+                    ChiPhiRieng: String(item.additionalCost || 0),
+                    TraTruoc: String(item.prepayment || 0),
+                    ThanhTien: String(
+                        ((Number(item.price) || 0) + (Number(item.additionalCost) || 0)) * 
+                        (Number(item.quantity) || 1)
+                    ),
+                    NgayGiao: item.deliveryDate ? item.deliveryDate.format('YYYY-MM-DD') : null,
+                    TinhTrang: "Chưa giao"
+                }))
             };
 
+            // Log the data for debugging
+            console.log("Sending service data:", JSON.stringify(serviceData, null, 2));
+
+            // Print out service data before sending
+            console.log("Service data being sent to backend:", JSON.stringify(serviceData, null, 2));
+            // Validate prepayments
+            const invalidPrepayments = data.filter(item => {
+                const total = (item.quantity || 1) * ((item.calculatedPrice || item.price) + (item.additionalCost || 0));
+                const minPrepayment = total * (item.pttr / 100);
+                return item.prepayment < minPrepayment;
+            });
+
+            if (invalidPrepayments.length > 0) {
+                Modal.error({
+                    title: "Lỗi",
+                    content: (
+                        <div>
+                            <p>Số tiền trả trước không đủ cho các dịch vụ sau:</p>
+                            <ul>
+                                {invalidPrepayments.map((item, index) => {
+                                    const total = (item.quantity || 1) * ((item.calculatedPrice || item.price) + (item.additionalCost || 0));
+                                    const minPrepayment = total * (item.pttr / 100);
+                                    return (
+                                        <li key={index}>
+                                            {item.name}: cần trả trước tối thiểu {formatCurrency(minPrepayment)} ({item.pttr}%)
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    )
+                });
+                return;
+            }
+
+            // Prepare service ticket data
+            const serviceTicket = {
+                SoPhieuDV: `PDV${Date.now()}`, // Generate unique ID
+                MaKhachHang: selectedCustomer.id,
+                NgayLap: new Date(),
+                TongTien: totalAmount,
+                TongTienTraTruoc: calculatedTraTruoc,
+                TinhTrang: "Chưa hoàn thành"
+            };
+
+            // Prepare service details
+            const details = data.map(item => ({
+                MaLoaiDichVu: item.id,
+                SoLuong: item.quantity || 1,
+                DonGiaDuocTinh: item.calculatedPrice || item.price,
+                ChiPhiRieng: item.additionalCost || 0,
+                TraTruoc: item.prepayment || 0,
+                ThanhTien: ((item.calculatedPrice || item.price) + (item.additionalCost || 0)) * (item.quantity || 1),
+                ConLai: ((item.calculatedPrice || item.price) + (item.additionalCost || 0)) * (item.quantity || 1) - (item.prepayment || 0),
+                NgayGiao: item.deliveryDate,
+                TinhTrang: "Chưa giao"
+            }));
+            // Call service to save
             await serviceService.createServiceTicket(serviceData);
 
             Modal.success({
@@ -438,65 +492,74 @@ const AddServicePage = () => {
         setIsCustomerSearchVisible(false);
     };
 
-    const handleDeliveryDateChange = (date, dateString) => {
-        setDeliveryDate(date);
+    const handleDeliveryDateChange = (serviceId, date) => {
+        const updatedData = data.map((item) => (item.id === serviceId ? { ...item, deliveryDate: date } : item));
+        updateData(updatedData);
     };
 
     const handleBulkDelete = () => {
-        const updatedData = data.filter((item) => !selectedRows.includes(item.id));
-        setData(updatedData);
-        setSelectedRows([]);
+        if (selectedRows.length === 0) {
+            return;
+        }
 
-        const newTotalAmount = updatedData.reduce((sum, item) => {
-            const price = parseFloat(item.price) || 0;
-            const quantity = parseInt(item.quantity) || 1;
-            return sum + price * quantity;
-        }, 0);
-
-        const newTotalQuantity = updatedData.reduce((sum, item) => sum + (parseInt(item.quantity) || 1), 0);
-
-        setTotalAmount(newTotalAmount);
-        setTotalQuantity(newTotalQuantity);
+        Modal.confirm({
+            title: "Xác nhận xóa",
+            content: `Bạn có chắc chắn muốn xóa ${selectedRows.length} dịch vụ đã chọn?`,
+            okText: "Xóa",
+            okType: "danger",
+            cancelText: "Hủy",
+            onOk() {
+                const updatedData = data.filter((item) => !selectedRows.includes(item.id));
+                setData(updatedData);
+                setSelectedRows([]);
+                calculateTotals(updatedData);
+                message.success("Đã xóa các dịch vụ đã chọn");
+            },
+        });
     };
 
     useEffect(() => {
-        console.log("Modal state changed:", isModalVisible);
-    }, [isModalVisible]);
-
-    useEffect(() => {
-        console.log("Updated selected customers:", selectedCustomers);
-    }, [selectedCustomers]);
+        if (data.length > 0) {
+            const totals = calculateTotals(data);
+            if (totals) {
+                setTotalAmount(totals.amount);
+                setTotalPrepaid(totals.prepaid);
+                setTotalQuantity(totals.quantity);
+            }
+        }
+    }, [data]); // Only recalculate when data changes
 
     const calculateTotals = (currentData) => {
-        const newTotalAmount = currentData.reduce((sum, item) => {
-            const basePrice = item.price + (item.additionalCost || 0);
-            const quantity = item.quantity || 1;
-            return sum + basePrice * quantity;
-        }, 0);
+        if (!currentData?.length) return;
 
-        const newTotalPrepaid = currentData.reduce((sum, item) => {
-            return sum + (item.prepayment || 0);
-        }, 0);
+        const totals = currentData.reduce(
+            (acc, item) => {
+                const basePrice = parseFloat(item.price) || 0;
+                const additionalCost = parseFloat(item.additionalCost) || 0;
+                const quantity = parseInt(item.quantity) || 1;
+                const prepayment = parseFloat(item.prepayment) || 0;
 
-        setTotalAmount(newTotalAmount);
-        setTotalPrepaid(newTotalPrepaid);
+                acc.amount += (basePrice + additionalCost) * quantity;
+                acc.prepaid += prepayment;
+                acc.quantity += quantity;
+
+                return acc;
+            },
+            { amount: 0, prepaid: 0, quantity: 0 }
+        );
+
+        return totals;
     };
 
-    useEffect(() => {
-        const updatedData = data.map((item) => {
-            const basePrice = Number(item.price) + Number(item.additionalCost || 0);
-            const total = (item.quantity || 1) * basePrice;
-            const minPrepayment = total * (item.pttr / 100); // Tối thiểu trả trước
-
-            return {
-                ...item,
-                prepayment: Math.max(item.prepayment || 0, minPrepayment), // Cập nhật mặc định trả trước
-            };
-        });
-
-        setData(updatedData); // Cập nhật dữ liệu mới
-        calculateTotals(updatedData); // Tính toán lại tổng
-    }, [data]); // Chạy khi dữ liệu thay đổi
+    const updateData = (newData) => {
+        setData(newData);
+        const totals = calculateTotals(newData);
+        if (totals) {
+            setTotalAmount(totals.amount);
+            setTotalPrepaid(totals.prepaid);
+            setTotalQuantity(totals.quantity);
+        }
+    };
 
     const ServiceHeader = () => {
         const currentTotalPrepaid = totalPrepaid || 0;
@@ -557,101 +620,20 @@ const AddServicePage = () => {
         setTotalPrepaid(newTotalPrepaid);
     };
 
-    // const handleSaveService = async () => {
-    //     try {
-    //         if (!selectedCustomer) {
-    //             Modal.warning({
-    //                 title: "Thông báo",
-    //                 content: "Vui lòng chọn khách hàng",
-    //             });
-    //             return;
-    //         }
-
-    //         if (data.length === 0) {
-    //             Modal.warning({
-    //                 title: "Thông báo",
-    //                 content: "Vui lòng chọn ít nhất một dịch vụ",
-    //             });
-    //             return;
-    //         }
-
-    //         const invalidPrepayments = data.filter((item) => {
-    //             const total =
-    //                 (item.quantity || 1) * ((item.calculatedPrice || item.price) + (item.additionalCost || 0));
-    //             const minPrepayment = total * (item.pttr / 100);
-    //             return (item.prepayment || 0) < minPrepayment;
-    //         });
-
-    //         if (invalidPrepayments.length > 0) {
-    //             Modal.error({
-    //                 title: "Lỗi",
-    //                 content: (
-    //                     <div>
-    //                         <p>Số tiền trả trước không đủ cho các dịch vụ sau:</p>
-    //                         <ul>
-    //                             {invalidPrepayments.map((item, index) => {
-    //                                 const total =
-    //                                     (item.quantity || 1) *
-    //                                     ((item.calculatedPrice || item.price) + (item.additionalCost || 0));
-    //                                 const minPrepayment = total * (item.pttr / 100);
-    //                                 return (
-    //                                     <li key={index}>
-    //                                         {item.name}: cần trả trước tối thiểu {formatCurrency(minPrepayment)} (
-    //                                         {item.pttr}%)
-    //                                     </li>
-    //                                 );
-    //                             })}
-    //                         </ul>
-    //                     </div>
-    //                 ),
-    //             });
-    //             return;
-    //         }
-
-    //         const serviceTicket = {
-    //             MaKhachHang: selectedCustomer.id,
-    //             NgayLap: new Date(),
-    //             TongTien: totalAmount,
-    //             TongTienTraTruoc: totalPrepaid,
-    //             TinhTrang: "Chưa hoàn thành",
-    //         };
-
-    //         const details = data.map((item) => ({
-    //             MaLoaiDichVu: item.id,
-    //             SoLuong: item.quantity || 1,
-    //             DonGiaDuocTinh: item.calculatedPrice || item.price,
-    //             ChiPhiRieng: item.additionalCost || 0,
-    //             TraTruoc: item.prepayment || 0,
-    //             NgayGiao: item.deliveryDate,
-    //             TinhTrang: "Chưa giao",
-    //         }));
-
-    //         await serviceService.createServiceTicket(serviceTicket, details);
-
-    //         Modal.success({
-    //             title: "Thành công",
-    //             content: "Đã lưu phiếu dịch vụ thành công",
-    //             onOk: () => navigate("/services"),
-    //         });
-    //     } catch (error) {
-    //         Modal.error({
-    //             title: "Lỗi",
-    //             content: error.message,
-    //         });
-    //     }
-    // };
+    const formatNumber = (value) => {
+        return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    };
 
     const handleSaveService = async () => {
         try {
-            // Kiểm tra nếu chưa chọn khách hàng
-            if (!selectedCustomer) {
-                Modal.warning({
-                    title: "Thông báo",
-                    content: "Vui lòng chọn khách hàng",
+            if (!serviceTicketId) {
+                Modal.error({
+                    title: "Lỗi",
+                    content: "Vui lòng nhập mã phiếu dịch vụ",
                 });
                 return;
             }
-
+    
             // Kiểm tra nếu chưa có dịch vụ nào
             if (data.length === 0) {
                 Modal.warning({
@@ -660,7 +642,7 @@ const AddServicePage = () => {
                 });
                 return;
             }
-
+    
             // Kiểm tra trả trước tối thiểu
             const invalidPrepayments = data.filter((item) => {
                 const basePrice = Number(item.price) + Number(item.additionalCost || 0);
@@ -668,28 +650,11 @@ const AddServicePage = () => {
                 const minPrepayment = total * (item.pttr / 100); // Tối thiểu trả trước
                 return (item.prepayment || 0) < minPrepayment; // Trả trước < tối thiểu
             });
-
+    
             if (invalidPrepayments.length > 0) {
                 Modal.error({
                     title: "Lỗi",
-                    content: (
-                        <div>
-                            <p>Số tiền trả trước không đủ cho các dịch vụ sau:</p>
-                            <ul>
-                                {invalidPrepayments.map((item, index) => {
-                                    const basePrice = Number(item.price) + Number(item.additionalCost || 0);
-                                    const total = (item.quantity || 1) * basePrice;
-                                    const minPrepayment = total * (item.pttr / 100);
-                                    return (
-                                        <li key={index}>
-                                            {item.name}: cần trả trước tối thiểu {formatCurrency(minPrepayment)} (
-                                            {item.pttr}%)
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    ),
+                    content: "Vui lòng kiểm tra lại số tiền trả trước của các dịch vụ",
                 });
                 return;
             }
@@ -715,8 +680,7 @@ const AddServicePage = () => {
                     NgayGiao: item.deliveryDate || null,
                     TinhTrang: "Chưa giao",
                 })),
-            };
-
+   
             // Chuẩn bị dữ liệu gửi lên API
             const serviceTicket = {
                 customerId: selectedCustomer.id,
@@ -724,8 +688,9 @@ const AddServicePage = () => {
                 totalAmount: totalAmount,
                 totalPrepaid: totalPrepaid,
                 status: "Chưa hoàn thành",
-            };
 
+            };
+    
             const details = data.map((item) => ({
                 serviceId: item.id,
                 quantity: item.quantity || 1,
@@ -735,10 +700,10 @@ const AddServicePage = () => {
                 deliveryDate: item.deliveryDate,
                 status: item.status || "Chưa giao",
             }));
-
+    
             // Gọi API lưu phiếu dịch vụ
             const response = await serviceService.createServiceTicket(serviceTicket, details);
-
+    
             if (response.success) {
                 Modal.success({
                     title: "Thành công",
@@ -749,32 +714,33 @@ const AddServicePage = () => {
                 throw new Error(response.message || "Lưu phiếu thất bại");
             }
         } catch (error) {
+            console.error("Error saving service:", error);
             Modal.error({
                 title: "Lỗi",
-                content: error.message || "Có lỗi xảy ra khi lưu phiếu",
+                content: error.message || "Không thể lưu phiếu dịch vụ",
             });
         }
     };
-
+    
     const formatNumber = (value) => {
         return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
     return (
-        <Layout className="app-layout">
-            <Layout>
-                <Content className="app-content">
-                    <div className="title-container">
-                        <h1 className="title">Thông tin phiếu dịch vụ</h1>
-                    </div>
-                    <div className="header-actions">
-                        <Button type="default" className="action-btnt" onClick={() => navigate("/list-service")}>
-                            Hủy
-                        </Button>
-                        <Button type="primary" className="action-btnt" onClick={handleConfirmSave}>
-                            Lưu tạo phiếu
-                        </Button>
-                    </div>
+        <Layout className="app-layout-seSr">
+                <Layout>
+                    <Content className="app-content">
+                        <div className="title-container">
+                            <h1 className="title">Thông tin phiếu dịch vụ</h1>
+                        </div>
+                        <div className="header-actions">
+                            <Button type="default" className="action-btnt" onClick={() => navigate('/list-service')}>
+                                Hủy
+                            </Button>
+                            <Button type="primary" className="action-btnt" onClick={handleConfirmSave}>
+                                Lưu tạo phiếu
+                            </Button>
+                        </div>
 
                     {/* Service Ticket Information Section */}
                     <div className="section">
@@ -813,108 +779,275 @@ const AddServicePage = () => {
                             </Col>
                         </Row>
 
-                        <h3>Thông tin khách hàng</h3>
-                        <Row gutter={16} style={{ marginBottom: "16px" }}>
+                            <h3>Thông tin khách hàng</h3>
+                            <Button
+                                type="primary"
+                                className="action-btnt"
+                                onClick={() => setIsConfirmModalVisible(true)}
+                            >
+                                + Lưu tạo mới
+                            </Button>
+                        </div>
+
+                        {/* Services Section */}
+                        <div className="section">
+                            <h2>Dịch vụ đăng ký</h2>
+                            <Button
+                                type="primary"
+                                style={{
+                                    width: "200px",
+                                    marginBottom: "20px",
+                                    fontSize: "14px",
+                                    fontWeight: "500",
+                                    backgroundColor: "#1890ff",
+                                    borderRadius: "8px",
+                                    boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
+                                }}
+                                onClick={() => setIsModalVisible(true)} // Update this line
+                            >
+                                Chọn dịch vụ
+                            </Button>
+                            <Button
+                        <ServiceConfirmationModal
+                            isVisible={isConfirmModalVisible}
+                            onConfirm={handleConfirmSave}
+                            onCancel={handleCancelSave}
+                            title="Xác nhận lưu"
+                            amount={totalPayable}
+                            content="Bạn có chắc chắn muốn lưu phiếu dịch vụ này không?"
+                        />
+                        <Row gutter={16} className="classification-status">
                             <Col span={24}>
-                                <div style={{ marginBottom: "16px" }}>
-                                    {selectedCustomer ? (
-                                        <div>
-                                            <p>Tên khách hàng: {selectedCustomer.name}</p>
-                                            <p>Số điện thoại: {selectedCustomer.phone}</p>
-                                        </div>
-                                    ) : (
-                                        <p>Chưa có thông tin khách hàng</p>
-                                    )}
+                                <div
+                                    className="section"
+                                    style={{
+                                        backgroundColor: "#f8f9ff",
+                                        padding: "20px",
+                                        borderRadius: "12px",
+                                        boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+                                        border: "1px solid #e6e9f0",
+                                        marginTop: "0px",
+                                        width: "100%",
+                                    }}
+                                >
+                                    <h2>Dịch vụ đăng ký</h2>
+                                    <Button
+                                        type="primary"
+                                        style={{
+                                            width: "200px",
+                                            marginBottom: "20px",
+                                            fontSize: "14px",
+                                            fontWeight: "500",
+                                            backgroundColor: "#1890ff",
+                                            borderRadius: "8px",
+                                            boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
+                                        }}
+                                        onClick={onSearch22}
+                                    >
+                                        Chọn dịch vụ
+                                    </Button>
+                                    <Button
+                                        style={{
+                                            width: "200px",
+                                            marginLeft: "auto",
+                                            display: "block",
+                                            fontSize: "14px",
+                                            fontWeight: "500",
+                                            backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#1890ff",
+                                            borderRadius: "8px",
+                                            boxShadow: "0 2px 6px rgba(248, 9, 9, 0.2)",
+                                        }}
+                                        onClick={handleBulkDelete}
+                                        disabled={selectedRows.length === 0}
+                                    >
+                                        Xóa dịch vụ ({selectedRows.length})
+                                    </Button>
+                                    <Table
+                                        dataSource={data}
+                                        columns={columns}
+                                        style={{
+                                            backgroundColor: "#fff",
+                                            borderRadius: "8px",
+                                            overflow: "hidden",
+                                        }}
+                                        bordered
+                                        pagination={false}
+                                    />
+                                    <Row
+                                        style={{
+                                            marginTop: "16px",
+                                            fontWeight: "bold",
+                                            padding: "12px",
+                                            backgroundColor: "#fff",
+                                            borderRadius: "8px",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                        }}
+                                    >
+                                        <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
+                                        <Col span={12} style={{ textAlign: "right" }}>
+                                            Tổng tiền: {formatCurrency(totalAmount)}
+                                        </Col>
+                                    </Row>
+                                </div>
+                            </Col>
+                        </Row>
+                        <ServiceModal isVisible={isModalVisible} onCancel={handleCancel} onConfirm={handleConfirm} />
+                        <div
+                            style={{
+                                backgroundColor: "#f8f9ff",
+                                padding: "20px",
+                                borderRadius: "12px",
+                                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+                                border: "1px solid #e6e9f0",
+                                marginTop: "20px",
+                            }}
+                        >
+                            <h2>Khách hàng</h2>
+                            <Row gutter={16} align="middle" style={{ marginBottom: "16px" }}>
+                                <Col span={24} style={{ display: "flex", alignItems: "center" }}>
                                     <Button
                                         type="primary"
                                         onClick={handleCustomerSearch}
                                         style={{
-                                            marginTop: "8px",
                                             borderRadius: "8px",
+                                            width: "200px",
                                         }}
                                     >
                                         Tìm kiếm khách hàng
                                     </Button>
-                                </div>
-                            </Col>
-                        </Row>
+                                    <span style={{ marginLeft: "10px" }}>hoặc</span>
+                                    <a href="#" style={{ marginLeft: "10px", color: "#1890ff" }}>
+                                        + Tạo khách hàng mới
+                                    </a>
+                                </Col>
+                            </Row>
 
-                        {/* Xóa hoặc thay đổi nút này nếu không cần thiết */}
-                        {/* <Button
-                            type="primary"
-                            className="action-btnt"
-                            onClick={() => setIsConfirmModalVisible(true)}
-                        >
-                            + Lưu tạo mới
-                        </Button> */}
-                    </div>
-
-                    {/* Services Section */}
-                    <div className="section">
-                        <h2>Dịch vụ đăng ký</h2>
-                        <Button
-                            type="primary"
-                            style={{
-                                width: "200px",
-                                marginBottom: "20px",
-                                fontSize: "14px",
-                                fontWeight: "500",
-                                backgroundColor: "#1890ff",
-                                borderRadius: "8px",
-                                boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
-                            }}
-                            onClick={() => setIsModalVisible(true)} // Update this line
-                        >
-                            Chọn dịch vụ
-                        </Button>
-                        <Button
-                            style={{
-                                width: "200px",
-                                marginLeft: "auto",
-                                display: "block",
-                                fontSize: "14px",
-                                fontWeight: "500",
-                                backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#d9d9d9",
-                                color: selectedRows.length > 0 ? "#fff" : "rgba(0, 0, 0, 0.25)",
-                                borderRadius: "8px",
-                                boxShadow: selectedRows.length > 0 ? "0 2px 6px rgba(248, 9, 9, 0.2)" : "none",
-                                marginBottom: "10px",
-                            }}
-                            onClick={handleBulkDelete}
-                            disabled={selectedRows.length === 0}
-                        >
-                            Xóa dịch vụ ({selectedRows.length})
-                        </Button>
-                        <Table
-                            rowSelection={rowSelection}
-                            dataSource={data}
-                            columns={columns}
-                            rowKey="id"
-                            style={{
-                                backgroundColor: "#fff",
-                                borderRadius: "8px",
-                                overflow: "hidden",
-                            }}
-                            bordered
-                            pagination={false}
-                        />
-                        <Row
-                            style={{
-                                marginTop: "16px",
-                                fontWeight: "bold",
-                                padding: "12px",
-                                backgroundColor: "#fff",
-                                borderRadius: "8px",
-                                display: "flex",
-                                justifyContent: "space-between",
-                            }}
-                        >
-                            <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
-                            <Col span={12} style={{ textAlign: "right" }}>
-                                Tổng tiền: {formatCurrency(totalAmount)}
-                            </Col>
-                        </Row>
-                    </div>
+                            {selectedCustomers?.[0] && (
+                                <Card
+                                    style={{
+                                        marginTop: "16px",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+                                    }}
+                                >
+                                    <Row align="middle">
+                                        <Col span={2}>
+                                            <UserOutlined
+                                                style={{
+                                                    fontSize: "24px",
+                                                    backgroundColor: "#1890ff",
+                                                    padding: "8px",
+                                                    borderRadius: "50%",
+                                                    color: "white",
+                                                }}
+                                            />
+                                        </Col>
+                                        <Col span={18}>
+                                            <div style={{ marginLeft: "16px" }}>
+                                                <div style={{ fontSize: "16px", fontWeight: "500" }}>
+                                                    {selectedCustomers[0].name}
+                                                </div>
+                                                <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
+                                                    {selectedCustomers[0].phone}
+                                                </div>
+                                            </div>
+                                        </Col>
+                                        <Col span={4} style={{ textAlign: "right" }}>
+                                            <Button type="text" danger onClick={() => setSelectedCustomers([])}>
+                                                Xóa
+                                            </Button>
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            )}
+                            {selectedCustomer && (
+                                <Card style={{ marginTop: "16px" }}>
+                                    <Row align="middle">
+                                        <Col span={2}>
+                                            <UserOutlined
+                                                style={{
+                                                    fontSize: "24px",
+                                                    backgroundColor: "#1890ff",
+                                                    padding: "8px",
+                                                    borderRadius: "50%",
+                                                    color: "white",
+                                                }}
+                                            />
+                                        </Col>
+                                        <Col span={18}>
+                                            <div style={{ marginLeft: "16px" }}>
+                                                <div style={{ fontSize: "16px", fontWeight: "500" }}>
+                                                    {selectedCustomer.name}
+                                                </div>
+                                                <div style={{ color: "rgba(0, 0, 0, 0.45)" }}>
+                                                    {selectedCustomer.phone}
+                                                </div>
+                                            </div>
+                                        </Col>
+                                        <Col span={4} style={{ textAlign: "right" }}>
+                                            <Button type="text" danger onClick={() => setSelectedCustomer(null)}>
+                                                Xóa
+                                            </Button>
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            )}
+                            <CustomerSearchModal
+                                isVisible={isCustomerSearchVisible}
+                                onCancel={handleCustomerCancel}
+                                onConfirm={handleCustomerSelect}
+                            />
+                        </div>
+                        {data.length > 0 && (
+                                style={{
+                                    width: "200px",
+                                    marginLeft: "auto",
+                                    display: "block",
+                                    fontSize: "14px",
+                                    fontWeight: "500",
+                                    backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#d9d9d9",
+                                    color: selectedRows.length > 0 ? "#fff" : "rgba(0, 0, 0, 0.25)",
+                                    borderRadius: "8px",
+                                    boxShadow:
+                                        selectedRows.length > 0 ? "0 2px 6px rgba(248, 9, 9, 0.2)" : "none",
+                                    marginBottom: "10px",
+                                }}
+                                onClick={handleBulkDelete}
+                                disabled={selectedRows.length === 0}
+                            >
+                                Xóa dịch vụ ({selectedRows.length})
+                            </Button>
+                            <Table
+                                rowSelection={rowSelection}
+                                dataSource={data}
+                                columns={columns}
+                                rowKey="id"
+                                style={{
+                                    backgroundColor: "#fff",
+                                    borderRadius: "8px",
+                                    overflow: "hidden",
+                                }}
+                                bordered
+                                pagination={false}
+                            />
+                            <Row
+                                style={{
+                                    marginTop: "16px",
+                                    fontWeight: "bold",
+                                    padding: "12px",
+                                    backgroundColor: "#fff",
+                                    borderRadius: "8px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                }}
+                            >
+                                <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
+                                <Col span={12} style={{ textAlign: "right" }}>
+                                    Tổng tiền: {formatCurrency(totalAmount)}
+                                </Col>
+                            </Row>
+                        </div>
 
                     {/* Payment Section */}
                     {data.length > 0 && (
@@ -976,4 +1109,5 @@ const AddServicePage = () => {
     );
 };
 
-export default AddServicePage;
+export default App;
+

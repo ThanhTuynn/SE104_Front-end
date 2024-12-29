@@ -169,6 +169,47 @@ export const createImportProduct = {
       throw error;
     }
   },
+  updateProvider: async (id, data) => {
+    try {
+      // Format dữ liệu đúng với model backend
+      const updateData = {
+        MaNCC: id,
+        TenNCC: data.TenNCC,
+        SoDienThoai: data.SoDienThoai, 
+        DiaChi: data.DiaChi
+      };
+
+      console.log('Update provider data:', updateData);
+      const response = await axiosInstance.patch(`/provider/update/${id}`, updateData);
+      return response.data;
+    } catch (error) {
+      console.error('Update provider error:', error);
+      throw error;
+    }
+  },
+  updateProductStatus: async (productId) => {
+    try {
+      const currentProduct = await axiosInstance.get(`/product/get-details/${productId}`);
+      const productData = currentProduct.data;
+
+      // Cập nhật với đầy đủ thông tin và set isDelete = 1
+      const response = await axiosInstance.patch(`/product/update/${productId}`, {
+        MaSanPham: productData.MaSanPham,
+        TenSanPham: productData.TenSanPham,
+        MaLoaiSanPham: productData.MaLoaiSanPham,
+        DonGia: productData.DonGia,
+        SoLuong: productData.SoLuong,
+        HinhAnh: productData.HinhAnh,
+        isDelete: false
+      });
+
+      console.log('Update product status response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Update product status error:', error);
+      throw error;
+    }
+  }
 };
 
 export default createImportProduct;

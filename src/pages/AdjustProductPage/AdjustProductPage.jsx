@@ -154,7 +154,8 @@ const App = () => {
                 formDataToSend.append("TenSanPham", formData.productName);
                 formDataToSend.append("MaLoaiSanPham", formData.categoryId);
                 formDataToSend.append("MaSanPham", formData.productCode);
-                formDataToSend.append("DonGia", formData.price || 0);
+                // Set price to 0 if it's "Chưa có giá"
+                formDataToSend.append("DonGia", formData.price === "Chưa có giá" ? 0 : formData.price);
                 formDataToSend.append("SoLuong", formData.stock || 0);
 
                 // Append image file if exists
@@ -314,38 +315,6 @@ const App = () => {
                                         style={{
                                             backgroundColor: "#f5f5f5",
                                             cursor: "not-allowed",
-                                        }}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row gutter={16}>
-                                <Col span={24}>
-                                    <label>Giá sản phẩm</label>
-                                    <Input
-                                        placeholder="Nhập giá gốc"
-                                        value={formData.price}
-                                        disabled={true} // Disable input giá sản phẩm
-                                        style={{
-                                            backgroundColor: "#f5f5f5",
-                                            cursor: "not-allowed",
-                                            color: formData.price === "Chưa có giá" ? "#ff4d4f" : "inherit",
-                                            fontWeight: formData.price === "Chưa có giá" ? "bold" : "normal",
-                                        }}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row gutter={16}>
-                                <Col span={24}>
-                                    <label>Lượng tồn</label>
-                                    <Input
-                                        placeholder="Lượng tồn kho"
-                                        value={formData.stock}
-                                        disabled={true}
-                                        style={{
-                                            backgroundColor: "#f5f5f5",
-                                            cursor: "not-allowed",
-                                            color: formData.stock === "0" ? "#ff4d4f" : "inherit",
-                                            fontWeight: formData.stock === "0" ? "bold" : "normal",
                                         }}
                                     />
                                 </Col>

@@ -320,18 +320,39 @@ const productService = {
         }
     },
 
-    updateProduct: async (id, dataToUpdate) => {
+        updateProduct: async (id, dataToUpdate) => {
         try {
-            const response = await axiosInstance.patch(`/product/update/${id}`, dataToUpdate, {
+            // Format data theo yêu cầu
+            const formattedData = {
+                MaSanPham: id,
+                TenSanPham: dataToUpdate.TenSanPham,
+                MaLoaiSanPham: dataToUpdate.MaLoaiSanPham,
+                DonGia: parseFloat(dataToUpdate.DonGia),
+                SoLuong: parseInt(dataToUpdate.SoLuong)
+            };
+
+            // Log chi tiết request
+            console.log('Request URL:', `/product/update/${id}`);
+            console.log('Request data:', JSON.stringify(formattedData, null, 2));
+
+            const response = await axiosInstance.patch(`/product/update/${id}`, formattedData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data'
+                    'Content-Type': 'application/json'
                 }
             });
             
-            console.log('Update response:', response.data);
-            return response.data;
+            if (response.status === 200) {
+                console.log('Update successful:', response.data);
+                return response.data;
+            } else {
+                throw new Error('Update failed with status: ' + response.status);
+            }
         } catch (error) {
-            console.error('Update error details:', error.response?.data || error);
+            console.error('Update error:', {
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
             throw new Error(error.response?.data?.message || 'Không thể cập nhật sản phẩm');
         }
     },

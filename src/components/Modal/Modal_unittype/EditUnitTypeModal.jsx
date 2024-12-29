@@ -57,49 +57,36 @@ const EditUnitTypeModal = ({ isVisible, onClose, initialData, unitTypes = [] }) 
 
   return (
     <Modal
-      title="Sửa đơn vị tính"
-      visible={isVisible}     // Add this line
-      open={isVisible}       // Keep this for compatibility
+      title="Thông tin đơn vị tính"
+      visible={isVisible}
+      open={isVisible}
       destroyOnClose={true}
-      maskClosable={false}
-      keyboard={false}       // Add this to prevent Esc key closing
-      centered={true}        // Add this for better positioning
+      maskClosable={true}
+      keyboard={true}
+      centered={true}
       width={500}
-      onOk={handleSubmit}
       onCancel={onClose}
-      okText="Lưu"
-      cancelText="Hủy"
-      confirmLoading={loading}
-      zIndex={1001}         // Add this to ensure modal appears on top
+      footer={null}
+      zIndex={1001}
     >
       <Form 
         form={form}
         layout="vertical"
         initialValues={initialData}
-        onValuesChange={(_, allValues) => {
-          console.log('Form changed:', allValues); // Thêm log để debug
-        }}
+        disabled={true}
       >
         <Form.Item
-          name="MaDonVi" // Đổi từ id sang MaDonVi
+          name="MaDonVi"
           label="Mã đơn vị tính"
-          rules={[
-            { required: true, message: 'Vui lòng nhập mã đơn vị tính' },
-            { max: 50, message: 'Mã đơn vị tính không được vượt quá 50 ký tự' }
-          ]}
         >
-          <Input maxLength={100} placeholder="Nhập mã đơn vị tính" />
+          <Input readOnly />
         </Form.Item>
 
         <Form.Item
-          name="TenDonVi" // Đổi từ name sang TenDonVi
+          name="TenDonVi"
           label="Tên đơn vị tính"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tên đơn vị tính' },
-            { max: 100, message: 'Tên đơn vị tính không được vượt quá 100 ký tự' }
-          ]}
         >
-          <Input maxLength={100} placeholder="Nhập tên đơn vị tính" />
+          <Input readOnly />
         </Form.Item>
       </Form>
     </Modal>
