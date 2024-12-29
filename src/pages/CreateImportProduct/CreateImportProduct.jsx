@@ -9,11 +9,13 @@ import {
   message,
   Table,
   Checkbox,
+  DatePicker,
 } from "antd";
 import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import "./CreateImportProduct.css";
 import { useNavigate } from "react-router-dom";
 import createImportProduct from "../../services/createImportProduct";
+import moment from 'moment';
 
 const CreateImportOrder = () => {
   const navigate = useNavigate(); // Khai báo useNavigate
@@ -51,6 +53,7 @@ const CreateImportOrder = () => {
   const [loading, setLoading] = useState(false);
   const [productCategories, setProductCategories] = useState([]);
   const [orderId, setOrderId] = useState('');
+  const [orderDate, setOrderDate] = useState(new Date());
 
   useEffect(() => {
     fetchProducts();
@@ -128,7 +131,7 @@ const CreateImportOrder = () => {
 
     const orderData = {
       soPhieu: orderId,
-      ngayLap: currentDate,
+      ngayLap: orderDate.toISOString().split('T')[0], // Format date as YYYY-MM-DD
       nhaCungCap: selectedSuppliers[0].id,
       diaChi: selectedSuppliers[0].address,
       soDienThoai: selectedSuppliers[0].phone,
@@ -585,6 +588,19 @@ const CreateImportOrder = () => {
               }}
             />
           </Form.Item>
+
+          {/* Add Date Picker */}
+          <Form.Item 
+            label="Ngày lập phiếu" 
+            required
+          >
+            <DatePicker
+              style={{ width: '100%' }}
+              value={moment(orderDate)}
+              onChange={(date) => setOrderDate(date ? date.toDate() : new Date())}
+              format="DD/MM/YYYY"
+            />
+          </Form.Item>
         </div>
 
         {/* Supplier Section */}
@@ -777,4 +793,3 @@ const CreateImportOrder = () => {
 };
 
 export default CreateImportOrder;
-

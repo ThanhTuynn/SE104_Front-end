@@ -10,6 +10,8 @@ import {
   DollarOutlined,
   LogoutOutlined,
   TagOutlined,
+  ShoppingOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import logo from '../../assets/logo.png'
@@ -21,6 +23,8 @@ import { message } from 'antd';
 const SidebarComponent = () => {
   const navigate = useNavigate();
   const { logout, isAuthenticated } = useAuth();
+  const userData = JSON.parse(localStorage.getItem('userData'));
+  const userRole = userData?.role?.toLowerCase();
 
   if (!isAuthenticated) {
     return null;
@@ -37,6 +41,131 @@ const SidebarComponent = () => {
     navigate('/', { replace: true });
   };
 
+  const getMenuItems = () => {
+    if (!userRole) return [];
+
+    const menuItems = {
+      admin: [
+        {
+          path: '/dashboard',
+          icon: <DashboardOutlined />,
+          text: 'Dashboard'
+        },
+        {
+          path: '/list-product',
+          icon: <AppstoreOutlined />,
+          text: 'Quản lý sản phẩm'
+        },
+        // {
+        //   path: '/product-list',
+        //   icon: <ShoppingOutlined />,
+        //   text: 'Quản lý kho'
+        // },
+        {
+          path: '/warehouse-report',  // Add this new route
+          icon: <BarChartOutlined />,
+          text: 'Báo cáo tồn kho'
+        },
+        {
+          path: '/unit-type',
+          icon: <TagOutlined />,
+          text: 'Quản lý đơn vị tính'
+        },
+        {
+          path: '/list-order-product',
+          icon: <FileAddOutlined />,
+          text: 'Quản lý phiếu bán hàng'
+        },
+        {
+          path: '/list-import-product',
+          icon: <ShoppingCartOutlined />,
+          text: 'Quản lý phiếu mua hàng'
+        },
+        {
+          path: '/type-service',
+          icon: <TagOutlined />,
+          text: 'Quản lý loại dịch vụ'
+        },
+        {
+          path: '/list-service',
+          icon: <FileOutlined />,
+          text: 'Quản lý phiếu dịch vụ'
+        },
+        {
+          path: '/list-customer',
+          icon: <TeamOutlined />,
+          text: 'Quản lý khách hàng'
+        },
+        {
+          path: '/list-employee',
+          icon: <UserOutlined />,
+          text: 'Quản lý nhân viên'
+        }
+      ],
+      seller: [
+        {
+          path: '/dashboard',
+          icon: <DashboardOutlined />,
+          text: 'Dashboard'
+        },
+        {
+          path: '/list-order-product',
+          icon: <FileAddOutlined />,
+          text: 'Quản lý phiếu bán hàng'
+        },
+        {
+          path: '/type-service',
+          icon: <TagOutlined />,
+          text: 'Quản lý loại dịch vụ'
+        },
+        {
+          path: '/list-service',
+          icon: <FileOutlined />,
+          text: 'Quản lý phiếu dịch vụ'
+        },
+        {
+          path: '/list-customer',
+          icon: <TeamOutlined />,
+          text: 'Quản lý khách hàng'
+        }
+      ],
+      warehouse: [
+        {
+          path: '/dashboard',
+          icon: <DashboardOutlined />,
+          text: 'Dashboard'
+        },
+        {
+          path: '/list-product',
+          icon: <AppstoreOutlined />,
+          text: 'Quản lý sản phẩm'
+        },
+        {
+          path: '/list-import-product',
+          icon: <ShoppingCartOutlined />,
+          text: 'Quản lý phiếu mua hàng'
+        },
+        // {
+        //   path: '/warehouse',
+        //   icon: <ShoppingOutlined />,
+        //   text: 'Quản lý kho'
+        // },
+        {
+          path: '/unit-type',
+          icon: <TagOutlined />,
+          text: 'Quản lý đơn vị tính'
+        },
+        {
+          path: '/warehouse-report',  // Add this new route
+          icon: <BarChartOutlined />,
+          text: 'Báo cáo tồn kho'
+        }
+      ]
+    };
+
+    return menuItems[userRole] || [];
+  };
+
   return (
     <aside className="sidebar">
       <header className="sidebar-header">
@@ -44,72 +173,26 @@ const SidebarComponent = () => {
           <img src={logo} alt="BUTTH Luxury Jewery" />
         </div>
       </header>
+      
       <nav className="sidebar-nav">
         <ul className="nav-list primary-nav">
-          <li>
-            <div onClick={() => handleNavigation('/dashboard')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <DashboardOutlined />
-              <span>Dashboard</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-product')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <AppstoreOutlined />
-              <span>Quản lý kho</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-order-product')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <FileAddOutlined />
-              <span>Quản lý phiếu bán hàng</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-import-product')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <ShoppingCartOutlined />
-              <span>Quản lý phiếu mua hàng</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-service')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <FileOutlined />
-              <span>Quản lý phiếu dịch vụ</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-customer')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <TeamOutlined />
-              <span>Quản lý khách hàng</span>
-            </div>
-          </li>
-          <li>
-            <div onClick={() => handleNavigation('/list-employee')} className="nav-link" style={{ cursor: 'pointer' }}>
-              <UserOutlined />
-              <span>Quản lý nhân viên</span>
-            </div>
-          </li>
-          <li>
-              <a onClick={() => navigate('/unit-type')} className="nav-link">
-                <TagOutlined />
-                <span>Quản lý đơn vị tính</span>
-              </a>
-          </li>
-          <li>
-              <a onClick={() => navigate('/type-product')} className="nav-link">
-                <TagOutlined />
-                <span>Quản lý Loại Sản Phẩm</span>
-              </a>
-          </li>
-          <li>
-              <a onClick={() => navigate('/type-service')} className="nav-link">
-                <TagOutlined />
-                <span>Quản lý loại dịch vụ</span>
-              </a>
-          </li>
+          {getMenuItems().map((item, index) => (
+            <li key={index}>
+              <div 
+                onClick={() => handleNavigation(item.path)} 
+                className="nav-link" 
+                style={{ cursor: 'pointer' }}
+              >
+                {item.icon}
+                <span>{item.text}</span>
+              </div>
+            </li>
+          ))}
         </ul>
+
         <ul className="nav-list secondary-nav">
           <li>
-            <div onClick={() => handleNavigation('/personalinfopage')} className="nav-link" style={{ cursor: 'pointer' }}>
+            <div onClick={() => handleNavigation('/personal')} className="nav-link" style={{ cursor: 'pointer' }}>
               <UserOutlined />
               <span>Cá nhân</span>
             </div>
