@@ -26,6 +26,7 @@ const AddServicePage = () => {
     const [totalPossiblePrepayment, setTotalPossiblePrepayment] = useState(0);
     const [serviceDeliveryDates, setServiceDeliveryDates] = useState({});
     const [invalidPrepayments, setInvalidPrepayments] = useState({});
+    const [selectedServices, setSelectedServices] = useState([]);
     const navigate = useNavigate();
 
     const handleCancel = () => {
@@ -624,106 +625,46 @@ const AddServicePage = () => {
         return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
-    const handleSaveService = async () => {
+    const handleSubmit = async () => {
         try {
-            if (!serviceTicketId) {
-                Modal.error({
-                    title: "Lỗi",
-                    content: "Vui lòng nhập mã phiếu dịch vụ",
-                });
-                return;
-            }
-    
-            // Kiểm tra nếu chưa có dịch vụ nào
-            if (data.length === 0) {
-                Modal.warning({
-                    title: "Thông báo",
-                    content: "Vui lòng chọn ít nhất một dịch vụ",
-                });
-                return;
-            }
-    
-            // Kiểm tra trả trước tối thiểu
-            const invalidPrepayments = data.filter((item) => {
-                const basePrice = Number(item.price) + Number(item.additionalCost || 0);
-                const total = (item.quantity || 1) * basePrice; // Tổng tiền
-                const minPrepayment = total * (item.pttr / 100); // Tối thiểu trả trước
-                return (item.prepayment || 0) < minPrepayment; // Trả trước < tối thiểu
-            });
-    
-            if (invalidPrepayments.length > 0) {
-                Modal.error({
-                    title: "Lỗi",
-                    content: "Vui lòng kiểm tra lại số tiền trả trước của các dịch vụ",
-                });
+            if (!selectedCustomer) {
+                message.error('Vui lòng chọn khách hàng');
                 return;
             }
 
-            const serviceData = {
-                ticketData: {
-                    SoPhieuDV: serviceTicketId,
-                    MaKhachHang: selectedCustomer.id,
-                    NgayLap: new Date().toISOString(),
-                    TongTien: totalAmount,
-                    TongTienTraTruoc: calculatedTraTruoc,
-                    TinhTrang: "Chưa giao",
-                },
-                details: data.map((item) => ({
-                    MaLoaiDV: item.serviceId || item.id, // Make sure we're using the correct ID field
-                    SoLuong: parseInt(item.quantity) || 1,
-                    DonGiaDuocTinh: parseFloat(item.price) || 0,
-                    ChiPhiRieng: parseFloat(item.additionalCost) || 0,
-                    TraTruoc: parseFloat(item.prepayment) || 0,
-                    ThanhTien:
-                        (parseFloat(item.price) + (parseFloat(item.additionalCost) || 0)) *
-                        (parseInt(item.quantity) || 1),
-                    NgayGiao: item.deliveryDate || null,
-                    TinhTrang: "Chưa giao",
-                })),
-   
+            if (selectedServices.length === 0) {
+                message.error('Vui lòng chọn ít nhất một dịch vụ');
+                return;
+            }
+
+            // Tính tổng tiền
+            const totalAmount = selectedServices.reduce((sum, service) => {
+                return sum + (service.price * service.quantity);
+            }, 0);
+
             // Chuẩn bị dữ liệu gửi lên API
             const serviceTicket = {
                 customerId: selectedCustomer.id,
                 issueDate: new Date(),
                 totalAmount: totalAmount,
-                totalPrepaid: totalPrepaid,
-                status: "Chưa hoàn thành",
-
+                services: selectedServices.map(service => ({
+                    serviceTypeId: service.id,
+                    quantity: service.quantity,
+                    price: service.price
+                }))
             };
-    
-            const details = data.map((item) => ({
-                serviceId: item.id,
-                quantity: item.quantity || 1,
-                price: item.price,
-                additionalCost: item.additionalCost || 0,
-                prepayment: item.prepayment || 0,
-                deliveryDate: item.deliveryDate,
-                status: item.status || "Chưa giao",
-            }));
-    
-            // Gọi API lưu phiếu dịch vụ
-            const response = await serviceService.createServiceTicket(serviceTicket, details);
-    
-            if (response.success) {
-                Modal.success({
-                    title: "Thành công",
-                    content: "Đã lưu phiếu dịch vụ thành công!",
-                    onOk: () => navigate("/services"), // Chuyển hướng sau khi lưu
-                });
-            } else {
-                throw new Error(response.message || "Lưu phiếu thất bại");
+
+            // Gọi API tạo phiếu dịch vụ
+            const response = await serviceService.createServiceTicket(serviceTicket);
+            
+            if (response) {
+                message.success('Tạo phiếu dịch vụ thành công');
+                navigate('/service-tickets');
             }
         } catch (error) {
-            console.error("Error saving service:", error);
-            Modal.error({
-                title: "Lỗi",
-                content: error.message || "Không thể lưu phiếu dịch vụ",
-            });
+            console.error('Create service ticket error:', error);
+            message.error('Lỗi khi tạo phiếu dịch vụ');
         }
-    };
-    
-    const formatNumber = (value) => {
-        return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
     return (
@@ -792,60 +733,49 @@ const AddServicePage = () => {
                         {/* Services Section */}
                         <div className="section">
                             <h2>Dịch vụ đăng ký</h2>
-                            <Button
-                                type="primary"
-                                style={{
-                                    width: "200px",
-                                    marginBottom: "20px",
-                                    fontSize: "14px",
-                                    fontWeight: "500",
-                                    backgroundColor: "#1890ff",
-                                    borderRadius: "8px",
-                                    boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
-                                }}
-                                onClick={() => setIsModalVisible(true)} // Update this line
-                            >
-                                Chọn dịch vụ
-                            </Button>
-                            <Button
-                        <ServiceConfirmationModal
-                            isVisible={isConfirmModalVisible}
-                            onConfirm={handleConfirmSave}
-                            onCancel={handleCancelSave}
-                            title="Xác nhận lưu"
-                            amount={totalPayable}
-                            content="Bạn có chắc chắn muốn lưu phiếu dịch vụ này không?"
-                        />
-                        <Row gutter={16} className="classification-status">
-                            <Col span={24}>
-                                <div
-                                    className="section"
+                            <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+                                <Button
+                                    type="primary"
                                     style={{
-                                        backgroundColor: "#f8f9ff",
-                                        padding: "20px",
-                                        borderRadius: "12px",
-                                        boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
-                                        border: "1px solid #e6e9f0",
-                                        marginTop: "0px",
-                                        width: "100%",
+                                        width: "200px",
+                                        fontSize: "14px",
+                                        fontWeight: "500",
+                                        backgroundColor: "#1890ff",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
                                     }}
+                                    onClick={() => setIsModalVisible(true)}
                                 >
-                                    <h2>Dịch vụ đăng ký</h2>
-                                    <Button
-                                        type="primary"
-                                        style={{
-                                            width: "200px",
-                                            marginBottom: "20px",
-                                            fontSize: "14px",
-                                            fontWeight: "500",
-                                            backgroundColor: "#1890ff",
-                                            borderRadius: "8px",
-                                            boxShadow: "0 2px 6px rgba(24, 144, 255, 0.2)",
-                                        }}
-                                        onClick={onSearch22}
-                                    >
-                                        Chọn dịch vụ
-                                    </Button>
+                                    Chọn dịch vụ
+                                </Button>
+
+                                <Button
+                                    style={{
+                                        width: "200px",
+                                        fontSize: "14px",
+                                        fontWeight: "500",
+                                        backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#1890ff",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 2px 6px rgba(248, 9, 9, 0.2)",
+                                    }}
+                                    onClick={handleBulkDelete}
+                                    disabled={selectedRows.length === 0}
+                                >
+                                    Xóa dịch vụ ({selectedRows.length})
+                                </Button>
+                            </div>
+
+                            <ServiceConfirmationModal
+                                isVisible={isConfirmModalVisible}
+                                onConfirm={handleConfirmSave}
+                                onCancel={handleCancelSave}
+                                title="Xác nhận lưu"
+                                amount={totalPayable}
+                                content="Bạn có chắc chắn muốn lưu phiếu dịch vụ này không?"
+                            />
+
+                            {data.length > 0 && (
+                                <div>
                                     <Button
                                         style={{
                                             width: "200px",
@@ -853,18 +783,23 @@ const AddServicePage = () => {
                                             display: "block",
                                             fontSize: "14px",
                                             fontWeight: "500",
-                                            backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#1890ff",
+                                            backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#d9d9d9",
+                                            color: selectedRows.length > 0 ? "#fff" : "rgba(0, 0, 0, 0.25)",
                                             borderRadius: "8px",
-                                            boxShadow: "0 2px 6px rgba(248, 9, 9, 0.2)",
+                                            boxShadow: selectedRows.length > 0 ? "0 2px 6px rgba(248, 9, 9, 0.2)" : "none",
+                                            marginBottom: "10px",
                                         }}
                                         onClick={handleBulkDelete}
                                         disabled={selectedRows.length === 0}
                                     >
                                         Xóa dịch vụ ({selectedRows.length})
                                     </Button>
+
                                     <Table
+                                        rowSelection={rowSelection}
                                         dataSource={data}
                                         columns={columns}
+                                        rowKey="id"
                                         style={{
                                             backgroundColor: "#fff",
                                             borderRadius: "8px",
@@ -873,6 +808,7 @@ const AddServicePage = () => {
                                         bordered
                                         pagination={false}
                                     />
+
                                     <Row
                                         style={{
                                             marginTop: "16px",
@@ -890,8 +826,8 @@ const AddServicePage = () => {
                                         </Col>
                                     </Row>
                                 </div>
-                            </Col>
-                        </Row>
+                            )}
+                        </div>
                         <ServiceModal isVisible={isModalVisible} onCancel={handleCancel} onConfirm={handleConfirm} />
                         <div
                             style={{
@@ -1000,114 +936,63 @@ const AddServicePage = () => {
                             />
                         </div>
                         {data.length > 0 && (
-                                style={{
-                                    width: "200px",
-                                    marginLeft: "auto",
-                                    display: "block",
-                                    fontSize: "14px",
-                                    fontWeight: "500",
-                                    backgroundColor: selectedRows.length > 0 ? "#ff4d4f" : "#d9d9d9",
-                                    color: selectedRows.length > 0 ? "#fff" : "rgba(0, 0, 0, 0.25)",
-                                    borderRadius: "8px",
-                                    boxShadow:
-                                        selectedRows.length > 0 ? "0 2px 6px rgba(248, 9, 9, 0.2)" : "none",
-                                    marginBottom: "10px",
-                                }}
-                                onClick={handleBulkDelete}
-                                disabled={selectedRows.length === 0}
-                            >
-                                Xóa dịch vụ ({selectedRows.length})
-                            </Button>
-                            <Table
-                                rowSelection={rowSelection}
-                                dataSource={data}
-                                columns={columns}
-                                rowKey="id"
-                                style={{
-                                    backgroundColor: "#fff",
-                                    borderRadius: "8px",
-                                    overflow: "hidden",
-                                }}
-                                bordered
-                                pagination={false}
-                            />
-                            <Row
-                                style={{
-                                    marginTop: "16px",
-                                    fontWeight: "bold",
-                                    padding: "12px",
-                                    backgroundColor: "#fff",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                }}
-                            >
-                                <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
-                                <Col span={12} style={{ textAlign: "right" }}>
-                                    Tổng tiền: {formatCurrency(totalAmount)}
-                                </Col>
-                            </Row>
-                        </div>
-
-                    {/* Payment Section */}
-                    {data.length > 0 && (
-                        <div className="section">
-                            <h2>Thanh toán</h2>
-                            <Col span={24}>
-                                <div
-                                    style={{
-                                        backgroundColor: "#fff",
-                                        padding: "16px",
-                                        borderRadius: "8px",
-                                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
-                                    }}
-                                >
-                                    <Row justify="space-between">
-                                        <Col span={12}>Số lượng dịch vụ</Col>
-                                        <Col span={12} style={{ textAlign: "right" }}>
-                                            {totalquantity}
-                                        </Col>
-                                    </Row>
-                                    <Row justify="space-between" style={{ marginTop: "8px" }}>
-                                        <Col span={12}>Tổng tiền dịch vụ</Col>
-                                        <Col span={12} style={{ textAlign: "right" }}>
-                                            {formatCurrency(totalamount)}
-                                        </Col>
-                                    </Row>
-                                    <Row
-                                        justify="space-between"
+                            <div className="section">
+                                <h2>Thanh toán</h2>
+                                <Col span={24}>
+                                    <div
                                         style={{
-                                            marginTop: "16px",
-                                            padding: "12px",
-                                            borderTop: "1px solid #e6e9f0",
-                                            fontWeight: "bold",
+                                            backgroundColor: "#fff",
+                                            padding: "16px",
+                                            borderRadius: "8px",
+                                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
                                         }}
                                     >
-                                        <Col span={12}>Trả trước</Col>
-                                        <Col span={12} style={{ textAlign: "right" }}>
-                                            {formatCurrency(calculatedTraTruoc)}
-                                        </Col>
-                                        <Col span={12}>Còn lại</Col>
-                                        <Col span={12} style={{ textAlign: "right" }}>
-                                            {formatCurrency(totalamount - calculatedTraTruoc)}
-                                        </Col>
-                                    </Row>
-                                </div>
-                            </Col>
-                        </div>
-                    )}
-                    <ServiceModal isVisible={isModalVisible} onCancel={handleCancel} onConfirm={handleConfirm} />
+                                        <Row justify="space-between">
+                                            <Col span={12}>Số lượng dịch vụ</Col>
+                                            <Col span={12} style={{ textAlign: "right" }}>
+                                                {totalquantity}
+                                            </Col>
+                                        </Row>
+                                        <Row justify="space-between" style={{ marginTop: "8px" }}>
+                                            <Col span={12}>Tổng tiền dịch vụ</Col>
+                                            <Col span={12} style={{ textAlign: "right" }}>
+                                                {formatCurrency(totalamount)}
+                                            </Col>
+                                        </Row>
+                                        <Row
+                                            justify="space-between"
+                                            style={{
+                                                marginTop: "16px",
+                                                padding: "12px",
+                                                borderTop: "1px solid #e6e9f0",
+                                                fontWeight: "bold",
+                                            }}
+                                        >
+                                            <Col span={12}>Trả trước</Col>
+                                            <Col span={12} style={{ textAlign: "right" }}>
+                                                {formatCurrency(calculatedTraTruoc)}
+                                            </Col>
+                                            <Col span={12}>Còn lại</Col>
+                                            <Col span={12} style={{ textAlign: "right" }}>
+                                                {formatCurrency(totalamount - calculatedTraTruoc)}
+                                            </Col>
+                                        </Row>
+                                    </div>
+                                </Col>
+                            </div>
+                        )}
+                        <ServiceModal isVisible={isModalVisible} onCancel={handleCancel} onConfirm={handleConfirm} />
 
-                    <CustomerSearchModal
-                        isVisible={isCustomerSearchVisible}
-                        onCancel={() => setIsCustomerSearchVisible(false)}
-                        onConfirm={handleCustomerSelect}
-                    />
-                </Content>
+                        <CustomerSearchModal
+                            isVisible={isCustomerSearchVisible}
+                            onCancel={() => setIsCustomerSearchVisible(false)}
+                            onConfirm={handleCustomerSelect}
+                        />
+                    </Content>
+                </Layout>
             </Layout>
-        </Layout>
-    );
-};
+        );
+    };
 
-export default App;
+export default AddServicePage;
 
