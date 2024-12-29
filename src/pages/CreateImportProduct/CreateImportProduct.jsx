@@ -331,21 +331,31 @@ const CreateImportOrder = () => {
         if (prev.some((item) => item.code === product.code)) {
           return prev.filter((item) => item.code !== product.code);
         } else {
-          // Khi chọn sản phẩm, cập nhật trạng thái isDelete
-          createImportProduct.updateProductStatus(product.code);
+          try {
+            createImportProduct.updateProductStatus(product.code);
+          } catch (error) {
+            console.error('Error updating product status:', error);
+            message.error('Không thể cập nhật trạng thái sản phẩm');
+          }
           return [...prev, product];
         }
       });
     } catch (error) {
-      console.error('Error updating product status:', error);
-      message.error('Không thể cập nhật trạng thái sản phẩm');
+      console.error('Error in handleSelectProduct:', error);
+      message.error('Có lỗi xảy ra khi chọn sản phẩm');
     }
   };
 
-  const handleRemoveProduct = (productCode) => {
-    setSelectedProducts((prev) =>
-      prev.filter((product) => product.code !== productCode)
-    );
+  const handleRemoveProduct = async (productCode) => {
+    try {
+      await createImportProduct.updateProductStatus(productCode, false);
+      setSelectedProducts((prev) =>
+        prev.filter((product) => product.code !== productCode)
+      );
+    } catch (error) {
+      console.error('Error removing product:', error);
+      message.error('Không thể xóa sản phẩm');
+    }
   };
 
   const handleProductInfoChange = (productCode, key, value) => {

@@ -187,12 +187,12 @@ export const createImportProduct = {
       throw error;
     }
   },
-  updateProductStatus: async (productId) => {
+  updateProductStatus: async (productId, isDeleted = true) => {
     try {
       const currentProduct = await axiosInstance.get(`/product/get-details/${productId}`);
       const productData = currentProduct.data;
 
-      // Cập nhật với đầy đủ thông tin và set isDelete = 1
+      // Cập nhật với đầy đủ thông tin và set isDelete
       const response = await axiosInstance.patch(`/product/update/${productId}`, {
         MaSanPham: productData.MaSanPham,
         TenSanPham: productData.TenSanPham,
@@ -200,7 +200,7 @@ export const createImportProduct = {
         DonGia: productData.DonGia,
         SoLuong: productData.SoLuong,
         HinhAnh: productData.HinhAnh,
-        isDelete: false
+        isDelete: isDeleted ? 1 : 0  // Set isDelete = 1 khi chọn, 0 khi bỏ chọn
       });
 
       console.log('Update product status response:', response.data);
