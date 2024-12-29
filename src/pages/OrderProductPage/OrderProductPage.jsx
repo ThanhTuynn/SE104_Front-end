@@ -9,6 +9,30 @@ import "./OrderProductPage.css";
 import { width } from "@fortawesome/free-solid-svg-icons/fa0";
 import { getAllOrders, deleteOrder } from "../../services/Orderproduct";
 
+const calculateSellingPrice = (basePrice, profitMargin) => {
+  const margin = (profitMargin || 0) / 100;
+  const finalPrice = basePrice * (1 + margin);
+  return parseFloat(finalPrice.toFixed(2));
+};
+
+const calculateOrderTotal = (orderDetails) => {
+  if (!orderDetails || !Array.isArray(orderDetails)) return 0;
+  
+  return orderDetails.reduce((total, detail) => {
+    const quantity = detail.SoLuong || 0;
+    const basePrice = detail.DonGiaBanRa || 0;
+    
+    // Get profit margin from the product's category
+    const profitMargin = detail.sanpham?.loaisanpham?.PhanTramLoiNhuan || 0;
+    
+    // Calculate selling price with profit margin
+    const sellingPrice = calculateSellingPrice(basePrice, profitMargin);
+    const itemTotal = quantity * sellingPrice;
+    
+    return total + itemTotal;
+  }, 0);
+};
+
 const OrderProductPage = () => {
   const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
@@ -41,16 +65,8 @@ const OrderProductPage = () => {
     try {
       setLoading(true);
       const response = await getAllOrders();
-      console.log('Raw API Response:', response.data);
       
       const formattedData = response.data.map(order => {
-        // Log để debug thông tin khách hàng
-        console.log('Customer info:', {
-          id: order.MaKhachHang,
-          name: order.TenKhachHang,
-          phone: order.SoDienThoai
-        });
-
         return {
           id: order.SoPhieuBH,
           products: {
@@ -61,12 +77,14 @@ const OrderProductPage = () => {
           customer: order.TenKhachHang || 'Khách lẻ',
           maKhachHang: order.MaKhachHang,
           SoDienThoai: order.SoDienThoai,
-          total: new Intl.NumberFormat('vi-VN').format(order.TongTien || 0) + ' đ',
+          total: new Intl.NumberFormat('vi-VN', { 
+            style: 'currency', 
+            currency: 'VND' 
+          }).format(order.TongTien || 0),
           payment: order.PhuongThucThanhToan || 'Tiền mặt',
           action: order.TinhTrang || 'Chưa xác định',
           originalData: {
             ...order,
-            // Ensure customer info is properly passed to EditModal
             TenKhachHang: order.TenKhachHang,
             MaKhachHang: order.MaKhachHang,
             SoDienThoai: order.SoDienThoai,
@@ -75,7 +93,6 @@ const OrderProductPage = () => {
         };
       });
 
-      console.log('Final formatted data:', formattedData); // Debug log
       setState(prev => ({
         ...prev,
         data: formattedData

@@ -22,6 +22,9 @@ const App1 = () => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -111,48 +114,135 @@ const App1 = () => {
     navigate(`/view-service/${record.SoPhieuDV}`);
   };
 
+  const handleDeleteSelected = async () => {
+    try {
+        if (selectedRows.length === 0) {
+            message.warning('Vui lòng chọn ít nhất một phiếu dịch vụ để xóa');
+            return;
+        }
+
+        setIsDeleteModalVisible(false);
+        
+        // Add loading state
+        setLoading(true);
+
+        console.log('Selected rows for deletion:', selectedRows); // Debug log
+
+        // Delete services one by one and collect any errors
+        const errors = [];
+        for (const id of selectedRows) {
+            try {
+                await serviceService.deleteServiceTicket(id);
+            } catch (error) {
+                errors.push(`Phiếu ${id}: ${error.message}`);
+            }
+        }
+
+        // Check if there were any errors
+        if (errors.length > 0) {
+            message.error(`Lỗi khi xóa: ${errors.join(', ')}`);
+        } else {
+            message.success(`Đã xóa ${selectedRows.length} phiếu dịch vụ thành công`);
+            
+            // Update data after successful deletion
+            const updatedData = data.filter(item => !selectedRows.includes(item.SoPhieuDV));
+            setData(updatedData);
+            setSelectedRows([]);
+        }
+    } catch (error) {
+        console.error('Error deleting services:', error);
+        message.error(error.message || 'Có lỗi xảy ra khi xóa phiếu dịch vụ');
+    } finally {
+        setLoading(false);
+    }
+};
+
   return (
-    <div className="service-page-container">
-      <Topbar title="Quản lý phiếu dịch vụ" />
-      
-      <div className="service-content">
-        <div className="service-header">
+    <div>
+      <div style={{ marginLeft: "270px" }}>
+        <Topbar title="Quản lý phiếu dịch vụ" />
+      </div>
+
+      <div className="order-table-container12">
+        <header className="order-header">
           <div className="header-actions">
             <Search
               placeholder="Tìm kiếm phiếu dịch vụ..."
-              onSearch={(value) => console.log(value)}
-              style={{ width: 300 }}
+              onSearch={(value) => setSearchText(value)}
+              onChange={(e) => setSearchText(e.target.value)}
+              value={searchText}
+              style={{ width: '100%' }}
             />
-            <Button
-              type="primary"
-              icon={<ExportOutlined />}
-              className="export-button"
-            >
-              Xuất file
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate("/add-service")}
-            >
-              Thêm phiếu dịch vụ
-            </Button>
+            <div className="button-group">
+              <Button
+                type="primary"
+                className="export-button"
+                icon={<ExportOutlined />}
+              >
+                Xuất file
+              </Button>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                className="add-product-button"
+                onClick={() => navigate("/add-service")}
+              >
+                Thêm phiếu dịch vụ
+              </Button>
+            </div>
           </div>
-        </div>
+        </header>
+        <div className="filter-section">
+            <div className="filter-button">
+            </div>
+            <div className="filter-button">
+              <DatePicker
+                placeholder="Chọn ngày"
+                onChange={(date, dateString) => {
+                  // Handle date change
+                }}
+                format="DD/MM/YYYY"
+              />
+              <Button
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => setIsDeleteModalVisible(true)}
+                disabled={selectedRows.length === 0}
+                className="delete-all-button"
+              >
+                Xóa đã chọn ({selectedRows.length})
+              </Button>
+            </div>
+          </div>
 
         <Table
+          rowSelection={{
+            selectedRowKeys: selectedRows,
+            onChange: (selectedRowKeys) => setSelectedRows(selectedRowKeys),
+          }}
           loading={loading}
           dataSource={data}
           columns={columns}
           pagination={{
-            pageSize: 10,
-            showTotal: (total) => `Tổng ${total} phiếu dịch vụ`
+            pageSize: 5,
           }}
           onRow={(record) => ({
             onClick: () => navigate(`/adjust-service/${record.SoPhieuDV}`),
             style: { cursor: 'pointer' }
           })}
         />
+
+        {/* Add Delete Confirmation Modal */}
+        <Modal
+          title="Xác nhận xóa"
+          visible={isDeleteModalVisible}
+          onOk={handleDeleteSelected}
+          onCancel={() => setIsDeleteModalVisible(false)}
+          okText="Xóa"
+          cancelText="Hủy"
+        >
+          <p>Bạn có chắc chắn muốn xóa {selectedRows.length} phiếu dịch vụ đã chọn?</p>
+        </Modal>
       </div>
     </div>
   );

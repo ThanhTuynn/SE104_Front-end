@@ -1,6 +1,6 @@
-.app-layout-adjust-service {
+.app-layout-adjust-servicessss {
     @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
-
+    .bod{
     /* Global Reset */
     * {
         margin: 0;
@@ -8,7 +8,6 @@
         box-sizing: border-box;
         font-family: "Poppins", sans-serif;
     }
-    .bod {
         /* Body Styles */
         body {
             min-height: 100vh;
@@ -486,9 +485,40 @@
         div::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+
+        .custom-select .ant-select-selection-item {
+            color: black !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            z-index: 10001 !important;
+        }
+
+        .ant-select-dropdown .ant-select-item {
+            color: black !important;
+            text-align: center !important;
+        }
+
+        /* Căn giữa arrow icon */
+        .custom-select .ant-select-arrow {
+            margin-top: -7px !important;
+        }
+
+        /* Thêm style cho Select container */
+        .ant-select-selector {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 100% !important;
+        }
+
+        /* Đảm bảo dropdown options hiển thị đầy đủ */
+        .ant-select-dropdown {
+            z-index: 10002 !important;
+        }
     }
 }
-
 .app-layout-ser {
     width: 100%;
     min-height: 100vh;

@@ -81,6 +81,7 @@ const ImportProduct = () => {
   });
   const [loading, setLoading] = useState(false);
   const [purchaseData, setPurchaseData] = useState([]);
+  const [searchText, setSearchText] = useState('');
 
   const fetchAllPurchases = async () => {
     try {
@@ -121,25 +122,28 @@ const ImportProduct = () => {
   };
 
   const filteredData = useMemo(() => {
-    const { date, searchQuery } = state.filters;
+    const { date } = state.filters;
     let dataToFilter = purchaseData;
 
     // Date filter
     if (date) {
-      dataToFilter = dataToFilter.filter((item) => new Date(item.date).toLocaleDateString() === date.format("DD/MM/YYYY"));
+      dataToFilter = dataToFilter.filter((item) => 
+        new Date(item.date).toLocaleDateString() === date.format("DD/MM/YYYY")
+      );
     }
 
     // Search filter
-    if (searchQuery) {
-      const lowerSearchQuery = searchQuery.toLowerCase();
-      dataToFilter = dataToFilter.filter((item) => {
-        return item.id.toLowerCase().includes(lowerSearchQuery) ||
-               item.provider.toLowerCase().includes(lowerSearchQuery);
-      });
+    if (searchText) {
+      const lowerSearchText = searchText.toLowerCase().trim();
+      dataToFilter = dataToFilter.filter((item) => 
+        item.id.toString().toLowerCase().includes(lowerSearchText) ||
+        item.provider.toString().toLowerCase().includes(lowerSearchText) ||
+        item.date.toString().toLowerCase().includes(lowerSearchText)
+      );
     }
 
     return dataToFilter;
-  }, [purchaseData, state.filters]);
+  }, [purchaseData, state.filters.date, searchText]);
 
   const handleDeletePurchase = async (purchaseId) => {
     try {
@@ -201,9 +205,10 @@ const ImportProduct = () => {
           <div className="header-actions">
             <Input.Search
               placeholder="Tìm kiếm phiếu mua hàng..."
-              onSearch={(value) => handleChange("searchQuery", value)}
-              onChange={(e) => handleChange("searchQuery", e.target.value)}
-              value={state.filters.searchQuery} 
+              onSearch={(value) => setSearchText(value)}
+              onChange={(e) => setSearchText(e.target.value)}
+              value={searchText}
+              style={{ width: '100%' }}
             />
             <Button
               type="primary"

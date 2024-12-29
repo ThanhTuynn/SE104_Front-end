@@ -29,18 +29,17 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
         const fetchServices = async () => {
             try {
                 const data = await ServiceTypeService.getAllServiceTypes();
-                console.log("Fetched data:", data); // Debug log
+                console.log("Fetched service types:", data); // Debug log
                 const mappedData = (Array.isArray(data) ? data : []).map((item) => ({
-                    id: item.MaLoaiDV,
+                    id: item.MaLoaiDV,        // ID để tracking trong UI
+                    MaLoaiDV: item.MaLoaiDV,  // MaLoaiDV thật từ database
                     name: item.TenLoaiDichVu,
-                    price: item.DonGiaDV,
-                    pttr: item.PhanTramTraTruoc,
+                    price: parseFloat(item.DonGiaDV),
+                    pttr: parseFloat(item.PhanTramTraTruoc)
                 }));
                 setFetchedServices(mappedData);
             } catch (error) {
                 console.error("Error fetching services:", error);
-                // Optionally show error message to user
-                // message.error('Không thể tải danh sách dịch vụ');
             }
         };
 
@@ -92,24 +91,45 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
             .replace("₫", "VND");
     };
 
+    // Thêm hàm tính toán số tiền trả trước tối thiểu
+    const calculateMinPrepayment = (service) => {
+        const basePrice = parseFloat(service.price) || 0;
+        const pttr = parseFloat(service.pttr) || 0;
+        return (basePrice * pttr) / 100;
+    };
+
     const columns = [
         {
             title: "Dịch vụ",
             dataIndex: "name",
             key: "name",
-            width: "30%",
+            width: "25%",
             render: (text) => <span style={{ fontWeight: 500 }}>{text}</span>,
         },
         {
             title: "Giá (VND)",
             dataIndex: "price",
             key: "price",
+            width: "20%",
             render: (price) => formatCurrency(price),
         },
-
+        {
+            title: "Phần trăm trả trước",
+            dataIndex: "pttr",
+            key: "pttr",
+            width: "15%",
+            render: (pttr) => `${pttr}%`,
+        },
+        {
+            title: "Số tiền trả trước tối thiểu",
+            key: "minPrepayment",
+            width: "20%",
+            render: (_, record) => formatCurrency(calculateMinPrepayment(record)),
+        },
         {
             title: "",
             key: "select",
+            width: "20%",
             render: (_, record) => (
                 <Checkbox
                     checked={selectedServices.some((s) => s.id === record.id)}
@@ -128,46 +148,42 @@ const ServiceModal = ({ isVisible, onCancel, onConfirm }) => {
         }));
     };
 
-    // Modify handleOk to check for missing delivery dates
+    // Sửa lại hàm handleOk để bao gồm thông tin về số tiền tối thiểu
     const handleOk = () => {
-        // Check if any selected service is missing delivery date
-        const missingDeliveryDates = selectedServices.filter((service) => !deliveryDates[service.id]);
-
-        // if (missingDeliveryDates.length > 0) {
-        //     Modal.warning({
-        //         title: "Thiếu ngày giao",
-        //         content: (
-        //             <div>
-        //                 <p>Vui lòng chọn ngày giao cho các dịch vụ sau:</p>
-        //                 <ul>
-        //                     {missingDeliveryDates.map((service) => (
-        //                         <li key={service.id}>{service.name}</li>
-        //                     ))}
-        //                 </ul>
-        //             </div>
-        //         ),
-        //     });
-        //     return;
-        // }
-
-        // If all services have delivery dates, proceed with normal flow
         const servicesWithQuantities = selectedServices.map((service) => {
             const quantity = quantities[service.id] || 1;
-            const totalPrice = service.price * quantity;
-            const prepaymentAmount = (totalPrice * service.pttr) / 100;
+            const basePrice = parseFloat(service.price);
+            const totalPrice = basePrice * quantity;
+            const minPrepayment = calculateMinPrepayment(service) * quantity;
 
             return {
-                ...service,
-                quantity,
-                total: formatCurrency(totalPrice),
-                prepaymentAmount,
+                id: service.id,
+                MaLoaiDV: service.MaLoaiDV,
+                name: service.name,
+                price: service.price,
+                quantity: quantity,
+                total: totalPrice,
+                prepayment: minPrepayment, // Set default prepayment to minimum required
+                additionalCost: "0",
+                status: "Chưa giao",
                 deliveryDate: deliveryDates[service.id],
+                pttr: service.pttr,
+                minPrepayment: minPrepayment // Add minimum prepayment information
             };
         });
 
-        const totalPrepayment = servicesWithQuantities.reduce((sum, service) => sum + service.prepaymentAmount, 0);
+        console.log("Selected services with details:", servicesWithQuantities);
+        onConfirm(servicesWithQuantities);
+    };
 
-        onConfirm(servicesWithQuantities, totalPrepayment, deliveryDates);
+    const handleServiceSelect = (service) => {
+        const selectedService = {
+            ...service,
+            MaLoaiDV: service.MaLoaiDV,
+            id: service.id,
+            name: service.name,
+            price: service.price,
+        };
     };
 
     return (
