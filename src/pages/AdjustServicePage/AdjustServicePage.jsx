@@ -41,6 +41,7 @@ const App = () => {
     const [invalidPrepayments, setInvalidPrepayments] = useState({});
     const [totalPossiblePrepayment, setTotalPossiblePrepayment] = useState(0);
     const [serviceDeliveryDates, setServiceDeliveryDates] = useState({});
+    const [selectedRows, setSelectedRows] = useState([]);
 
     // Calculate derived values
     const subTotal = totalAmount - discount;
@@ -59,42 +60,47 @@ const App = () => {
             try {
                 setLoading(true);
                 const response = await serviceService.getServiceTicketById(id);
-                
-                if (!response || !response.serviceTicket || !response.serviceDetails) {
-                    throw new Error('Invalid response data');
+
+                console.log("Check:", response);
+
+                if (!response || !response.ticketInfo || !response.services) {
+                    throw new Error("Invalid response data");
                 }
+
+
+                
 
                 // Format ticket info
                 const formattedTicketInfo = {
-                    SoPhieuDV: response.serviceTicket.SoPhieuDV,
-                    NgayLap: response.serviceTicket.NgayLap,
-                    MaKhachHang: response.serviceTicket.MaKhachHang,
-                    TongTien: response.serviceTicket.TongTien.toString(),
-                    TongTienTraTruoc: response.serviceTicket.TongTienTraTruoc.toString(),
-                    TinhTrang: response.serviceTicket.TinhTrang,
+                    SoPhieuDV: response.ticketInfo.SoPhieuDV,
+                    NgayLap: response.ticketInfo.NgayLap,
+                    MaKhachHang: response.ticketInfo.MaKhachHang,
+                    TongTien: response.ticketInfo.TongTien.toString(),
+                    TongTienTraTruoc: response.ticketInfo.TongTienTraTruoc.toString(),
+                    TinhTrang: response.ticketInfo.TinhTrang,
                     customer: {
-                        TenKhachHang: response.serviceTicket.customer?.TenKhachHang,
-                        SoDT: response.serviceTicket.customer?.SoDT,
-                        DiaChi: response.serviceTicket.customer?.DiaChi
-                    }
+                        TenKhachHang: response.ticketInfo.customer?.TenKhachHang,
+                        SoDT: response.ticketInfo.customer?.SoDT,
+                        DiaChi: response.ticketInfo.customer?.DiaChi,
+                    },
                 };
 
                 // Format services data
-                const formattedServices = response.serviceDetails.map(detail => ({
-                    id: detail.MaChiTietDV,
-                    name: detail.TenLoaiDichVu,
-                    price: parseFloat(detail.DonGiaDuocTinh),
-                    quantity: parseInt(detail.SoLuong),
-                    total: parseFloat(detail.ThanhTien),
-                    prepaid: parseFloat(detail.TraTruoc),
-                    additionalCost: parseFloat(detail.ChiPhiRieng || 0),
-                    status: detail.TinhTrang,
-                    deliveryDate: detail.NgayGiao,
-                    pttr: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0,
-                    serviceType: {
-                        TenLoaiDichVu: detail.TenLoaiDichVu,
-                        PhanTramTraTruoc: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0
-                    }
+                const formattedServices = response.services.map((detail) => ({
+                    MaChiTietDV: detail.MaChiTietDV,
+                    TenLoaiDichVu: detail.TenLoaiDichVu,
+                    DonGiaDuocTinh: parseFloat(detail.DonGiaDuocTinh),
+                    SoLuong: parseInt(detail.SoLuong),
+                    ThanhTien: parseFloat(detail.ThanhTien),
+                    TraTruoc: parseFloat(detail.TraTruoc),
+                    TinhTrang: detail.TinhTrang,
+                    NgayGiao: detail.NgayGiao,
+                    ChiPhiRieng: parseFloat(detail.ChiPhiRieng || 0),
+                    // pttr: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0,
+                    // serviceType: {
+                    //     TenLoaiDichVu: detail.TenLoaiDichVu,
+                    //     PhanTramTraTruoc: parseFloat(detail.serviceType?.PhanTramTraTruoc) || 0,
+                    // },
                 }));
 
                 // Set state with formatted data
@@ -102,12 +108,12 @@ const App = () => {
                 setData(formattedServices);
 
                 // Set customer info
-                if (response.serviceTicket.customer) {
+                if (response.services.customer) {
                     setSelectedCustomer({
                         id: response.serviceTicket.MaKhachHang,
                         name: response.serviceTicket.customer.TenKhachHang,
                         phone: response.serviceTicket.customer.SoDT,
-                        address: response.serviceTicket.customer.DiaChi
+                        address: response.serviceTicket.customer.DiaChi,
                     });
                 }
 
@@ -127,11 +133,10 @@ const App = () => {
                 setTotalPrepaid(totals.prepaid);
 
                 // Debug log
-                console.log('Formatted data:', {
+                console.log("Formatted data:", {
                     ticketInfo: formattedTicketInfo,
-                    services: formattedServices
+                    services: formattedServices,
                 });
-
             } catch (error) {
                 console.error("Error fetching service ticket:", error);
                 message.error("Không thể tải thông tin phiếu dịch vụ");
@@ -178,7 +183,7 @@ const App = () => {
                     additionalCost: 0,
                     total: total,
                     prepayment: (total * service.pttr) / 100,
-                    pttr: service.pttr
+                    pttr: service.pttr,
                 };
             }),
         ];
@@ -216,37 +221,43 @@ const App = () => {
             const updatedTicketData = {
                 ticketData: {
                     // Format NgayLap to YYYY-MM-DD
-                    NgayLap: moment(serviceTicket.NgayLap).format('YYYY-MM-DD'),
-                    MaKhachHang: selectedCustomer?.id,
-                    TinhTrang: serviceTicket.TinhTrang || "Chưa hoàn thành"
+                    NgayLap: moment(serviceTicket?.NgayLap).format("YYYY-MM-DD"), // Sử dụng optional chaining để tránh lỗi nếu serviceTicket null/undefined
+                    MaKhachHang: selectedCustomer?.id || null, // Fallback null nếu không có selectedCustomer
+                    TinhTrang: serviceTicket?.TinhTrang || "Chưa hoàn thành", // Nếu không có trạng thái, mặc định là "Chưa hoàn thành"
                 },
-                details: data.map(service => ({
-                    MaChiTietDV: service.id,
-                    MaLoaiDV: service.MaLoaiDV,
-                    SoLuong: parseInt(service.quantity) || 1,
-                    DonGiaDuocTinh: service.price.toString(),
-                    TraTruoc: service.prepayment.toString(),
-                    ChiPhiRieng: (service.additionalCost || 0).toString(),
-                    TinhTrang: service.status || "Chưa giao",
-                    NgayGiao: service.deliveryDate ? moment(service.deliveryDate).toISOString() : null
-                }))
+                details: data.map((service) => ({
+                    MaChiTietDV: service.id, // ID của dịch vụ
+                    MaLoaiDV: service.MaLoaiDV || null, // Fallback null nếu không có MaLoaiDV
+                    SoLuong: parseInt(service.quantity, 10) || 1, // Mặc định là 1 nếu không có số lượng
+                    DonGiaDuocTinh: service.price?.toString() || "0", // Fallback "0" nếu không có giá
+                    TraTruoc: service.prepayment?.toString() || "0", // Fallback "0" nếu không có trả trước
+                    ChiPhiRieng: (service.additionalCost || 0).toString(), // Fallback 0 nếu không có chi phí riêng
+                    TinhTrang: service.status || "Chưa giao", // Mặc định "Chưa giao" nếu không có trạng thái
+                    NgayGiao: service.deliveryDate ? moment(service.deliveryDate).toISOString() : null, // Fallback null nếu không có ngày giao
+                })),
             };
 
             // Log the formatted data for debugging
-            console.log('Formatted data for backend:', JSON.stringify(updatedTicketData, null, 2));
+            console.log("Formatted data for backend:", JSON.stringify(updatedTicketData, null, 2));
 
             // Call the API to update the service ticket
             await serviceService.updateServiceTicket(id, updatedTicketData);
-            message.success('Cập nhật phiếu dịch vụ thành công');
-            navigate('/list-service');
+            message.success("Cập nhật phiếu dịch vụ thành công");
+            navigate("/list-service");
         } catch (error) {
-            console.error('Update service ticket error:', error);
-            message.error('Lỗi khi cập nhật phiếu dịch vụ: ' + (error.response?.data?.message || error.message));
+            console.error("Update service ticket error:", error);
+            message.error("Lỗi khi cập nhật phiếu dịch vụ: " + (error.response?.data?.message || error.message));
         }
     };
 
     const handleCancelSave = () => {
         setIsConfirmModalVisible(false);
+    };
+
+    const handleBulkDelete = () => {
+        const updatedData = data.filter((item) => !selectedRows.includes(item.MaChiTietDV));
+        setData(updatedData);
+        setSelectedRows([]);
     };
 
     const columns = [
@@ -260,194 +271,67 @@ const App = () => {
         },
         {
             title: "Loại dịch vụ",
-            dataIndex: "name",
-            key: "name",
+            dataIndex: "TenLoaiDichVu",
+            key: "TenLoaiDichVu",
             width: "15%",
         },
         {
-            title: "Đơn giá dịch vụ",
-            dataIndex: "price",
-            key: "price",
+            title: "Đơn giá",
+            dataIndex: "DonGiaDuocTinh",
+            key: "DonGiaDuocTinh",
             width: "12%",
-            render: (price) => formatCurrency(price),
-        },
-        {
-            title: "Số lượng",
-            dataIndex: "quantity",
-            key: "quantity",
-            width: "10%",
-            render: (_, record) => (
-                <Input
-                    type="number"
-                    defaultValue={record.quantity || 1}
-                    onChange={(e) => {
-                        const value = parseInt(e.target.value) || 1;
-                        const updatedData = data.map((item) =>
-                            item.id === record.id
-                                ? {
-                                      ...item,
-                                      quantity: value,
-                                      total: Number(value * (Number(item.price) + (Number(item.additionalCost) || 0))),
-                                  }
-                                : item
-                        );
-                        setData(updatedData);
-                        calculateTotals(updatedData);
-                    }}
-                />
-            ),
+            render: (value) => formatCurrency(value),
         },
         {
             title: "Chi phí riêng",
-            dataIndex: "additionalCost",
-            key: "additionalCost",
+            dataIndex: "ChiPhiRieng",
+            key: "ChiPhiRieng",
             width: "12%",
-            render: (_, record) => (
-                <Input
-                    type="number"
-                    defaultValue={record.additionalCost || 0}
-                    onChange={(e) => {
-                        const additionalCost = Math.round(Number(e.target.value) || 0);
-                        const updatedData = data.map((item) => {
-                            if (item.id === record.id) {
-                                const basePrice = Math.round(Number(item.price) + additionalCost);
-                                const quantity = item.quantity || 1;
-                                const total = basePrice * quantity;
-
-                                return {
-                                    ...item,
-                                    additionalCost: additionalCost,
-                                    total: total,
-                                };
-                            }
-                            return item;
-                        });
-                        setData(updatedData);
-                        calculateTotals(updatedData);
-                    }}
-                    style={{ width: "100%" }}
-                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                    parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
-                />
-            ),
+            render: (value) => formatCurrency(value || 0),
+        },
+        {
+            title: "Số lượng",
+            dataIndex: "SoLuong",
+            key: "SoLuong",
+            width: "10%",
+            render: (value) => value, // Just display the value, no input
         },
         {
             title: "Thành tiền",
-            key: "total",
+            dataIndex: "ThanhTien",
+            key: "ThanhTien",
             width: "12%",
-            render: (_, record) => {
-                return formatCurrency(record.total || 0);
-            },
+            render: (value) => formatCurrency(value),
         },
         {
-            title: "Thanh toán",
-            children: [
-                {
-                    title: "Trả trước",
-                    dataIndex: "prepayment",
-                    key: "prepayment",
-                    width: "12%",
-                    render: (_, record) => {
-                        const total = record.total || 0;
-                        const minPrepayment = (total * record.pttr) / 100;
-
-                        return (
-                            <div>
-                                <div style={{ fontSize: "12px", color: "#666", marginBottom: "4px" }}>
-                                    Tối thiểu: {formatCurrency(minPrepayment)} ({record.pttr}%)
-                                </div>
-                                <Input
-                                    type="number"
-                                    value={record.prepayment || 0}
-                                    onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        const isValid = value >= minPrepayment;
-
-                                        setInvalidPrepayments((prev) => ({
-                                            ...prev,
-                                            [record.id]: !isValid,
-                                        }));
-
-                                        const updatedData = data.map((item) =>
-                                            item.id === record.id
-                                                ? {
-                                                      ...item,
-                                                      prepayment: value,
-                                                      remaining: total - value,
-                                                  }
-                                                : item
-                                        );
-                                        setData(updatedData);
-                                        calculateTotals(updatedData);
-                                    }}
-                                    style={{
-                                        width: "100%",
-                                        borderColor: invalidPrepayments[record.id] ? "#ff4d4f" : "#d9d9d9",
-                                    }}
-                                    status={invalidPrepayments[record.id] ? "error" : ""}
-                                />
-                                {invalidPrepayments[record.id] && (
-                                    <div style={{ color: "#ff4d4f", fontSize: "12px", marginTop: "4px" }}>
-                                        Số tiền trả trước phải lớn hơn hoặc bằng {record.pttr}% tổng tiền
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    },
-                },
-                {
-                    title: "Còn lại",
-                    dataIndex: "remaining",
-                    key: "remaining",
-                    width: "12%",
-                    render: (_, record) => {
-                        const basePrice = Number(record.price) + Number(record.additionalCost || 0);
-                        const total = (record.quantity || 1) * basePrice;
-                        return formatCurrency(total - (record.prepayment || 0));
-                    },
-                },
-            ],
+            title: "Trả trước",
+            dataIndex: "TraTruoc",
+            key: "TraTruoc",
+            width: "12%",
+            render: (value) => formatCurrency(value),
         },
         {
-            title: "Ngày giao",
-            dataIndex: "deliveryDate",
-            key: "deliveryDate",
-            width: "15%",
-            render: (_, record) => (
-                <DatePicker
-                    style={{ width: "100%" }}
-                    format="DD/MM/YYYY"
-                    onChange={(date) => {
-                        const updatedData = data.map((item) =>
-                            item.id === record.id ? { ...item, deliveryDate: date } : item
-                        );
-                        setData(updatedData);
-                    }}
-                />
-            ),
+            title: "Còn lại",
+            dataIndex: "ConLai",
+            key: "ConLai",
+            width: "12%",
+            render: (_, record) => formatCurrency(record.ThanhTien - record.TraTruoc),
         },
         {
             title: "Tình trạng",
-            dataIndex: "status",
-            key: "status",
+            dataIndex: "TinhTrang",
+            key: "TinhTrang",
             width: "10%",
             render: (_, record) => (
                 <Select
-                    defaultValue="Chưa giao"
-                    style={{
-                        width: "100%",
-                        zIndex: 1000,
-                    }}
-                    dropdownStyle={{
-                        zIndex: 1001,
-                    }}
+                    value={record.TinhTrang}
+                    style={{ width: "100%" }}
                     onChange={(value) => {
                         const updatedData = data.map((item) =>
-                            item.id === record.id ? { ...item, status: value } : item
+                            item.MaChiTietDV === record.MaChiTietDV ? { ...item, TinhTrang: value } : item
                         );
                         setData(updatedData);
                     }}
-                    getPopupContainer={(trigger) => trigger.parentNode}
                 >
                     <Option value="Chưa giao">Chưa giao</Option>
                     <Option value="Đã giao">Đã giao</Option>
@@ -458,8 +342,8 @@ const App = () => {
 
     // Add handler for service type change
     const handleServiceTypeChange = (recordId, newValue, option) => {
-        const newPrice = option['data-price'];
-        const updatedData = data.map(item => {
+        const newPrice = option["data-price"];
+        const updatedData = data.map((item) => {
             if (item.id === recordId) {
                 const newTotal = newPrice * (item.quantity || 1) + (item.additionalCost || 0);
                 return {
@@ -497,7 +381,13 @@ const App = () => {
                 <Col span={12}>
                     <Row>
                         <Col span={8}>Ngày lập:</Col>
-                        <Col span={16}>{serviceTicket?.NgayLap}</Col>
+                        <Col span={16}>
+                            {new Date(serviceTicket?.NgayLap).toLocaleDateString("vi-VN", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                            })}
+                        </Col>
                     </Row>
                     <Row>
                         <Col span={8}>Số điện thoại:</Col>
@@ -625,13 +515,15 @@ const App = () => {
 
     // Add missing utility functions
     const formatCurrency = (amount) => {
-        if (!amount && amount !== 0) return '0 VND';
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
+        if (!amount && amount !== 0) return "0 VND";
+        return new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
-        }).format(amount).replace('₫', 'VND');
+        })
+            .format(amount)
+            .replace("₫", "VND");
     };
 
     const calculateTotals = (currentData) => {
@@ -659,12 +551,12 @@ const App = () => {
     };
 
     const formatDate = (date) => {
-        if (!date) return '';
-        return moment(date).format('DD/MM/YYYY');
+        if (!date) return "";
+        return moment(date).format("DD/MM/YYYY");
     };
 
     const formatNumber = (value) => {
-        if (!value) return '0';
+        if (!value) return "0";
         return `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     };
 
@@ -689,35 +581,38 @@ const App = () => {
                         </div>
 
                         {/* Thêm phần action buttons */}
-                        <div className="header-actions" style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            gap: '12px',
-                            marginBottom: '20px',
-                            padding: '16px',
-                            backgroundColor: '#fff',
-                            borderRadius: '8px',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-                        }}>
-                            <Button 
-                                onClick={() => navigate('/list-service')}
+                        <div
+                            className="header-actions"
+                            style={{
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                gap: "12px",
+                                marginBottom: "20px",
+                                padding: "16px",
+                                backgroundColor: "#fff",
+                                borderRadius: "8px",
+                                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+                            }}
+                        >
+                            <Button
+                                onClick={() => navigate("/list-service")}
                                 style={{
-                                    width: '120px',
-                                    height: '36px',
-                                    borderRadius: '8px'
+                                    width: "120px",
+                                    height: "36px",
+                                    borderRadius: "8px",
                                 }}
                             >
                                 Hủy
                             </Button>
-                            <Button 
-                                type="primary" 
+                            <Button
+                                type="primary"
                                 onClick={() => setIsConfirmModalVisible(true)}
                                 style={{
-                                    width: '120px',
-                                    height: '36px',
-                                    backgroundColor: '#091057',
-                                    borderColor: '#091057',
-                                    borderRadius: '8px'
+                                    width: "120px",
+                                    height: "36px",
+                                    backgroundColor: "#091057",
+                                    borderColor: "#091057",
+                                    borderRadius: "8px",
                                 }}
                             >
                                 Lưu thay đổi
@@ -725,15 +620,18 @@ const App = () => {
                         </div>
 
                         {/* Service Ticket Information Section */}
-                        <div className="section" style={{
-                            backgroundColor: "#f8f9ff",
-                            padding: "20px",
-                            borderRadius: "12px",
-                            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
-                            border: "1px solid #e6e9f0",
-                            marginBottom: "40px",
-                            marginTop: "20px",
-                        }}>
+                        <div
+                            className="section"
+                            style={{
+                                backgroundColor: "#f8f9ff",
+                                padding: "20px",
+                                borderRadius: "12px",
+                                boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+                                border: "1px solid #e6e9f0",
+                                marginBottom: "40px",
+                                marginTop: "20px",
+                            }}
+                        >
                             <h2>Thông tin phiếu</h2>
                             <Row gutter={16} style={{ marginBottom: "16px" }}>
                                 <Col span={12}>
@@ -756,7 +654,11 @@ const App = () => {
                                     <div style={{ marginBottom: "16px" }}>
                                         <label style={{ display: "block", marginBottom: "8px" }}>Ngày lập</label>
                                         <Input
-                                            value={serviceTicket?.NgayLap}
+                                            value={new Date(serviceTicket?.NgayLap).toLocaleDateString("vi-VN", {
+                                                year: "numeric",
+                                                month: "2-digit",
+                                                day: "2-digit",
+                                            })}
                                             disabled
                                             style={{
                                                 width: "100%",
@@ -767,16 +669,21 @@ const App = () => {
                                     </div>
                                 </Col>
                             </Row>
-
+                            {/* Customer Information */}
                             {/* Customer Information */}
                             <h3>Thông tin khách hàng</h3>
-                            {selectedCustomer && (
-                                <div style={{
-                                    padding: "12px",
-                                    border: "1px solid #e6e9f0",
-                                    borderRadius: "8px",
-                                    backgroundColor: "#fff",
-                                }}>
+                            {serviceTicket?.customer && (
+                                <div
+                                    style={{
+                                        padding: "12px",
+                                        border: "1px solid #e6e9f0",
+                                        borderRadius: "8px",
+                                        backgroundColor: "#fff",
+                                    }}
+                                >
+                                    <p>Tên khách hàng: {serviceTicket.customer.TenKhachHang}</p>
+                                    <p>Số điện thoại: {serviceTicket.customer.SoDT}</p>
+                                    <p>Địa chỉ: {serviceTicket.customer.DiaChi}</p>
                                 </div>
                             )}
                         </div>
@@ -802,13 +709,34 @@ const App = () => {
                                         Chọn dịch vụ
                                     </Button>
 
+                                    <div className="button-group" style={{ marginBottom: 16 }}>
+                                        {/* <Button
+                                            type="primary"
+                                            onClick={() => setIsModalVisible(true)}
+                                            style={{
+                                                marginRight: 8,
+                                                backgroundColor: "#1890ff"
+                                            }}
+                                        >
+                                            Thêm dịch vụ
+                                        </Button> */}
+                                        <Button danger onClick={handleBulkDelete} disabled={selectedRows.length === 0}>
+                                            Xóa dịch vụ đã chọn ({selectedRows.length})
+                                        </Button>
+                                    </div>
+
                                     <Table
-                                        dataSource={data}
+                                        rowSelection={{
+                                            type: "checkbox",
+                                            selectedRowKeys: selectedRows,
+                                            onChange: (selectedRowKeys) => setSelectedRows(selectedRowKeys),
+                                        }}
                                         columns={columns}
-                                        pagination={false}
+                                        dataSource={data}
+                                        rowKey="MaChiTietDV"
                                     />
 
-                                    <Row
+                                    {/* <Row
                                         style={{
                                             marginTop: "16px",
                                             fontWeight: "bold",
@@ -819,11 +747,7 @@ const App = () => {
                                             justifyContent: "space-between",
                                         }}
                                     >
-                                        <Col span={12}>Tổng số lượng dịch vụ: {totalQuantity}</Col>
-                                        <Col span={12} style={{ textAlign: "right" }}>
-                                            Tổng tiền: {formatCurrency(totalAmount)}
-                                        </Col>
-                                    </Row>
+                                    </Row> */}
                                 </div>
                             </Col>
                         </Row>
@@ -835,7 +759,7 @@ const App = () => {
                             services={services}
                         />
 
-                        <div className="customer-section">
+                        {/* <div className="customer-section">
                             <h2>Khách hàng</h2>
                             {selectedCustomer && (
                                 <Card>
@@ -853,24 +777,29 @@ const App = () => {
                                     </Row>
                                 </Card>
                             )}
-                        </div>
+                        </div> */}
 
-                        <div className="payment-section" style={{
-                            backgroundColor: "#f8f9ff",
-                            padding: "24px",
-                            borderRadius: "12px",
-                            boxShadow: "0 2px 15px rgba(0, 0, 0, 0.1)",
-                            border: "1px solid #e6e9f0",
-                            marginTop: "20px"
-                        }}>
+                        <div
+                            className="payment-section"
+                            style={{
+                                backgroundColor: "#f8f9ff",
+                                padding: "24px",
+                                borderRadius: "12px",
+                                boxShadow: "0 2px 15px rgba(0, 0, 0, 0.1)",
+                                border: "1px solid #e6e9f0",
+                                marginTop: "20px",
+                            }}
+                        >
                             <h2>Thanh toán</h2>
                             <Col span={24}>
-                                <div style={{
-                                    backgroundColor: "white",
-                                    padding: "20px",
-                                    borderRadius: "8px",
-                                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)"
-                                }}>
+                                <div
+                                    style={{
+                                        backgroundColor: "white",
+                                        padding: "20px",
+                                        borderRadius: "8px",
+                                        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                                    }}
+                                >
                                     <Row justify="space-between" className="payment-row">
                                         <Col span={12}>Số lượng dịch vụ</Col>
                                         <Col span={12} style={{ textAlign: "right", fontWeight: "500" }}>
@@ -885,7 +814,10 @@ const App = () => {
                                     </Row>
                                     <Row justify="space-between" className="payment-row" style={{ marginTop: "12px" }}>
                                         <Col span={12}>Giảm giá</Col>
-                                        <Col span={12} style={{ textAlign: "right", color: "#52c41a", fontWeight: "500" }}>
+                                        <Col
+                                            span={12}
+                                            style={{ textAlign: "right", color: "#52c41a", fontWeight: "500" }}
+                                        >
                                             -{formatCurrency(discount)}
                                         </Col>
                                     </Row>
@@ -896,21 +828,25 @@ const App = () => {
                                         </Col>
                                     </Row>
                                     <Row justify="space-between" className="payment-row" style={{ marginTop: "12px" }}>
-                                        <Col span={12}>Phí vận chuyển</Col>
                                         <Col span={12} style={{ textAlign: "right", fontWeight: "500" }}>
                                             {formatCurrency(shippingFee)}
                                         </Col>
                                     </Row>
-                                    <div style={{
-                                        marginTop: "16px",
-                                        paddingTop: "16px",
-                                        borderTop: "2px dashed #e8e8e8"
-                                    }}>
-                                        <Row justify="space-between" style={{ 
-                                            fontWeight: "bold",
-                                            fontSize: "16px",
-                                            color: "#1890ff"
-                                        }}>
+                                    <div
+                                        style={{
+                                            marginTop: "16px",
+                                            paddingTop: "16px",
+                                            borderTop: "2px dashed #e8e8e8",
+                                        }}
+                                    >
+                                        <Row
+                                            justify="space-between"
+                                            style={{
+                                                fontWeight: "bold",
+                                                fontSize: "16px",
+                                                color: "#1890ff",
+                                            }}
+                                        >
                                             <Col span={12}>Phải thu</Col>
                                             <Col span={12} style={{ textAlign: "right" }}>
                                                 {formatCurrency(totalPayable)}
@@ -932,9 +868,9 @@ const App = () => {
                             centered
                             okButtonProps={{
                                 style: {
-                                    backgroundColor: '#091057',
-                                    borderColor: '#091057'
-                                }
+                                    backgroundColor: "#091057",
+                                    borderColor: "#091057",
+                                },
                             }}
                         >
                             <p>Bạn có chắc chắn muốn lưu những thay đổi này?</p>
