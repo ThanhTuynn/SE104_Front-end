@@ -12,6 +12,7 @@ import {
   TagOutlined,
   ShoppingOutlined,
   BarChartOutlined,
+  MessageOutlined, // Add this import for chatbot icon
 } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import logo from '../../assets/logo.png'
@@ -105,7 +106,12 @@ const SidebarComponent = () => {
           path: '/list-employee',
           icon: <UserOutlined />,
           text: 'Quản lý nhân viên'
-        }
+        },
+        {
+          path: '/chatbot',
+          icon: <MessageOutlined />,
+          text: 'Trợ lý ảo'
+        },
       ],
       seller: [
         {
@@ -132,7 +138,12 @@ const SidebarComponent = () => {
           path: '/list-customer',
           icon: <TeamOutlined />,
           text: 'Quản lý khách hàng'
-        }
+        },
+        {
+          path: '/chatbot',
+          icon: <MessageOutlined />,
+          text: 'Trợ lý ảo'
+        },
       ],
       warehouse: [
         {
@@ -164,7 +175,12 @@ const SidebarComponent = () => {
           path: '/warehouse-report',  // Add this new route
           icon: <BarChartOutlined />,
           text: 'Báo cáo tồn kho'
-        }
+        },
+        {
+          path: '/chatbot',
+          icon: <MessageOutlined />,
+          text: 'Trợ lý ảo'
+        },
       ]
     };
 

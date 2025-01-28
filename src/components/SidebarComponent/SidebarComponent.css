@@ -58,7 +58,7 @@ body {
 .sidebar-nav .nav-list {
     list-style: none;
     display: flex;
-    gap: 4px;
+    gap: 10px; /* Reduced from 4px to 2px */
     padding: 0 1px;
     flex-direction: column;
     transform: translateY(15px);
@@ -69,11 +69,11 @@ body {
     gap: 12px;
     border-radius: 8px;
     align-items: center;
-    padding: 12px 15px;
+    padding: 8px 15px; /* Reduced from 12px to 8px */
     text-decoration: none;
     transition: 0.4s ease;
     margin-top: -5px;
-    margin-bottom: 10px;
+    margin-bottom: 5px; /* Reduced from 10px to 5px */
     font-size: 14px;
     line-height: 1;
 }
