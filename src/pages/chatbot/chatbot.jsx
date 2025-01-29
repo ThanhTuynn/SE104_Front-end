@@ -1,12 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input, Button, Spin, message } from 'antd';
 import './chatbot.css';
-import geminiService from '../../services/geminiService';
+import { chatbotApi } from '../../services/geminiService';
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Chỉ load chat history, không kiểm tra đăng nhập
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      const history = await chatbotApi.getChatHistory();
+      if (history && Array.isArray(history)) {
+        const formattedMessages = history.map(msg => ({
+          text: msg.TinNhan,
+          sender: msg.RoleTinNhan
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      // Bỏ qua lỗi khi load history thất bại
+      console.error('Error loading chat history:', error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (inputMessage.trim()) {
@@ -20,9 +41,9 @@ const Chatbot = () => {
       setIsLoading(true);
 
       try {
-        const response = await geminiService.sendMessage(inputMessage);
+        const response = await chatbotApi.sendMessage(inputMessage);
         const botMessage = {
-          text: response || 'Xin lỗi, tôi không thể tạo câu trả lời. Vui lòng thử lại.',
+          text: response,
           sender: 'bot'
         };
         setMessages(prev => [...prev, botMessage]);

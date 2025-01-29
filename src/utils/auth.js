@@ -51,6 +51,22 @@ export const checkTokenStatus = () => {
   };
 };
 
+export const setUserSession = (token, user) => {
+  localStorage.setItem('token', token);
+  localStorage.setItem('MaTaiKhoan', user.MaTaiKhoan); // Changed from userId to MaTaiKhoan
+  localStorage.setItem('role', user.Role);
+};
+
+export const clearUserSession = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('MaTaiKhoan'); // Changed from userId to MaTaiKhoan
+  localStorage.removeItem('role');
+};
+
+export const getUserId = () => {
+  return localStorage.getItem('userId');
+};
+
 export const ROLE_PERMISSIONS = {
   admin: [
     '/products',
@@ -84,4 +100,14 @@ export const hasRouteAccess = (path) => {
   if (userRole === 'admin') return true;
   
   return ROLE_PERMISSIONS[userRole]?.includes(path);
+};
+
+export const handleUnauthorized = () => {
+  localStorage.clear();
+  window.location.href = '/dang-nhap'; // Sửa từ /login thành /dang-nhap
+};
+
+export const handleLogout = () => {
+  localStorage.clear();
+  window.location.href = '/dang-nhap'; // Sửa từ /login thành /dang-nhap
 };

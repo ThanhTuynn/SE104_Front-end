@@ -51,7 +51,7 @@ const SignIn = () => {
         
         // Delay chút trước khi chuyển hướng
         setTimeout(() => {
-          navigate('/list-service');
+          navigate('/dashboard');
         }, 500);
       } else {
         throw new Error('Invalid response format from server');
