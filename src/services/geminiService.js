@@ -7,15 +7,18 @@ import React, { useState, useEffect } from 'react';
 import { Input, Button, Spin } from 'antd';
 
 const API_URL = 'http://localhost:3000/api';
-const SYSTEM_PROMPT = `Bạn trợ lý hỗ trợ người dùng trong việc chọn trang sức. Bạn đang làm việc trong cửa hàng bán trang sức. Hãy trả lời:
-- Ngắn gọn, chính xác
-- Lịch sự, không sử dụng ngôn ngữ không phù hợp, 
-- Bằng tiếng Việt
-- Khi chào thì hãy giới thiệu mình là chatbot hỗ trợ khách hàng chọn trang sức và các dịch vụ của cửa hàng
-- Tập trung vào chủ đề được hỏi
-- bạn chỉ được phép chào khách hàng khi khách hàng đã chào trước, còn bình thường thì không được chào
-- không giải đáp các thắc mắc hay các câu hỏi không liên quan đến cửa hàng trang sức
-- Nếu không chắc chắn, hãy nói "Tôi không chắc chắn về điều này"`;
+const SYSTEM_PROMPT = `Bạn là chatbot hỗ trợ khách hàng trong việc chọn lựa trang sức tại cửa hàng. Vui lòng tuân thủ các yêu cầu sau:
+- Trả lời ngắn gọn, chính xác và lịch sự.
+- Gọi người dùng là "quý khách".
+- Không sử dụng ngôn ngữ không phù hợp.
+- Trả lời bằng tiếng Việt.
+- sắp xếp các sản phẩm khi đưa ra cho khách hàng, chỉ cần nói ra tên và giá của sản phẩm.
+- liệt kê các sản phẩm sao cho dễ xem và hiểu,đánh dấu số thứ tự mỗi sản phẩm, mỗi lần liệt kê không quá 5 sản phẩm.
+- Khi chào, hãy giới thiệu mình là chatbot hỗ trợ chọn trang sức và các dịch vụ của cửa hàng.
+- Tập trung vào chủ đề mà khách hàng yêu cầu.
+- Bạn chỉ được phép chào khách hàng khi khách hàng đã chủ động chào trước.
+- Không giải đáp các câu hỏi không liên quan đến cửa hàng trang sức.
+- Nếu không chắc chắn, hãy trả lời "Tôi không chắc chắn về điều này".`;
 
 // Create axios instance
 const axiosInstance = axios.create({
@@ -41,79 +44,54 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-class GeminiService {
-  constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  }
-
-  truncateMessage(message, maxLength = 5000) {
-    return message.length > maxLength ? message.substring(0, maxLength) + "..." : message;
-  }
-
-  chunkMessage(message, chunkSize = 4000) {
-    const chunks = [];
-    for (let i = 0; i < message.length; i += chunkSize) {
-      chunks.push(message.slice(i, i + chunkSize));
-    }
-    return chunks;
-  }
-}
-
-const geminiInstance = new GeminiService();
+// Initialize Gemini with flash model
+const genAI = new GoogleGenerativeAI(process.env.REACT_APP_GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export const chatbotApi = {
   sendMessage: async (message) => {
     try {
-      // Debug localStorage data
-      console.log('All localStorage data:', {
-        token: localStorage.getItem('token'),
-        userData: localStorage.getItem('userData'),
-        userId: localStorage.getItem('userId'),
-        MaTaiKhoan: localStorage.getItem('MaTaiKhoan')
-      });
+      // Get real-time product data
+      const productsResponse = await axiosInstance.get('/product/get-all');
+      const products = productsResponse.data;
 
-      const truncatedMessage = geminiInstance.truncateMessage(message);
-      
-      // Get Gemini response first
-      const result = await geminiInstance.model.generateContent(
-        `${SYSTEM_PROMPT}\n\nUser: ${truncatedMessage}`
-      );
-      const response = await result.response;
-      const botResponse = response.text();
+      // Process user message with Gemini
+      const context = `
+        ${SYSTEM_PROMPT}
+        Sản phẩm trong cửa hàng:
+        ${products.map((p, index) => `
+          ${index + 1}. [Mã: ${p.MaSanPham}] ${p.TenSanPham} - ${p.DonGia.toLocaleString('vi-VN')}VND
+          Chi tiết: ${p.MoTa || 'Chưa có mô tả'}
+          Loại: ${p.category?.TenLoaiSanPham || 'Chưa phân loại'}
+          Tồn kho: ${p.SoLuong} chiếc
+        `).join('\n')}
+        
+        Tin nhắn khách hàng: ${message}
+      `;
 
-      // Try getting userId from different possible storage keys
+      const result = await model.generateContent(context);
+      const botResponse = result.response.text();
+
+      // Save conversation
       const userId = localStorage.getItem('MaTaiKhoan') || 
-                    (localStorage.getItem('userData') ? JSON.parse(localStorage.getItem('userData')).userId : null) ||
-                    localStorage.getItem('userId');
-
-      console.log('Using userId for chat:', userId);
+                    JSON.parse(localStorage.getItem('userData'))?.userId;
 
       if (userId) {
-        try {
-          // Save user message
-          const userMessageResponse = await axiosInstance.post('/chatbot/message', {
-            MaTaiKhoan: parseInt(userId),
-            TinNhan: truncatedMessage,
-            RoleTinNhan: 'user'
-          });
-          console.log('User message saved:', userMessageResponse.data);
+        await axiosInstance.post('/chatbot/message', {
+          MaTaiKhoan: parseInt(userId),
+          TinNhan: message,
+          RoleTinNhan: 'user'
+        });
 
-          // Save bot response
-          const botMessageResponse = await axiosInstance.post('/chatbot/message', {
-            MaTaiKhoan: parseInt(userId),
-            TinNhan: botResponse,
-            RoleTinNhan: 'bot'
-          });
-          console.log('Bot message saved:', botMessageResponse.data);
-        } catch (error) {
-          console.error('Error saving messages:', error.response?.data || error);
-        }
-      } else {
-        console.warn('No user ID found in any storage location');
+        await axiosInstance.post('/chatbot/message', {
+          MaTaiKhoan: parseInt(userId),
+          TinNhan: botResponse,
+          RoleTinNhan: 'bot'
+        });
       }
 
       return botResponse;
+
     } catch (error) {
       console.error("Error in sendMessage:", error);
       throw error;
@@ -145,16 +123,24 @@ export const chatbotApi = {
 
   clearChatHistory: async () => {
     try {
-      const userId = localStorage.getItem('userId');
+      const userId = localStorage.getItem('MaTaiKhoan') || 
+                    (localStorage.getItem('userData') ? JSON.parse(localStorage.getItem('userData')).userId : null) ||
+                    localStorage.getItem('userId');
+      
       if (!userId) {
-        return []; // Return empty array if not logged in
+        throw new Error('Không tìm thấy ID người dùng');
       }
 
+      console.log('Attempting to clear chat history for user:', userId);
+      
       const response = await axiosInstance.delete(`/chatbot/messages/${userId}`);
-      return response.data;
+      
+      console.log('Clear history response:', response);
+      
+      return response.data.success;
     } catch (error) {
-      console.error("Error clearing chat history:", error);
-      throw error;
+      console.error("Error clearing chat history:", error.response?.data || error);
+      throw new Error(error.response?.data?.message || 'Failed to clear chat history');
     }
   }
 };
@@ -251,4 +237,3 @@ const Chatbot = () => {
 };
 
 export default Chatbot;
-

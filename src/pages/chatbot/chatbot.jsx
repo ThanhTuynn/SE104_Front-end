@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Button, Spin, message } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import './chatbot.css';
 import { chatbotApi } from '../../services/geminiService';
 
@@ -60,10 +61,35 @@ const Chatbot = () => {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử chat?')) {
+      try {
+        setIsLoading(true);
+        await chatbotApi.clearChatHistory();
+        setMessages([]);
+        message.success('Lịch sử chat đã được xóa thành công');
+      } catch (error) {
+        console.error('Error clearing chat history:', error);
+        message.error(error.message || 'Không thể xóa lịch sử chat. Vui lòng thử lại sau.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="chatbot-container">
       <div className="chatbot-header">
         <h2>Store Assistant</h2>
+        <Button
+          type="primary"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={handleClearHistory}
+          disabled={isLoading || messages.length === 0}
+        >
+          Xóa lịch sử
+        </Button>
       </div>
       
       <div className="messages-container">

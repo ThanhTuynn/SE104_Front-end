@@ -11,10 +11,24 @@
 }
 
 .chatbot-header {
-  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e8e8e8;
   background: #1890ff;
   color: white;
   border-radius: 10px 10px 0 0;
+}
+
+.chatbot-header button {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.chatbot-header .anticon {
+  margin-right: 5px;
 }
 
 .chatbot-header h2 {
