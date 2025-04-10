@@ -1,70 +1,116 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# 💎 Jewelry Store Management System
 
-## Available Scripts
+## 📘 Project Overview
 
-In the project directory, you can run:
+Đây là đồ án cuối kỳ của môn học **SE104 – Nhập môn Công nghệ phần mềm** tại **Trường Đại học Công nghệ Thông tin – ĐHQG TP.HCM**.  
+Đề tài hướng tới việc xây dựng một **hệ thống quản lý cửa hàng vàng bạc đá quý**, giúp tối ưu hóa các quy trình kinh doanh như: bán hàng, nhập hàng, quản lý dịch vụ, kho, khách hàng và báo cáo.
 
-### `npm start`
+## 👨‍🏫 Instructor
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- TS. Đỗ Thị Thanh Tuyền
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 👥 Team Members – Nhóm 12
 
-### `npm test`
+| Họ và tên                  | MSSV       |
+|---------------------------|------------|
+| Trần Quốc Trung           | 22521569   |
+| Nguyễn Lê Thanh Huyền     | 22520590   |
+| Nguyễn Ngọc Thanh Tuyền   | 22521631   |
+| Võ Thị Phương Uyên        | 22521645   |
+| Nguyễn Minh Bảo           | 23520123   |
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🧩 Key Features
 
-### `npm run build`
+- 🧾 Quản lý phiếu bán hàng, mua hàng, và dịch vụ
+- 📦 Theo dõi tồn kho, xuất nhập hàng hóa
+- 🧑‍🤝‍🧑 Quản lý thông tin khách hàng
+- 📊 Xuất báo cáo kinh doanh và tồn kho
+- 🔐 Phân quyền người dùng (Admin, nhân viên, thủ kho)
+- 📁 Nhập/xuất dữ liệu bằng file Excel
+- ❌ Không cho phép xóa/sửa phiếu sau khi lập
+- ♻️ Hỗ trợ khôi phục dữ liệu đã xoá
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🛠️ Technologies Used
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Ngôn ngữ lập trình: JavaScript / HTML / CSS
+- Backend: Node.js + Express
+- Database: MySQL
+- Kiến trúc: 3 lớp (Client - Web Server - Database Server)
+- Mô hình phát triển: Waterfall
+- Kỹ thuật: Lập trình hướng đối tượng (OOP)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## ⚙️ System Architecture
 
-### `npm run eject`
+```
+Client (Browser: Chrome/Firefox)
+   ↕️ (HTTP)
+Web Server (Node.js + Express)
+   ↕️ (SQL)
+Database Server (MySQL)
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 💽 Installation Guide
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 💻 Yêu cầu hệ thống
+- Node.js >= v16
+- MySQL >= 8.0
+- Trình duyệt web hiện đại (Chrome/Edge)
+- Bộ công cụ văn phòng hỗ trợ Excel
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 🔧 Cách cài đặt
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+1. Clone repo về máy:
+```bash
+git clone https://github.com/<your-username>/jewelry-store-management.git
+cd jewelry-store-management
+```
 
-## Learn More
+2. Cài đặt dependencies (nếu dùng Node.js)
+```bash
+npm install
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+3. Tạo database và import file `schema.sql` trong thư mục `/database`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+4. Cập nhật file `.env` cấu hình thông tin DB
 
-### Code Splitting
+5. Chạy server:
+```bash
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+6. Mở trình duyệt và truy cập `http://localhost:3000`
 
-### Analyzing the Bundle Size
+## 🧪 Testing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+- Kiểm thử đơn vị (unit test): các hàm xử lý dữ liệu
+- Kiểm thử tích hợp: quy trình bán hàng – tồn kho – báo cáo
+- Kiểm thử hệ thống: kiểm tra toàn bộ chức năng qua giao diện người dùng
+- Dữ liệu demo có sẵn để test: `data/demo_data.xlsx`
 
-### Making a Progressive Web App
+## 🧠 Achievements
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+- Giao diện trực quan, dễ sử dụng
+- Hoàn thành đầy đủ các chức năng quản lý nghiệp vụ
+- Tích hợp bảo mật và phân quyền chi tiết
+- Hỗ trợ xuất nhập dữ liệu linh hoạt
 
-### Advanced Configuration
+## 🌱 Future Development
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+- Tích hợp quét mã vạch
+- Thêm chức năng thanh toán điện tử
+- Giao diện tương thích thiết bị di động
+- Phân tích dữ liệu và gợi ý nhập hàng thông minh
+- Kết nối chuỗi cửa hàng nhiều chi nhánh
 
-### Deployment
+## 📚 References
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- Giáo trình môn Nhập môn Công nghệ phần mềm – UIT
+- Hướng dẫn sử dụng MySQL và Node.js
+- Tài liệu kỹ thuật thiết kế hệ thống 3 lớp
+- [W3Schools](https://www.w3schools.com/) – HTML, CSS, JS basics
 
-### `npm run build` fails to minify
+## 📄 License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is licensed for academic and educational use only.
